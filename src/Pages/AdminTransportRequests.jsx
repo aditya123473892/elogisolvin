@@ -381,7 +381,7 @@ export default function AdminTransportRequests() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm">
                       <div className="flex items-center text-gray-900 font-medium">
-                        <DollarSign className="h-4 w-4 mr-1" />
+                      
                         ₹{request.requested_price}
                       </div>
                       <div className="text-xs text-gray-500 mt-1">

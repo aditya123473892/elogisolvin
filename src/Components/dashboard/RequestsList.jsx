@@ -82,7 +82,7 @@ const RequestsList = ({
                       Total Amount
                     </p>
                     <p className="text-sm text-gray-900">
-                      ${request.sale_amount || 0}
+                      ₹{request.sale_amount || 0}
                     </p>
                   </div>
                 </div>

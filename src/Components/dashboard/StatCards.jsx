@@ -19,7 +19,7 @@ const StatsCards = () => {
     },
     {
       title: "Total Spent",
-      value: "$7,500",
+      value: "₹7,500",
       icon: DollarSign,
       bgColor: "bg-purple-100",
       iconColor: "text-purple-600",

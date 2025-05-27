@@ -38,12 +38,12 @@ export default function CustomerDashboard({
     delivery_location: "",
     commodity: "",
     cargo_type: "",
-    cargo_weight: 0,
+    cargo_weight: '',
     service_type: [],
     service_prices: {},
     expected_pickup_date: "",
     expected_delivery_date: "",
-    requested_price: 0,
+    requested_price: '',
     status: "Pending",
     admin_comment: "",
   });
@@ -151,12 +151,12 @@ export default function CustomerDashboard({
       delivery_location: "",
       commodity: "",
       cargo_type: "",
-      cargo_weight: 0,
+      cargo_weight: '',
       service_type: [],
       service_prices: {},
       expected_pickup_date: "",
       expected_delivery_date: "",
-      requested_price: 0,
+      requested_price: '',
       status: "Pending",
       admin_comment: "",
     });
@@ -274,7 +274,7 @@ export default function CustomerDashboard({
     return (
       <div className="w-full mt-2">
         <div className="flex justify-between mb-1 text-xs font-medium">
-          <div>Billing Request</div>
+          <div>Journey Request</div>
           <div>Vehicle Assigned</div>
           <div>Out For Delivery</div>
           <div>Delivered</div>
@@ -432,7 +432,7 @@ export default function CustomerDashboard({
                             Date:{" "}
                             {new Date(request.created_at).toLocaleDateString()}
                           </div>
-                          <div>Price: ${request.requested_price}</div>
+                          <div>Price: ₹{request.requested_price}</div>
                           <div>Vehicle: {request.vehicle_type}</div>
                           <div>
                             Service:

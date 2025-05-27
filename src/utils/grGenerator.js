@@ -11,7 +11,7 @@ export const generateGR = (request, transporterDetails) => {
     // Header with date and eLOGFreight info
     doc.setFontSize(8);
     doc.text(new Date().toLocaleDateString(), 14, 10);
-    doc.text("eLOGFreight - GR Print", doc.internal.pageSize.width / 2, 10, {
+    doc.text("ELOGISOL - GR Print", doc.internal.pageSize.width / 2, 10, {
       align: "center",
     });
 
@@ -24,13 +24,13 @@ export const generateGR = (request, transporterDetails) => {
     // Company Logo placeholder (left side)
     doc.rect(14, 20, 25, 25); // Logo placeholder box
     doc.setFontSize(6);
-    doc.text("SP CARGO PVT LTD", 16, 35);
+    doc.text("TEAM ELOGISOL PVT. LTD.", 16, 35);
 
     // Main Company Header
     doc.setFontSize(16);
     doc.setTextColor(0, 0, 255);
     doc.text(
-      transporterDetails?.transporter_name || "SPJ CARGO PVT LTD.",
+      "TEAM ELOGISOL PVT. LTD.",
       doc.internal.pageSize.width / 2,
       25,
       { align: "center" }
@@ -48,9 +48,9 @@ export const generateGR = (request, transporterDetails) => {
     // Company Address
     doc.setFontSize(8);
     const addressLines = [
-      "D-9/1, Ground Floor, Gali No. 8, Dwaraka, South West Delhi-110020",
-      "PAN NO.: AAOCS1758E, GSTN NO.:07AAOCS1758E1ZS",
-      "Contact No.:9285148316,8750183312,8750189777,8750189877",
+      "Office Address: E-6, 3rd Floor, Office No-3, Kalkaji, New Delhi 110019",
+      "Phone: +91-11-49061530, Mobile: +91-9810296622",
+      "E-mail: amit.singh@elogisol.in, Website: www.elogisol.com",
     ];
 
     addressLines.forEach((line, i) => {

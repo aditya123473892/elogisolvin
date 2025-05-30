@@ -1,4 +1,5 @@
 import React from "react";
+import LocationSearchInput from "./LocationSearchInput";
 
 const ServiceRequestForm = ({
   requestData,
@@ -15,7 +16,7 @@ const ServiceRequestForm = ({
     <div className="lg:col-span-2 bg-white rounded-lg shadow">
       <div className="px-6 py-4 border-b border-gray-200">
         <h3 className="text-lg font-medium text-gray-900">
-          Request New Journey 
+          Request New Journey
         </h3>
       </div>
       <div className="p-6">
@@ -208,54 +209,45 @@ const ServiceRequestForm = ({
               <label className="block text-sm font-medium mb-2">
                 Pickup Location
               </label>
-              <input
-                type="text"
-                name="pickup_location"
-                className="w-full border rounded-md p-2"
+              <LocationSearchInput
                 value={requestData.pickup_location}
-                onChange={(e) =>
+                onChange={(value) =>
                   setRequestData((prev) => ({
                     ...prev,
-                    pickup_location: e.target.value,
+                    pickup_location: value,
                   }))
                 }
-                required
+                placeholder="Enter pickup location"
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-2">
                 Stuffing Location
               </label>
-              <input
-                type="text"
-                name="stuffing_location"
-                className="w-full border rounded-md p-2"
+              <LocationSearchInput
                 value={requestData.stuffing_location}
-                onChange={(e) =>
+                onChange={(value) =>
                   setRequestData((prev) => ({
                     ...prev,
-                    stuffing_location: e.target.value,
+                    stuffing_location: value,
                   }))
                 }
-                required
+                placeholder="Enter stuffing location"
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-2">
                 Delivery Location
               </label>
-              <input
-                type="text"
-                name="delivery_location"
-                className="w-full border rounded-md p-2"
+              <LocationSearchInput
                 value={requestData.delivery_location}
-                onChange={(e) =>
+                onChange={(value) =>
                   setRequestData((prev) => ({
                     ...prev,
-                    delivery_location: e.target.value,
+                    delivery_location: value,
                   }))
                 }
-                required
+                placeholder="Enter delivery location"
               />
             </div>
           </div>

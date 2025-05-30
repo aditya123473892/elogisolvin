@@ -38,12 +38,12 @@ export default function CustomerDashboard({
     delivery_location: "",
     commodity: "",
     cargo_type: "",
-    cargo_weight: '',
+    cargo_weight: "",
     service_type: [],
     service_prices: {},
     expected_pickup_date: "",
     expected_delivery_date: "",
-    requested_price: '',
+    requested_price: "",
     status: "Pending",
     admin_comment: "",
   });
@@ -151,12 +151,12 @@ export default function CustomerDashboard({
       delivery_location: "",
       commodity: "",
       cargo_type: "",
-      cargo_weight: '',
+      cargo_weight: "",
       service_type: [],
       service_prices: {},
       expected_pickup_date: "",
       expected_delivery_date: "",
-      requested_price: '',
+      requested_price: "",
       status: "Pending",
       admin_comment: "",
     });
@@ -337,9 +337,7 @@ export default function CustomerDashboard({
       <main className="flex-1 overflow-auto bg-gray-50 p-6">
         <div className="max-w-7xl mx-auto">
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">
-              Customer Dashboard
-            </h2>
+            <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
             <p className="mt-1 text-sm text-gray-500">
               Welcome back, {user?.name || "Customer"}! Request services and
               manage your shipments
@@ -352,9 +350,7 @@ export default function CustomerDashboard({
             {/* Service Request Form */}
             <div className="lg:col-span-2 bg-white rounded-lg shadow">
               <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900">
-                  {requestData.id ? "Edit Request" : "Request New Journey"}
-                </h3>
+                <h3 className="text-lg font-medium text-gray-900"></h3>
               </div>
               <div className="p-6">
                 <ServiceRequestForm

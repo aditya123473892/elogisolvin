@@ -25,8 +25,8 @@ export const TransporterDetails = ({
         driverContact: "",
         licenseNumber: "",
         licenseExpiry: "",
-        baseCharge: 0,
-        additionalCharges: 0,
+        baseCharge: "",
+        additionalCharges: "",
         totalCharge: 0,
         containerNo: "",
         line: "",
@@ -47,12 +47,12 @@ export const TransporterDetails = ({
       const response = await transporterAPI.getTransporterByRequestId(
         transportRequestId
       );
-  
+
       if (response.success) {
         const details = response.data;
         // Store the transporter ID for future updates
         setTransporterId(details.id);
-  
+
         // In the loadTransporterDetails function, add the new field when mapping from API response
         setTransporterData({
           id: details.id,
@@ -72,7 +72,7 @@ export const TransporterDetails = ({
           sealNo: details.seal_no || "",
           numberOfContainers: details.number_of_containers || "", // New field
         });
-  
+
         // In the handleSubmit function, add the new field to the payload
         const payload = {
           transport_request_id: transportRequestId,
@@ -87,12 +87,19 @@ export const TransporterDetails = ({
           license_number: transporterData.licenseNumber,
           license_expiry: transporterData.licenseExpiry,
           base_charge: parseFloat(transporterData.baseCharge) || 0,
-          additional_charges: parseFloat(transporterData.additionalCharges) || 0,
-          total_charge: parseFloat(transporterData.totalCharge) || parseFloat(transporterData.baseCharge) + parseFloat(transporterData.additionalCharges) || 0,
+          additional_charges:
+            parseFloat(transporterData.additionalCharges) || 0,
+          total_charge:
+            parseFloat(transporterData.totalCharge) ||
+            parseFloat(transporterData.baseCharge) +
+              parseFloat(transporterData.additionalCharges) ||
+            0,
           container_no: transporterData.containerNo || null,
           line: transporterData.line || null,
           seal_no: transporterData.sealNo || null,
-          number_of_containers: transporterData.numberOfContainers ? parseInt(transporterData.numberOfContainers) : null, // New field
+          number_of_containers: transporterData.numberOfContainers
+            ? parseInt(transporterData.numberOfContainers)
+            : null, // New field
         };
         toast.info("Transporter details loaded");
       }
@@ -110,7 +117,7 @@ export const TransporterDetails = ({
       setIsLoading(false);
     }
   };
-  
+
   // Then, use it in the useEffect
   useEffect(() => {
     if (transportRequestId) {
@@ -145,9 +152,13 @@ export const TransporterDetails = ({
         license_expiry: transporterData.licenseExpiry,
         base_charge: parseFloat(transporterData.baseCharge) || 0,
         additional_charges: parseFloat(transporterData.additionalCharges) || 0,
-        total_charge: parseFloat(transporterData.totalCharge) || parseFloat(transporterData.baseCharge) + parseFloat(transporterData.additionalCharges) || 0,
+        total_charge:
+          parseFloat(transporterData.totalCharge) ||
+          parseFloat(transporterData.baseCharge) +
+            parseFloat(transporterData.additionalCharges) ||
+          0,
       };
-      
+
       let response;
 
       // Check if we have an existing transporter ID (either from loaded data or previous save)
@@ -489,9 +500,7 @@ export const TransporterDetails = ({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  Line
-                </label>
+                <label className="block text-sm font-medium mb-2">Line</label>
                 <input
                   type="text"
                   className="w-full border rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -558,12 +567,3 @@ export const TransporterDetails = ({
     </div>
   );
 };
-
-// In the catch block where payload is assigned but not used
-try {
-  // ... code ...
-} catch (error) {
-  // payload is assigned here for debugging purposes
-  const payload = { /* ... */ }; // eslint-disable-line no-unused-vars
-  console.error("Error:", error);
-}

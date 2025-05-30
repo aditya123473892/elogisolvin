@@ -1,7 +1,8 @@
 import axios from "axios";
 
 // Use environment variable with fallback to localhost
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:4000/api";
+const API_BASE_URL =
+  process.env.REACT_APP_API_URL || "http://localhost:4000/api";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -41,6 +42,69 @@ export const authAPI = {
   logout: () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+  },
+};
+
+// NEW: User Management API following the same pattern as transporterAPI
+export const userAPI = {
+  // Get all users (admin only)
+  getAllUsers: async () => {
+    try {
+      const response = await api.get("/users/allusers");
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Get user by ID
+  getUserById: async (userId) => {
+    try {
+      const response = await api.get(`/users/${userId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Update user details
+  updateUser: async (userId, userData) => {
+    try {
+      const response = await api.put(`/users/${userId}`, userData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Update user role (admin only)
+  updateUserRole: async (userId, roleData) => {
+    try {
+      const response = await api.put(`/users/${userId}/role`, roleData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Delete user (admin only)
+  deleteUser: async (userId) => {
+    try {
+      const response = await api.delete(`/users/${userId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Create new user (admin only)
+  createUser: async (userData) => {
+    try {
+      const response = await api.post("/users/create", userData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
   },
 };
 

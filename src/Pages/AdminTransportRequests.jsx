@@ -20,8 +20,6 @@ import {
 import { generateInvoice } from "../utils/pdfGenerator";
 import { generateGR } from "../utils/grGenerator";
 
-
-
 const parseServiceType = (serviceType) => {
   if (!serviceType) return [];
   try {
@@ -74,6 +72,7 @@ export default function AdminTransportRequests() {
       );
       if (response.data.success) {
         setTransporterDetails(response.data.data);
+        console.log("fetched transporter details:", response.data.data);
       } else {
         setTransporterDetails(null);
       }
@@ -96,7 +95,6 @@ export default function AdminTransportRequests() {
         adminComment: adminComment.trim(),
       });
 
-      // Generate GR for approved requests with transporter details
       if (status === "approved" && transporterDetails) {
         const loadingToast = toast.loading("Generating GR...");
         const doc = generateGR(selectedRequest, transporterDetails);
@@ -122,29 +120,32 @@ export default function AdminTransportRequests() {
     try {
       console.log("Starting invoice download for request:", request.id);
       const loadingToast = toast.loading("Generating invoice...");
-  
+
       // Fetch transporter details if not already loaded
       let transporterDetails = null;
       try {
-        const response = await api.get(`/transport-requests/${request.id}/transporter`);
+        const response = await api.get(
+          `/transport-requests/${request.id}/transporter`
+        );
+
         if (response.data.success) {
           transporterDetails = response.data.data;
         }
       } catch (error) {
         console.log("No transporter details found");
       }
-  
+
       const doc = generateInvoice(request, transporterDetails);
-  
+
       if (!doc) {
         throw new Error("Failed to generate PDF document");
       }
-  
+
       const timestamp = new Date().toISOString().split("T")[0];
       const filename = `invoice-${request.id}-${timestamp}.pdf`;
-  
+
       doc.save(filename);
-  
+
       toast.dismiss(loadingToast);
       toast.success("Invoice downloaded successfully!");
     } catch (error) {
@@ -156,31 +157,33 @@ export default function AdminTransportRequests() {
   const handleDownloadGR = async (request) => {
     try {
       const loadingToast = toast.loading("Generating GR...");
+      let transporterData = null;
 
-      // Fetch transporter details if not already loaded
-      if (!transporterDetails) {
+      // Try to fetch transporter details, but continue even if not found
+      try {
         const response = await api.get(
           `/transport-requests/${request.id}/transporter`
         );
-        if (!response.data.success) {
-          throw new Error("No transporter details found");
+        if (response.data.success) {
+          transporterData = response.data.data;
         }
-        setTransporterDetails(response.data.data);
+      } catch (error) {
+        console.log(
+          "Warning: Transporter details not found, continuing with GR generation"
+        );
       }
 
-      const doc = generateGR(request, transporterDetails);
-      const filename = `gr-${request.id}-${
-        new Date().toISOString().split("T")[0]
-      }.pdf`;
-      doc.save(filename);
+      // Generate GR with or without transporter details
+      const doc = generateGR(request, transporterData);
+      const timestamp = new Date().toISOString().split("T")[0];
+      const filename = `gr-${request.id}-${timestamp}.pdf`;
 
+      doc.save(filename);
       toast.dismiss(loadingToast);
       toast.success("GR downloaded successfully!");
     } catch (error) {
       console.error("GR generation error:", error);
-      toast.error(
-        "Failed to generate GR. Please ensure transporter details are available."
-      );
+      toast.error("Failed to generate GR. Please try again.");
     }
   };
 
@@ -381,7 +384,6 @@ export default function AdminTransportRequests() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm">
                       <div className="flex items-center text-gray-900 font-medium">
-                      
                         ₹{request.requested_price}
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
@@ -687,41 +689,129 @@ export default function AdminTransportRequests() {
                 </div>
 
                 {/* Transporter Details */}
-                <div className="mt-4">
-                  <h4 className="text-sm font-medium text-gray-500">Transporter Details</h4>
+                <div className="bg-blue-50 rounded-lg p-6">
+                  <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                    <Truck className="h-5 w-5 mr-2" />
+                    Transporter Details
+                  </h4>
+
                   {transporterDetails ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                      {/* Existing transporter details */}
-                      <div>
-                        <div className="text-xs text-gray-500">Transporter Name</div>
-                        <div className="text-sm text-gray-900">
-                          {transporterDetails.transporter_name}
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Transporter Name
+                          </label>
+                          <div className="text-sm text-gray-900">
+                            {transporterDetails.transporter_name}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Vehicle Number
+                          </label>
+                          <div className="text-sm text-gray-900">
+                            {transporterDetails.vehicle_number}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Vehicle Make
+                          </label>
+                          <div className="text-sm text-gray-900">
+                            {transporterDetails.vehicle_make || "Not specified"}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Model Year
+                          </label>
+                          <div className="text-sm text-gray-900">
+                            {transporterDetails.model_year || "Not specified"}
+                          </div>
                         </div>
                       </div>
-                      {/* ... other existing fields ... */}
-                      
-                      {/* Container Details - Add this section */}
-                      <div className="col-span-2 mt-4">
-                        <h4 className="text-sm font-medium text-gray-500">Container Details</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Driver Name
+                          </label>
+                          <div className="text-sm text-gray-900">
+                            {transporterDetails.driver_name}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Driver Contact
+                          </label>
+                          <div className="text-sm text-gray-900">
+                            {transporterDetails.driver_contact}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            License Number
+                          </label>
+                          <div className="text-sm text-gray-900">
+                            {transporterDetails.license_number}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            License Expiry
+                          </label>
+                          <div className="text-sm text-gray-900">
+                            {transporterDetails.license_expiry
+                              ? new Date(
+                                  transporterDetails.license_expiry
+                                ).toLocaleDateString()
+                              : "Not specified"}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-white p-4 rounded-lg border">
+                        <h5 className="font-medium text-gray-900 mb-3">
+                          Transporter Charges
+                        </h5>
+                        <div className="grid grid-cols-3 gap-4">
                           <div>
-                            <div className="text-xs text-gray-500">Container Number</div>
-                            <div className="text-sm text-gray-900">{transporterDetails.container_no || "Not specified"}</div>
+                            <label className="block text-sm font-medium text-gray-700">
+                              Base Charge
+                            </label>
+                            <div className="text-sm text-gray-900">
+                              ₹{transporterDetails.base_charge}
+                            </div>
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500">Line</div>
-                            <div className="text-sm text-gray-900">{transporterDetails.line || "Not specified"}</div>
+                            <label className="block text-sm font-medium text-gray-700">
+                              Additional Charges
+                            </label>
+                            <div className="text-sm text-gray-900">
+                              ₹{transporterDetails.additional_charges}
+                            </div>
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500">Seal Number</div>
-                            <div className="text-sm text-gray-900">{transporterDetails.seal_no || "Not specified"}</div>
+                            <label className="block text-sm font-medium text-gray-700">
+                              Total Charge
+                            </label>
+                            <div className="text-lg font-semibold text-gray-900">
+                              ₹{transporterDetails.total_charge}
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
                   ) : (
-                    <div className="mt-2 text-sm text-gray-500">
-                      No Transporter Details
+                    <div className="text-center py-8">
+                      <Truck className="mx-auto h-12 w-12 text-gray-400" />
+                      <h3 className="mt-2 text-sm font-medium text-gray-900">
+                        No Transporter Details
+                      </h3>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Transporter details have not been assigned yet.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -847,10 +937,3 @@ export default function AdminTransportRequests() {
     </div>
   );
 }
-
-// Keep this function
-const calculateTotalAmount = (request, transporterDetails) => {
-  const serviceAmount = parseFloat(request.requested_price) || 0;
-  const transportAmount = transporterDetails ? (parseFloat(transporterDetails.total_charge) || 0) : 0;
-  return serviceAmount + transportAmount;
-};

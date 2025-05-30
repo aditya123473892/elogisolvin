@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
-export const generateGR = (request, transporterDetails) => {
+export const generateGR = (request, transporterDetails = null) => {
   const copies = ["Original Copy", "Duplicate Copy", "Triplicate Copy"];
   const doc = new jsPDF();
 
@@ -29,12 +29,9 @@ export const generateGR = (request, transporterDetails) => {
     // Main Company Header
     doc.setFontSize(16);
     doc.setTextColor(0, 0, 255);
-    doc.text(
-      "TEAM ELOGISOL PVT. LTD.",
-      doc.internal.pageSize.width / 2,
-      25,
-      { align: "center" }
-    );
+    doc.text("TEAM ELOGISOL PVT. LTD.", doc.internal.pageSize.width / 2, 25, {
+      align: "center",
+    });
 
     doc.setFontSize(10);
     doc.setTextColor(0, 0, 0);
@@ -58,6 +55,11 @@ export const generateGR = (request, transporterDetails) => {
         align: "center",
       });
     });
+
+    // Use nullish coalescing for transporter details
+    const vehicleNumber = transporterDetails?.vehicle_number ?? "Not Assigned";
+    const driverName = transporterDetails?.driver_name ?? "Not Assigned";
+    const driverContact = transporterDetails?.driver_contact ?? "Not Available";
 
     // Main details table
     const tableData = [
@@ -102,7 +104,7 @@ export const generateGR = (request, transporterDetails) => {
           content: "Trailor/Truck No",
           styles: { fontStyle: "bold", fillColor: [240, 240, 240] },
         },
-        { content: transporterDetails?.vehicle_number || "gr12762" },
+        { content: vehicleNumber },
         {
           content: "Origin",
           styles: { fontStyle: "bold", fillColor: [240, 240, 240] },
@@ -114,7 +116,7 @@ export const generateGR = (request, transporterDetails) => {
           content: "Driver Name",
           styles: { fontStyle: "bold", fillColor: [240, 240, 240] },
         },
-        { content: transporterDetails?.driver_name || "Vikas" },
+        { content: driverName },
         {
           content: "To",
           styles: { fontStyle: "bold", fillColor: [240, 240, 240] },
@@ -126,7 +128,7 @@ export const generateGR = (request, transporterDetails) => {
           content: "Mobile No",
           styles: { fontStyle: "bold", fillColor: [240, 240, 240] },
         },
-        { content: transporterDetails?.driver_contact || "7788690011" },
+        { content: driverContact },
         {
           content: "Handover",
           styles: { fontStyle: "bold", fillColor: [240, 240, 240] },

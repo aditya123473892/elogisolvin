@@ -2,13 +2,33 @@ import React, { useEffect } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
-export const ProtectedRoute = ({ children, allowedRoles }) => {
+export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && user && !allowedRoles.includes(user.role)) {
-      navigate("/dashboard");
+    // Only redirect if user is authenticated but doesn't have proper role
+    if (!loading && user && allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+      // Redirect to user's appropriate dashboard
+      switch (user.role) {
+        case "Admin":
+          navigate("/admin-dashboard", { replace: true });
+          break;
+        case "Customer":
+          navigate("/customer-dashboard", { replace: true });
+          break;
+        case "Driver":
+          navigate("/driver-dashboard", { replace: true });
+          break;
+        case "Accounts":
+          navigate("/accounts-dashboard", { replace: true });
+          break;
+        case "Reports & MIS":
+          navigate("/reports-dashboard", { replace: true });
+          break;
+        default:
+          navigate("/", { replace: true });
+      }
     }
   }, [user, loading, allowedRoles, navigate]);
 
@@ -26,8 +46,8 @@ export const ProtectedRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // If user's role is not in the allowed roles, redirect to appropriate dashboard
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  // If specific roles are required and user doesn't have them, redirect
+  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
     // Redirect based on user's role
     switch (user.role) {
       case "Admin":
@@ -36,8 +56,12 @@ export const ProtectedRoute = ({ children, allowedRoles }) => {
         return <Navigate to="/customer-dashboard" replace />;
       case "Driver":
         return <Navigate to="/driver-dashboard" replace />;
+      case "Accounts":
+        return <Navigate to="/accounts-dashboard" replace />;
+      case "Reports & MIS":
+        return <Navigate to="/reports-dashboard" replace />;
       default:
-        return <Navigate to="/login" replace />;
+        return <Navigate to="/" replace />;
     }
   }
 

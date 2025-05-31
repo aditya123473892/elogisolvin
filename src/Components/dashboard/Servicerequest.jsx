@@ -1,5 +1,133 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import api from "../../utils/Api"; // Adjust the import path as necessary
 import LocationSearchInput from "./LocationSearchInput";
+
+// Customer Selection Component
+const CustomerSearchInput = ({ value, onChange, placeholder }) => {
+  const [customers, setCustomers] = useState([]);
+  const [filteredCustomers, setFilteredCustomers] = useState([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(value || "");
+  const [loading, setLoading] = useState(false);
+
+  // Fetch customers from API
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      setLoading(true); // Set loading to true BEFORE making the API call
+      
+      try {
+        const response = await api.get("/customers/customers");
+        console.log("Customers API Response:", response.data); // Debug log
+        setCustomers(response.data);
+        setFilteredCustomers(response.data);
+      } catch (error) {
+        console.error("Error fetching customers:", error);
+        setCustomers([]);
+        setFilteredCustomers([]);
+      } finally {
+        setLoading(false); // Set loading to false after API call completes
+      }
+    };
+
+    fetchCustomers();
+  }, []);
+
+  // Update searchTerm when value prop changes (for editing scenarios)
+  useEffect(() => {
+    setSearchTerm(value || "");
+  }, [value]);
+
+  // Filter customers based on search term
+  useEffect(() => {
+    if (searchTerm && customers.length > 0) {
+      const filtered = customers.filter(
+        (customer) =>
+          customer.CustomerName?.toLowerCase().includes(
+            searchTerm.toLowerCase()
+          ) ||
+          customer.GSTNumber?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredCustomers(filtered);
+    } else {
+      setFilteredCustomers(customers);
+    }
+  }, [searchTerm, customers]);
+
+  const handleInputChange = (e) => {
+    const inputValue = e.target.value;
+    setSearchTerm(inputValue);
+    onChange(inputValue);
+    setIsOpen(true);
+  };
+
+  const handleCustomerSelect = (customer) => {
+    const customerName = customer.CustomerName || "";
+    setSearchTerm(customerName);
+    onChange(customerName);
+    setIsOpen(false);
+  };
+
+  const handleInputFocus = () => {
+    setIsOpen(true);
+  };
+
+  const handleInputBlur = () => {
+    // Delay closing to allow for selection
+    setTimeout(() => setIsOpen(false), 200);
+  };
+
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        className="w-full border rounded-md p-2"
+        value={searchTerm}
+        onChange={handleInputChange}
+        onFocus={handleInputFocus}
+        onBlur={handleInputBlur}
+        placeholder={placeholder}
+        required
+      />
+
+      {loading && (
+        <div className="absolute right-2 top-2">
+          <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      )}
+
+      {isOpen && filteredCustomers.length > 0 && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+          {filteredCustomers.map((customer) => (
+            <div
+              key={customer.Id || customer.id}
+              className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+              onClick={() => handleCustomerSelect(customer)}
+            >
+              <div className="font-medium text-gray-900">
+                {customer.CustomerName || "Unknown Customer"}
+              </div>
+              <div className="text-sm text-gray-500">
+                GST: {customer.GSTNumber || "N/A"} | {customer.StateCode || "N/A"},{" "}
+                {customer.Country || "N/A"}
+              </div>
+              <div className="text-xs text-gray-400">
+                {customer.BillingAddress || "No address available"}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {isOpen && filteredCustomers.length === 0 && !loading && searchTerm && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
+          <div className="px-3 py-2 text-gray-500 text-sm">
+            No customers found matching "{searchTerm}"
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const ServiceRequestForm = ({
   requestData,
@@ -11,6 +139,32 @@ const ServiceRequestForm = ({
 }) => {
   const submitButtonText = requestData.id ? "Update Request" : "Submit Request";
   const loadingButtonText = requestData.id ? "Updating..." : "Submitting...";
+
+  // Initialize default values if requestData is empty
+  const safeRequestData = {
+    id: "",
+    consignee: "",
+    consigner: "",
+    vehicle_type: "",
+    vehicle_size: "",
+    trailerSize: "",
+    truckSize: "",
+    containers_20ft: 0,
+    containers_40ft: 0,
+    total_containers: 0,
+    pickup_location: "",
+    stuffing_location: "",
+    delivery_location: "",
+    commodity: "",
+    cargo_type: "",
+    cargo_weight: 0,
+    service_type: [],
+    service_prices: {},
+    requested_price: 0,
+    expected_pickup_date: "",
+    expected_delivery_date: "",
+    ...requestData // Override with actual values
+  };
 
   return (
     <div className="lg:col-span-2 bg-white rounded-lg shadow">
@@ -30,28 +184,24 @@ const ServiceRequestForm = ({
               <label className="block text-sm font-medium mb-2">
                 Consignee
               </label>
-              <input
-                type="text"
-                className="w-full border rounded-md p-2"
-                value={requestData.consignee}
-                onChange={(e) =>
-                  setRequestData({ ...requestData, consignee: e.target.value })
+              <CustomerSearchInput
+                value={safeRequestData.consignee}
+                onChange={(value) =>
+                  setRequestData({ ...safeRequestData, consignee: value })
                 }
-                required
+                placeholder="Search and select consignee"
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-2">
                 Consigner
               </label>
-              <input
-                type="text"
-                className="w-full border rounded-md p-2"
-                value={requestData.consigner}
-                onChange={(e) =>
-                  setRequestData({ ...requestData, consigner: e.target.value })
+              <CustomerSearchInput
+                value={safeRequestData.consigner}
+                onChange={(value) =>
+                  setRequestData({ ...safeRequestData, consigner: value })
                 }
-                required
+                placeholder="Search and select consigner"
               />
             </div>
           </div>
@@ -65,7 +215,7 @@ const ServiceRequestForm = ({
               <select
                 name="vehicle_type"
                 className="w-full border rounded-md p-2"
-                value={requestData.vehicle_type}
+                value={safeRequestData.vehicle_type}
                 onChange={(e) =>
                   setRequestData((prev) => ({
                     ...prev,
@@ -83,7 +233,7 @@ const ServiceRequestForm = ({
               </select>
             </div>
 
-            {requestData.vehicle_type === "Trailer" && (
+            {safeRequestData.vehicle_type === "Trailer" && (
               <div>
                 <label className="block text-sm font-medium mb-2">
                   Trailer Size (in feet)
@@ -92,7 +242,7 @@ const ServiceRequestForm = ({
                   type="text"
                   className="w-full border rounded-md p-2"
                   placeholder="Enter trailer size (e.g., 40)"
-                  value={requestData.trailerSize}
+                  value={safeRequestData.vehicle_size}
                   onChange={(e) =>
                     setRequestData((prev) => ({
                       ...prev,
@@ -105,7 +255,7 @@ const ServiceRequestForm = ({
               </div>
             )}
 
-            {requestData.vehicle_type === "Truck" && (
+            {safeRequestData.vehicle_type === "Truck" && (
               <div>
                 <label className="block text-sm font-medium mb-2">
                   Truck Size (in feet)
@@ -114,7 +264,7 @@ const ServiceRequestForm = ({
                   type="text"
                   className="w-full border rounded-md p-2"
                   placeholder="Enter truck size (e.g., 24)"
-                  value={requestData.vehicle_size}
+                  value={safeRequestData.vehicle_size}
                   onChange={(e) =>
                     setRequestData((prev) => ({
                       ...prev,
@@ -144,13 +294,13 @@ const ServiceRequestForm = ({
                     min="0"
                     className="w-full border rounded-md p-2"
                     placeholder="Enter number of 20ft containers"
-                    value={requestData.containers_20ft}
+                    value={safeRequestData.containers_20ft}
                     onChange={(e) =>
                       setRequestData((prev) => ({
                         ...prev,
-                        containers_20ft: Number(e.target.value),
+                        containers_20ft: Number(e.target.value) || 0,
                         total_containers:
-                          Number(e.target.value) + Number(prev.containers_40ft),
+                          (Number(e.target.value) || 0) + (Number(prev.containers_40ft) || 0),
                       }))
                     }
                   />
@@ -167,13 +317,13 @@ const ServiceRequestForm = ({
                     min="0"
                     className="w-full border rounded-md p-2"
                     placeholder="Enter number of 40ft containers"
-                    value={requestData.containers_40ft}
+                    value={safeRequestData.containers_40ft}
                     onChange={(e) =>
                       setRequestData((prev) => ({
                         ...prev,
-                        containers_40ft: Number(e.target.value),
+                        containers_40ft: Number(e.target.value) || 0,
                         total_containers:
-                          Number(prev.containers_20ft) + Number(e.target.value),
+                          (Number(prev.containers_20ft) || 0) + (Number(e.target.value) || 0),
                       }))
                     }
                   />
@@ -182,20 +332,20 @@ const ServiceRequestForm = ({
             </div>
 
             <div className="mt-2 text-sm text-gray-600">
-              Total Containers: {requestData.total_containers}
-              {(requestData.containers_20ft > 0 ||
-                requestData.containers_40ft > 0) && (
+              Total Containers: {safeRequestData.total_containers}
+              {(safeRequestData.containers_20ft > 0 ||
+                safeRequestData.containers_40ft > 0) && (
                 <span className="ml-2">
                   (
-                  {requestData.containers_20ft > 0
-                    ? `${requestData.containers_20ft} × 20ft`
+                  {safeRequestData.containers_20ft > 0
+                    ? `${safeRequestData.containers_20ft} × 20ft`
                     : ""}
-                  {requestData.containers_20ft > 0 &&
-                  requestData.containers_40ft > 0
+                  {safeRequestData.containers_20ft > 0 &&
+                  safeRequestData.containers_40ft > 0
                     ? ", "
                     : ""}
-                  {requestData.containers_40ft > 0
-                    ? `${requestData.containers_40ft} × 40ft`
+                  {safeRequestData.containers_40ft > 0
+                    ? `${safeRequestData.containers_40ft} × 40ft`
                     : ""}
                   )
                 </span>
@@ -210,7 +360,7 @@ const ServiceRequestForm = ({
                 Pickup Location
               </label>
               <LocationSearchInput
-                value={requestData.pickup_location}
+                value={safeRequestData.pickup_location}
                 onChange={(value) =>
                   setRequestData((prev) => ({
                     ...prev,
@@ -225,7 +375,7 @@ const ServiceRequestForm = ({
                 Stuffing Location
               </label>
               <LocationSearchInput
-                value={requestData.stuffing_location}
+                value={safeRequestData.stuffing_location}
                 onChange={(value) =>
                   setRequestData((prev) => ({
                     ...prev,
@@ -240,7 +390,7 @@ const ServiceRequestForm = ({
                 Delivery Location
               </label>
               <LocationSearchInput
-                value={requestData.delivery_location}
+                value={safeRequestData.delivery_location}
                 onChange={(value) =>
                   setRequestData((prev) => ({
                     ...prev,
@@ -261,9 +411,9 @@ const ServiceRequestForm = ({
               <input
                 type="text"
                 className="w-full border rounded-md p-2"
-                value={requestData.commodity}
+                value={safeRequestData.commodity}
                 onChange={(e) =>
-                  setRequestData({ ...requestData, commodity: e.target.value })
+                  setRequestData({ ...safeRequestData, commodity: e.target.value })
                 }
                 required
               />
@@ -274,9 +424,9 @@ const ServiceRequestForm = ({
               </label>
               <select
                 className="w-full border rounded-md p-2"
-                value={requestData.cargo_type}
+                value={safeRequestData.cargo_type}
                 onChange={(e) =>
-                  setRequestData({ ...requestData, cargo_type: e.target.value })
+                  setRequestData({ ...safeRequestData, cargo_type: e.target.value })
                 }
                 required
               >
@@ -295,11 +445,11 @@ const ServiceRequestForm = ({
                 type="number"
                 name="cargo_weight"
                 className="w-full border rounded-md p-2"
-                value={requestData.cargo_weight}
+                value={safeRequestData.cargo_weight}
                 onChange={(e) =>
                   setRequestData((prev) => ({
                     ...prev,
-                    cargo_weight: Number(e.target.value),
+                    cargo_weight: Number(e.target.value) || 0,
                   }))
                 }
                 required
@@ -318,18 +468,18 @@ const ServiceRequestForm = ({
                   <div
                     key={service}
                     className={`border rounded-lg p-3 cursor-pointer transition-all ${
-                      requestData.service_type.includes(service)
+                      safeRequestData.service_type.includes(service)
                         ? "bg-blue-50 border-blue-500 text-blue-700"
                         : "border-gray-300 hover:border-gray-400"
                     }`}
                     onClick={() => {
                       const isSelected =
-                        requestData.service_type.includes(service);
+                        safeRequestData.service_type.includes(service);
                       const updatedServices = isSelected
-                        ? requestData.service_type.filter((s) => s !== service)
-                        : [...requestData.service_type, service];
+                        ? safeRequestData.service_type.filter((s) => s !== service)
+                        : [...safeRequestData.service_type, service];
 
-                      const updatedPrices = { ...requestData.service_prices };
+                      const updatedPrices = { ...safeRequestData.service_prices };
                       if (isSelected) {
                         delete updatedPrices[service];
                       } else {
@@ -342,7 +492,7 @@ const ServiceRequestForm = ({
                       );
 
                       setRequestData({
-                        ...requestData,
+                        ...safeRequestData,
                         service_type: updatedServices,
                         service_prices: updatedPrices,
                         requested_price: total,
@@ -353,14 +503,14 @@ const ServiceRequestForm = ({
                       <input
                         type="checkbox"
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        checked={requestData.service_type.includes(service)}
+                        checked={safeRequestData.service_type.includes(service)}
                         onChange={() => {}}
                         onClick={(e) => e.stopPropagation()}
                       />
                       <span className="ml-2 font-medium">{service}</span>
                     </div>
 
-                    {requestData.service_type.includes(service) && (
+                    {safeRequestData.service_type.includes(service) && (
                       <div className="mt-2">
                         <div className="flex items-center space-x-2">
                           <span className="text-sm text-gray-500">
@@ -370,11 +520,11 @@ const ServiceRequestForm = ({
                             type="number"
                             min="0"
                             className="w-32 border rounded-md p-1 text-sm"
-                            value={requestData.service_prices[service] || ""}
+                            value={safeRequestData.service_prices[service] || ""}
                             onClick={(e) => e.stopPropagation()}
                             onChange={(e) => {
                               const updatedPrices = {
-                                ...requestData.service_prices,
+                                ...safeRequestData.service_prices,
                                 [service]: e.target.value,
                               };
                               const total = Object.values(updatedPrices).reduce(
@@ -382,7 +532,7 @@ const ServiceRequestForm = ({
                                 0
                               );
                               setRequestData({
-                                ...requestData,
+                                ...safeRequestData,
                                 service_prices: updatedPrices,
                                 requested_price: total,
                               });
@@ -397,7 +547,7 @@ const ServiceRequestForm = ({
               </div>
             </div>
 
-            {/* Total Sale Amount - Updated to match backend expected field */}
+            {/* Total Sale Amount */}
             <div className="mt-6">
               <label className="block text-md font-medium mb-2">
                 Total Amount
@@ -409,7 +559,7 @@ const ServiceRequestForm = ({
                 <input
                   type="number"
                   name="requested_price"
-                  value={requestData.requested_price}
+                  value={safeRequestData.requested_price}
                   onChange={(e) =>
                     setRequestData((prev) => ({
                       ...prev,
@@ -437,7 +587,7 @@ const ServiceRequestForm = ({
                 type="date"
                 name="expected_pickup_date"
                 className="w-full border rounded-md p-2"
-                value={requestData.expected_pickup_date}
+                value={safeRequestData.expected_pickup_date}
                 onChange={(e) =>
                   setRequestData((prev) => ({
                     ...prev,
@@ -454,10 +604,10 @@ const ServiceRequestForm = ({
               <input
                 type="date"
                 className="w-full border rounded-md p-2"
-                value={requestData.expected_delivery_date}
+                value={safeRequestData.expected_delivery_date}
                 onChange={(e) =>
                   setRequestData({
-                    ...requestData,
+                    ...safeRequestData,
                     expected_delivery_date: e.target.value,
                   })
                 }
@@ -485,7 +635,7 @@ const ServiceRequestForm = ({
               )}
             </button>
 
-            {requestData.id && (
+            {safeRequestData.id && (
               <button
                 type="button"
                 onClick={handleCancelEdit}

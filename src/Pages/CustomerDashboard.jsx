@@ -7,7 +7,6 @@ import api from "../utils/Api";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
-import { useLoadScript } from "@react-google-maps/api";
 import Header from "../Components/dashboard/Header";
 import StatsCards from "../Components/dashboard/StatCards";
 import { TransporterDetails } from "./Transporterdetails";
@@ -55,12 +54,6 @@ export default function CustomerDashboard({
     vehicleNumber: "",
     driverName: "",
     driverContact: "",
-  });
-
-  // Load Google Places API
-  const { isLoaded } = useLoadScript({
-    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
-    libraries: ["places"],
   });
 
   // Fetch requests function
@@ -309,14 +302,6 @@ export default function CustomerDashboard({
   useEffect(() => {
     fetchRequests();
   }, []);
-
-  if (!isLoaded) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">

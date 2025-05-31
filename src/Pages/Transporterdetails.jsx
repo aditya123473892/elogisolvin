@@ -13,7 +13,6 @@ export const TransporterDetails = ({
   const [transporterId, setTransporterId] = useState(null);
 
   // Initialize transporter data with default values
-  // In the useEffect for initializing transporter data, add the new field
   useEffect(() => {
     if (!transporterData || Object.keys(transporterData).length === 0) {
       setTransporterData({
@@ -31,15 +30,12 @@ export const TransporterDetails = ({
         containerNo: "",
         line: "",
         sealNo: "",
-        numberOfContainers: "", // New field
+        numberOfContainers: "",
       });
     }
   }, [transporterData, setTransporterData]);
 
   // Load existing transporter details if in edit mode or when transportRequestId changes
-  // Update the useEffect dependency array
-  // Update the useEffect dependency array
-  // First, define the loadTransporterDetails function
   const loadTransporterDetails = async () => {
     setIsLoading(true);
     try {
@@ -50,10 +46,11 @@ export const TransporterDetails = ({
 
       if (response.success) {
         const details = response.data;
+        console.log("Transporter Details:", response.data);
         // Store the transporter ID for future updates
         setTransporterId(details.id);
 
-        // In the loadTransporterDetails function, add the new field when mapping from API response
+        // Map API response to component state with proper date formatting
         setTransporterData({
           id: details.id,
           transporterName: details.transporter_name || "",
@@ -63,44 +60,16 @@ export const TransporterDetails = ({
           driverName: details.driver_name || "",
           driverContact: details.driver_contact || "",
           licenseNumber: details.license_number || "",
-          licenseExpiry: details.license_expiry || "",
+          licenseExpiry: details.license_expiry ? details.license_expiry.split('T')[0] : "",
           baseCharge: details.base_charge || 0,
           additionalCharges: details.additional_charges || 0,
           totalCharge: details.total_charge || 0,
           containerNo: details.container_no || "",
           line: details.line || "",
           sealNo: details.seal_no || "",
-          numberOfContainers: details.number_of_containers || "", // New field
+          numberOfContainers: details.number_of_containers || "",
         });
 
-        // In the handleSubmit function, add the new field to the payload
-        const payload = {
-          transport_request_id: transportRequestId,
-          transporter_name: transporterData.transporterName,
-          vehicle_number: transporterData.vehicleNumber,
-          vehicle_make: transporterData.vehicleMake || null,
-          model_year: transporterData.modelYear
-            ? parseInt(transporterData.modelYear)
-            : null,
-          driver_name: transporterData.driverName,
-          driver_contact: transporterData.driverContact,
-          license_number: transporterData.licenseNumber,
-          license_expiry: transporterData.licenseExpiry,
-          base_charge: parseFloat(transporterData.baseCharge) || 0,
-          additional_charges:
-            parseFloat(transporterData.additionalCharges) || 0,
-          total_charge:
-            parseFloat(transporterData.totalCharge) ||
-            parseFloat(transporterData.baseCharge) +
-              parseFloat(transporterData.additionalCharges) ||
-            0,
-          container_no: transporterData.containerNo || null,
-          line: transporterData.line || null,
-          seal_no: transporterData.sealNo || null,
-          number_of_containers: transporterData.numberOfContainers
-            ? parseInt(transporterData.numberOfContainers)
-            : null, // New field
-        };
         toast.info("Transporter details loaded");
       }
     } catch (error) {
@@ -118,12 +87,12 @@ export const TransporterDetails = ({
     }
   };
 
-  // Then, use it in the useEffect
+  // Load transporter details when transportRequestId changes
   useEffect(() => {
     if (transportRequestId) {
       loadTransporterDetails();
     }
-  }, [transportRequestId]); // Remove loadTransporterDetails from dependency array
+  }, [transportRequestId]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -135,9 +104,8 @@ export const TransporterDetails = ({
 
     setIsSubmitting(true);
 
-    // In the handleSubmit function
     try {
-      // In the handleSubmit function, update the payload to include total_charge
+      // Prepare payload for API
       const payload = {
         transport_request_id: transportRequestId,
         transporter_name: transporterData.transporterName,
@@ -157,6 +125,12 @@ export const TransporterDetails = ({
           parseFloat(transporterData.baseCharge) +
             parseFloat(transporterData.additionalCharges) ||
           0,
+        container_no: transporterData.containerNo || null,
+        line: transporterData.line || null,
+        seal_no: transporterData.sealNo || null,
+        number_of_containers: transporterData.numberOfContainers
+          ? parseInt(transporterData.numberOfContainers)
+          : null,
       };
 
       let response;
@@ -414,7 +388,7 @@ export const TransporterDetails = ({
                       baseCharge: parseFloat(e.target.value) || 0,
                       totalCharge:
                         (parseFloat(e.target.value) || 0) +
-                        (prev?.additionalCharges || 0),
+                        (parseFloat(prev?.additionalCharges) || 0),
                     }))
                   }
                   placeholder="Enter base charge"
@@ -436,7 +410,7 @@ export const TransporterDetails = ({
                       ...prev,
                       additionalCharges: parseFloat(e.target.value) || 0,
                       totalCharge:
-                        (prev?.baseCharge || 0) +
+                        (parseFloat(prev?.baseCharge) || 0) +
                         (parseFloat(e.target.value) || 0),
                     }))
                   }
@@ -463,7 +437,7 @@ export const TransporterDetails = ({
           {/* Container Details Section */}
           <div className="bg-gray-50 p-4 rounded-lg space-y-4">
             <h4 className="font-medium text-gray-700">Container Details</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium mb-2">
                   Container Number
@@ -499,6 +473,8 @@ export const TransporterDetails = ({
                   min="1"
                 />
               </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium mb-2">Line</label>
                 <input
@@ -533,6 +509,7 @@ export const TransporterDetails = ({
               </div>
             </div>
           </div>
+
           {/* Submit Button */}
           <div className="flex justify-end">
             <button

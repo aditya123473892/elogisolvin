@@ -2,12 +2,22 @@ import { useState, useCallback, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { generateInvoice } from "../utils/pdfGenerator";
 import ServiceRequestForm from "../Components/dashboard/Servicerequest";
-import { CheckCircle, AlertTriangle, Clock } from "lucide-react";
+import {
+  CheckCircle,
+  AlertTriangle,
+  Clock,
+  Bell,
+  Search,
+  User,
+  LogOut,
+  Settings,
+  Menu,
+  ChevronDown,
+} from "lucide-react";
 import api from "../utils/Api";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
-import Header from "../Components/dashboard/Header";
 import StatsCards from "../Components/dashboard/StatCards";
 import { TransporterDetails } from "./Transporterdetails";
 
@@ -21,6 +31,12 @@ export default function CustomerDashboard({
 }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  // State for header functionality (matching AdminDashboard)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [notifications, setNotifications] = useState([]);
 
   // Simplified request data state
   const [requestData, setRequestData] = useState({
@@ -56,7 +72,26 @@ export default function CustomerDashboard({
     driverContact: "",
   });
 
-  // Fetch requests function
+  // Header functions (matching AdminDashboard)
+  const handleSearch = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const toggleNotifications = () => {
+    setShowNotifications(!showNotifications);
+    if (showUserMenu) setShowUserMenu(false);
+  };
+
+  const toggleUserMenu = () => {
+    setShowUserMenu(!showUserMenu);
+    if (showNotifications) setShowNotifications(false);
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
   const fetchRequests = async () => {
     try {
       const response = await api.get("/transport-requests/my-requests");
@@ -317,7 +352,93 @@ export default function CustomerDashboard({
         pauseOnHover
       />
 
-      <Header />
+      {/* Custom Header matching AdminDashboard style */}
+      <header className="bg-white shadow-sm flex items-center justify-between p-4">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={toggleMobileMenu}
+            className="text-gray-600 md:hidden"
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+          <div className="relative hidden md:block">
+            <input
+              type="text"
+              placeholder="Search..."
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 w-64"
+              value={searchQuery}
+              onChange={handleSearch}
+            />
+            <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-4">
+          {/* Notifications */}
+          <div className="relative">
+            <button
+              onClick={toggleNotifications}
+              className="relative text-gray-600 hover:text-gray-800"
+            >
+              <Bell className="h-6 w-6" />
+              <span className="absolute top-0 right-0 h-3 w-3 bg-red-500 rounded-full border-2 border-white"></span>
+            </button>
+
+            {showNotifications && (
+              <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg z-50">
+                <div className="p-3 border-b">
+                  <h3 className="font-medium">Notifications</h3>
+                </div>
+                <div className="p-4 text-sm text-gray-500">
+                  No new notifications
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* User Menu */}
+          <div className="relative">
+            <button
+              onClick={toggleUserMenu}
+              className="flex items-center text-gray-700 focus:outline-none"
+            >
+              <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white">
+                {user?.name?.charAt(0) || <User className="h-5 w-5" />}
+              </div>
+              <span className="ml-2 hidden md:block">
+                {user?.name || "User"}
+              </span>
+              <ChevronDown className="h-4 w-4 ml-1" />
+            </button>
+
+            {showUserMenu && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg z-50">
+                <div className="py-2 px-4 border-b">
+                  <p className="text-sm font-medium">{user?.name}</p>
+                  <p className="text-xs text-gray-500">{user?.email}</p>
+                </div>
+                <div className="py-1">
+                  <button className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left flex items-center">
+                    <User className="h-4 w-4 mr-2" />
+                    Profile
+                  </button>
+                  <button className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left flex items-center">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Settings
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left flex items-center"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Logout
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
 
       <main className="flex-1 overflow-auto bg-gray-50 p-6">
         <div className="max-w-7xl mx-auto">
@@ -334,10 +455,7 @@ export default function CustomerDashboard({
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Service Request Form */}
             <div className="lg:col-span-2 bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900"></h3>
-              </div>
-              <div className="p-6">
+              <div>
                 <ServiceRequestForm
                   requestData={requestData}
                   setRequestData={setRequestData}

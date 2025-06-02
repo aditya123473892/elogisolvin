@@ -47,18 +47,27 @@ export default function Login() {
       } else {
         // Handle Signup using the auth context
         const response = await signup(formData);
-        
-        toast.success(response.message || "Account created successfully! Please log in.");
+
+        toast.success(
+          response.message || "Account created successfully! Please log in."
+        );
         setIsLogin(true); // Switch to login form after successful signup
-        setFormData({ name: "", email: "", phone: "", password: "", role: "Customer" });
+        setFormData({
+          name: "",
+          email: "",
+          phone: "",
+          password: "",
+          role: "Customer",
+        });
       }
     } catch (err) {
       console.error("Authentication error:", err);
-      const errorMessage = 
-        typeof err === 'string' 
-          ? err 
-          : err.message || "Authentication failed. Please check your credentials.";
-      
+      const errorMessage =
+        typeof err === "string"
+          ? err
+          : err.message ||
+            "Authentication failed. Please check your credentials.";
+
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -212,9 +221,16 @@ export default function Login() {
                       id="phone"
                       name="phone"
                       value={formData.phone}
-                      onChange={handleChange}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Allow only digits
+                        if (/^\d*$/.test(value)) {
+                          setFormData((prev) => ({ ...prev, phone: value }));
+                        }
+                      }}
                       className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="+1 (555) 123-4567"
+                      placeholder="Enter phone number"
+                      maxLength={10}
                       required={!isLogin}
                     />
                   </div>
@@ -299,7 +315,9 @@ export default function Login() {
                     <button
                       type="button"
                       className="font-medium text-blue-600 hover:text-blue-500"
-                      onClick={() => toast.info("Password reset functionality coming soon!")}
+                      onClick={() =>
+                        toast.info("Password reset functionality coming soon!")
+                      }
                     >
                       Forgot password?
                     </button>

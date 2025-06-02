@@ -15,6 +15,7 @@ import { RoleSidebar } from "./Components/RoleSidebar";
 import { useAuth } from "./contexts/AuthContext";
 import AdminTransportRequests from "./Pages/AdminTransportRequests"; // Import the new component
 import EditRequestModal from "./Components/EditRequestModal"; // Import the new component
+import AdminLayout from "./Pages/AdminLayout";
 
 const DashboardLayout = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
@@ -72,14 +73,12 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
 
-          {/* Admin routes */}
+          {/* Admin routes - AdminLayout handles its own sidebar */}
           <Route
             path="/admin-dashboard/*"
             element={
               <ProtectedRoute allowedRoles={["Admin"]}>
-                <DashboardLayout>
-                  <AdminDashboard />
-                </DashboardLayout>
+                <AdminLayout />
               </ProtectedRoute>
             }
           />

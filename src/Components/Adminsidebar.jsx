@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -9,8 +9,11 @@ import {
   FileText,
   Settings,
   ChevronRight,
+  ChevronLeft,
   X,
   LogOut,
+  Shield,
+  Activity,
 } from "lucide-react";
 
 export function AdminSidebar({
@@ -21,24 +24,87 @@ export function AdminSidebar({
   mobileMenuOpen,
   toggleMobileMenu,
 }) {
-  const { logout } = useAuth(); // Get logout function from AuthContext
-  const navigate = useNavigate(); // For redirecting after logout
+  const { logout, user } = useAuth();
+  const navigate = useNavigate();
+  const [hoveredItem, setHoveredItem] = useState(null);
 
-  // Navigation items
+  // Navigation items with descriptions
   const navItems = [
-    { name: "Dashboard", icon: Home, path: "dashboard" },
-    { name: "Users", icon: Users, path: "users" },
-    { name: "Transport  Request", icon: Truck, path: "transport-requests" },
-    { name: "Drivers", icon: Users, path: "drivers" },
-    { name: "Maintenance", icon: Calendar, path: "maintenance" },
-    { name: "Reports", icon: FileText, path: "reports" },
-    { name: "Settings", icon: Settings, path: "settings" },
+    {
+      name: "Dashboard",
+      icon: Home,
+      path: "dashboard",
+      description: "Overview & Analytics",
+    },
+    {
+      name: "Users",
+      icon: Users,
+      path: "users",
+      description: "Manage Users",
+    },
+    {
+      name: "Transport Requests",
+      icon: Truck,
+      path: "transport-requests",
+      description: "Fleet Management",
+    },
+    {
+      name: "Drivers",
+      icon: Shield,
+      path: "drivers",
+      description: "Driver Management",
+    },
+    {
+      name: "Maintenance",
+      icon: Calendar,
+      path: "maintenance",
+      description: "Schedule & Track",
+    },
+    {
+      name: "Reports",
+      icon: FileText,
+      path: "reports",
+      description: "Analytics & Reports",
+    },
+    {
+      name: "Settings",
+      icon: Settings,
+      path: "settings",
+      description: "System Configuration",
+    },
   ];
 
-  // Handle logout
+  // Close mobile menu on escape key
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === "Escape" && mobileMenuOpen) {
+        toggleMobileMenu();
+      }
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [mobileMenuOpen, toggleMobileMenu]);
+
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [mobileMenuOpen]);
+
+  // Handle logout with confirmation
   const handleLogout = () => {
-    logout(); // Call logout function from AuthContext
-    navigate("/login"); // Redirect to login page
+    if (window.confirm("Are you sure you want to logout?")) {
+      logout();
+      navigate("/login");
+    }
   };
 
   // Handle navigation
@@ -49,122 +115,296 @@ export function AdminSidebar({
     } else {
       navigate("/admin-dashboard");
     }
+
+    // Close mobile menu after navigation
+    if (mobileMenuOpen) {
+      toggleMobileMenu();
+    }
+  };
+
+  // Check if current path matches nav item
+  const isActiveItem = (path) => {
+    return activePage === path;
   };
 
   return (
     <>
       {/* Sidebar - Desktop */}
       <div
-        className={`bg-blue-700 text-white ${
-          collapsed ? "w-20" : "w-64"
-        } flex-shrink-0 transition-all duration-300 hidden md:block flex flex-col justify-between`}
+        className={`bg-slate-900 text-white ${
+          collapsed ? "w-16" : "w-64"
+        } flex-shrink-0 transition-all duration-300 ease-in-out hidden md:flex flex-col shadow-2xl border-r border-slate-700 relative`}
       >
-        <div>
-          <div className="flex items-center justify-between p-5">
-            {!collapsed && (
-              <div className="flex items-center">
-                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center mr-3">
-                  <Truck className="h-6 w-6 text-blue-700" />
-                </div>
-                <span className="font-bold text-xl">Fleet Admin</span>
+        {/* Header Section */}
+        <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-800/50">
+          {!collapsed && (
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-lg">
+                <Truck className="h-6 w-6 text-white" />
               </div>
-            )}
-            {collapsed && (
-              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center mx-auto">
-                <Truck className="h-6 w-6 text-blue-700" />
+              <div>
+                <h1 className="font-bold text-lg text-white">Fleet Admin</h1>
+                <p className="text-xs text-slate-400">Management Portal</p>
               </div>
-            )}
-            <button
-              onClick={toggleSidebar}
-              className={`text-white ${collapsed ? "mx-auto" : ""}`}
-            >
-              <ChevronRight
-                className={`h-5 w-5 transition-transform ${
-                  collapsed ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-          </div>
+            </div>
+          )}
+          {collapsed && (
+            <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center mx-auto shadow-lg">
+              <Truck className="h-6 w-6 text-white" />
+            </div>
+          )}
 
-          <div className="mt-5">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={`/admin/${item.path}`}
-                state={{ fromSidebar: true }}
-                className={`flex items-center py-3 px-5 w-full transition-colors duration-200 ${
-                  activePage === item.path
-                    ? "bg-blue-800 border-l-4 border-white"
-                    : "border-l-4 border-transparent hover:bg-blue-600"
-                } ${collapsed ? "justify-center" : ""}`}
-              >
-                <item.icon className="h-5 w-5" />
-                {!collapsed && <span className="ml-3">{item.name}</span>}
-              </Link>
-            ))}
-          </div>
+          {/* Enhanced Toggle Button */}
+          <button
+            onClick={toggleSidebar}
+            className={`p-2 rounded-lg hover:bg-slate-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 group ${
+              collapsed ? "mx-auto mt-2" : ""
+            }`}
+            title={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          >
+            <div className="relative">
+              {collapsed ? (
+                <ChevronRight className="h-5 w-5 transform group-hover:translate-x-0.5 transition-transform duration-200" />
+              ) : (
+                <ChevronLeft className="h-5 w-5 transform group-hover:-translate-x-0.5 transition-transform duration-200" />
+              )}
+            </div>
+          </button>
         </div>
 
-        {/* Logout Button */}
-        <div className="mt-auto mb-5">
+        {/* Navigation Section */}
+        <div className="flex-1 py-4 px-3 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
+          {navItems.map((item, index) => (
+            <div
+              key={item.path}
+              className="relative"
+              onMouseEnter={() => setHoveredItem(item.path)}
+              onMouseLeave={() => setHoveredItem(null)}
+              style={{ animationDelay: `${index * 50}ms` }}
+            >
+              <Link
+                to={
+                  item.path === "dashboard"
+                    ? "/admin-dashboard"
+                    : `/admin/${item.path}`
+                }
+                state={{ fromSidebar: true }}
+                onClick={() => handleNavigation(item.path)}
+                className={`group flex items-center py-3 px-3 rounded-xl transition-all duration-200 relative overflow-hidden ${
+                  isActiveItem(item.path)
+                    ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg transform scale-105"
+                    : "text-slate-300 hover:bg-slate-800 hover:text-white hover:transform hover:scale-105"
+                } ${collapsed ? "justify-center" : ""}`}
+              >
+                {/* Background effect for active item */}
+                {isActiveItem(item.path) && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-blue-700/20 rounded-xl"></div>
+                )}
+
+                <item.icon
+                  className={`h-5 w-5 flex-shrink-0 relative z-10 ${
+                    isActiveItem(item.path)
+                      ? "text-white"
+                      : "text-slate-400 group-hover:text-white"
+                  }`}
+                />
+
+                {!collapsed && (
+                  <div className="ml-3 flex-1 min-w-0 relative z-10">
+                    <div className="font-medium text-sm">{item.name}</div>
+                    <div
+                      className={`text-xs transition-colors duration-200 ${
+                        isActiveItem(item.path)
+                          ? "text-blue-100"
+                          : "text-slate-400 group-hover:text-slate-300"
+                      }`}
+                    >
+                      {item.description}
+                    </div>
+                  </div>
+                )}
+
+                {/* Active indicator */}
+                {isActiveItem(item.path) && (
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-white rounded-r shadow-lg"></div>
+                )}
+
+                {/* Hover effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-slate-700/0 to-slate-700/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-xl"></div>
+              </Link>
+
+              {/* Enhanced Tooltip for collapsed state */}
+              {collapsed && hoveredItem === item.path && (
+                <div className="absolute left-full ml-3 top-1/2 transform -translate-y-1/2 bg-slate-800 text-white px-4 py-3 rounded-lg shadow-xl border border-slate-600 z-50 whitespace-nowrap animate-in slide-in-from-left-2 duration-200">
+                  <div className="font-medium text-sm">{item.name}</div>
+                  <div className="text-xs text-slate-400 mt-1">
+                    {item.description}
+                  </div>
+                  {/* Tooltip arrow */}
+                  <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-2 border-4 border-transparent border-r-slate-800"></div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* User Section & Logout */}
+        <div className="border-t border-slate-700 p-4 space-y-3 bg-slate-800/30">
+          {!collapsed && user && (
+            <div className="flex items-center space-x-3 p-3 bg-slate-800 rounded-xl border border-slate-600/50 hover:bg-slate-700 transition-colors duration-200">
+              <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-lg">
+                {user.name?.charAt(0) || "A"}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-white text-sm truncate">
+                  {user.name || "Admin User"}
+                </p>
+                <p className="text-xs text-slate-400 truncate">
+                  {user.email || "admin@fleet.com"}
+                </p>
+              </div>
+              <div className="w-3 h-3 bg-green-400 rounded-full shadow-lg animate-pulse"></div>
+            </div>
+          )}
+
+          {collapsed && user && (
+            <div className="flex justify-center">
+              <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-lg relative">
+                {user.name?.charAt(0) || "A"}
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-slate-900 animate-pulse"></div>
+              </div>
+            </div>
+          )}
+
           <button
             onClick={handleLogout}
-            className={`flex items-center py-3 px-5 w-full transition-colors duration-200 border-l-4 border-transparent hover:bg-blue-600 ${
+            className={`group flex items-center py-3 px-3 w-full rounded-xl transition-all duration-200 text-red-400 hover:bg-red-900/30 hover:text-red-300 focus:outline-none focus:ring-2 focus:ring-red-500 ${
               collapsed ? "justify-center" : ""
             }`}
+            title="Logout"
           >
-            <LogOut className="h-5 w-5" />
-            {!collapsed && <span className="ml-3">Logout</span>}
+            <LogOut className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
+            {!collapsed && (
+              <span className="ml-3 font-medium text-sm">Logout</span>
+            )}
           </button>
         </div>
       </div>
 
       {/* Mobile Sidebar Overlay */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden">
-          <div className="bg-blue-700 text-white w-64 h-full overflow-y-auto flex flex-col">
-            <div className="flex items-center justify-between p-5">
-              <div className="flex items-center">
-                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center mr-3">
-                  <Truck className="h-6 w-6 text-blue-700" />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] md:hidden">
+          {/* Backdrop */}
+          <div className="absolute inset-0" onClick={toggleMobileMenu} />
+
+          {/* Sidebar */}
+          <div
+            className={`bg-slate-900 text-white w-80 max-w-[85vw] h-full overflow-y-auto flex flex-col shadow-2xl transform transition-all duration-300 ease-out ${
+              mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+            }`}
+          >
+            {/* Mobile Header */}
+            <div className="flex items-center justify-between p-5 border-b border-slate-700 bg-slate-800 sticky top-0 z-10">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-lg">
+                  <Truck className="h-7 w-7 text-white" />
                 </div>
-                <span className="font-bold text-xl">Fleet Admin</span>
+                <div>
+                  <h1 className="font-bold text-xl text-white">Fleet Admin</h1>
+                  <p className="text-xs text-slate-400">Management Portal</p>
+                </div>
               </div>
-              <button onClick={toggleMobileMenu}>
+              <button
+                onClick={toggleMobileMenu}
+                className="p-2 rounded-lg hover:bg-slate-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                aria-label="Close menu"
+              >
                 <X className="h-6 w-6" />
               </button>
             </div>
 
-            <div className="mt-5">
-              {navItems.map((item) => (
+            {/* Mobile Navigation */}
+            <div className="flex-1 py-6 px-4 space-y-2">
+              {navItems.map((item, index) => (
                 <Link
                   key={item.path}
-                  to={`/admin/${item.path}`}
+                  to={
+                    item.path === "dashboard"
+                      ? "/admin-dashboard"
+                      : `/admin/${item.path}`
+                  }
                   state={{ fromSidebar: true }}
-                  onClick={() => {
-                    setActivePage(item.path);
-                    toggleMobileMenu();
-                  }}
-                  className={`flex items-center py-3 px-5 w-full transition-colors duration-200 ${
-                    activePage === item.path
-                      ? "bg-blue-800 border-l-4 border-white"
-                      : "border-l-4 border-transparent hover:bg-blue-600"
+                  onClick={() => handleNavigation(item.path)}
+                  className={`group flex items-center py-4 px-4 rounded-xl transition-all duration-200 relative overflow-hidden ${
+                    isActiveItem(item.path)
+                      ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg"
+                      : "text-slate-300 hover:bg-slate-800 hover:text-white active:bg-slate-700"
                   }`}
+                  style={{ animationDelay: `${index * 50}ms` }}
                 >
-                  <item.icon className="h-5 w-5" />
-                  <span className="ml-3">{item.name}</span>
+                  {/* Background effect */}
+                  {isActiveItem(item.path) && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-blue-700/20 rounded-xl"></div>
+                  )}
+
+                  <item.icon
+                    className={`h-6 w-6 flex-shrink-0 relative z-10 ${
+                      isActiveItem(item.path)
+                        ? "text-white"
+                        : "text-slate-400 group-hover:text-white"
+                    }`}
+                  />
+                  <div className="ml-4 flex-1 relative z-10">
+                    <div className="font-semibold text-base">{item.name}</div>
+                    <div
+                      className={`text-sm mt-1 transition-colors duration-200 ${
+                        isActiveItem(item.path)
+                          ? "text-blue-100"
+                          : "text-slate-400 group-hover:text-slate-300"
+                      }`}
+                    >
+                      {item.description}
+                    </div>
+                  </div>
+                  <ChevronRight
+                    className={`h-5 w-5 relative z-10 transition-transform duration-200 group-hover:translate-x-1 ${
+                      isActiveItem(item.path) ? "text-white" : "text-slate-400"
+                    }`}
+                  />
+
+                  {/* Active indicator */}
+                  {isActiveItem(item.path) && (
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-white rounded-r shadow-lg"></div>
+                  )}
                 </Link>
               ))}
             </div>
 
-            {/* Logout Button for Mobile */}
-            <div className="mt-auto mb-5">
+            {/* Mobile User Section & Logout */}
+            <div className="border-t border-slate-700 p-5 space-y-4 bg-slate-800/30">
+              {user && (
+                <div className="flex items-center space-x-4 p-4 bg-slate-800 rounded-xl border border-slate-600/50">
+                  <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
+                    {user.name?.charAt(0) || "A"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-white text-base truncate">
+                      {user.name || "Admin User"}
+                    </p>
+                    <p className="text-sm text-slate-400 truncate">
+                      {user.email || "admin@fleet.com"}
+                    </p>
+                  </div>
+                  <div className="w-3 h-3 bg-green-400 rounded-full shadow-lg animate-pulse"></div>
+                </div>
+              )}
+
               <button
                 onClick={handleLogout}
-                className="flex items-center py-3 px-5 w-full transition-colors duration-200 border-l-4 border-transparent hover:bg-blue-600"
+                className="group flex items-center py-4 px-4 w-full rounded-xl transition-all duration-200 text-red-400 hover:bg-red-900/30 hover:text-red-300 active:bg-red-900/40 focus:outline-none focus:ring-2 focus:ring-red-500"
               >
-                <LogOut className="h-5 w-5" />
-                <span className="ml-3">Logout</span>
+                <LogOut className="h-6 w-6 group-hover:scale-110 transition-transform duration-200" />
+                <span className="ml-4 font-semibold text-base">Logout</span>
               </button>
             </div>
           </div>

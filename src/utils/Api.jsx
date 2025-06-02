@@ -11,14 +11,87 @@ const api = axios.create({
   },
 });
 
+// Variable to track if we're already handling an auth error to prevent infinite loops
+let isHandlingAuthError = false;
+
 // Add interceptor to add auth token to requests
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
-  return config;
-});
+);
+
+// Add response interceptor to handle token expiration
+api.interceptors.response.use(
+  (response) => {
+    // Reset auth error handling flag on successful responses
+    isHandlingAuthError = false;
+    return response;
+  },
+  (error) => {
+    // Handle authentication errors (401 Unauthorized, 403 Forbidden)
+    if (
+      (error.response?.status === 401 || error.response?.status === 403) &&
+      !isHandlingAuthError
+    ) {
+      isHandlingAuthError = true;
+
+      // Clear authentication data
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+
+      // Show error message
+      console.error("Authentication failed - redirecting to login");
+
+      // Redirect to login page
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// Utility function to check if token is expired
+export const isTokenExpired = (token) => {
+  if (!token) return true;
+
+  try {
+    // Decode JWT token to check expiration
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    const currentTime = Date.now() / 1000;
+
+    // Add 30 second buffer to account for network delays
+    return payload.exp < currentTime + 30;
+  } catch (error) {
+    console.error("Error checking token expiration:", error);
+    return true; // Treat invalid tokens as expired
+  }
+};
+
+// Function to validate token format
+export const isValidTokenFormat = (token) => {
+  if (!token) return false;
+
+  // JWT tokens have 3 parts separated by dots
+  const parts = token.split(".");
+  return parts.length === 3;
+};
+
+// Function to clear authentication data
+export const clearAuthData = () => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+  delete api.defaults.headers.common["Authorization"];
+};
 
 export const authAPI = {
   login: async (credentials) => {
@@ -39,9 +112,54 @@ export const authAPI = {
     }
   },
 
+  // Add token validation endpoint
+  validateToken: async () => {
+    try {
+      const response = await api.get("/auth/validate");
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Add refresh token endpoint (if your backend supports it)
+  refreshToken: async (refreshToken) => {
+    try {
+      const response = await api.post("/auth/refresh", { refreshToken });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
   logout: () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    clearAuthData();
+  },
+
+  // Check if current session is valid
+  checkSession: async () => {
+    const token = localStorage.getItem("token");
+
+    // Check if token exists and has valid format
+    if (!token || !isValidTokenFormat(token)) {
+      return false;
+    }
+
+    // Check if token is expired
+    if (isTokenExpired(token)) {
+      clearAuthData();
+      return false;
+    }
+
+    try {
+      // Validate with server
+      await authAPI.validateToken();
+      return true;
+    } catch (error) {
+      console.error("Session validation failed:", error);
+      clearAuthData();
+      return false;
+    }
   },
 };
 
@@ -219,9 +337,13 @@ export const transportRequestAPI = {
 export const setAuthToken = (token) => {
   if (token) {
     localStorage.setItem("token", token);
+    api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
   } else {
     localStorage.removeItem("token");
+    delete api.defaults.headers.common["Authorization"];
   }
 };
+
+export { api };
 
 export default api;

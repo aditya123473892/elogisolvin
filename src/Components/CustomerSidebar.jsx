@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
-import EditRequestModal from "./EditRequestModal";
+import { useNavigate } from "react-router-dom";
+
+import { useAuth } from "../contexts/AuthContext";
+
 import {
   Home,
   Truck,
@@ -7,12 +10,13 @@ import {
   FileText,
   Settings,
   ChevronRight,
-  X,
   DollarSign,
   MessageSquare,
   Clock,
+  X,
+  LogOut,
 } from "lucide-react";
-import api from "../utils/Api";
+import { api } from "../utils/Api";
 
 export function CustomerSidebar({
   collapsed,
@@ -37,11 +41,16 @@ export function CustomerSidebar({
     { name: "Settings", icon: Settings, path: "settings" },
   ];
 
-
-
   const handleRequestClick = (request) => {
     setSelectedRequest(request);
     setShowEditModal(true);
+  };
+
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
   };
 
   const handleCloseModal = () => {
@@ -114,34 +123,18 @@ export function CustomerSidebar({
             </button>
           ))}
         </div>
-
-        {/* Pending Requests Section */}
-        {!collapsed && pendingRequests.length > 0 && (
-          <div className="mt-8 px-5">
-            <h3 className="text-sm font-semibold uppercase text-white/70 mb-2">
-              Pending Requests
-            </h3>
-            <div className="space-y-2">
-              {pendingRequests.map((request) => (
-                <button
-                  key={request.id}
-                  onClick={() => handleRequestClick(request)}
-                  className="w-full text-left p-2 rounded bg-blue-800/50 hover:bg-blue-800 text-sm flex items-center"
-                >
-                  <Clock className="h-4 w-4 mr-2" />
-                  <div className="overflow-hidden">
-                    <div className="truncate">
-                      {request.vehicle_type} - {request.id}
-                    </div>
-                    <div className="text-xs text-white/70 truncate">
-                      {new Date(request.created_at).toLocaleDateString()}
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Logout Button */}
+        <div className="mt-auto mb-5">
+          <button
+            onClick={handleLogout}
+            className={`flex items-center py-3 px-5 w-full transition-colors duration-200 border-l-4 border-transparent hover:bg-blue-600 ${
+              collapsed ? "justify-center" : ""
+            }`}
+          >
+            <LogOut className="h-5 w-5" />
+            {!collapsed && <span className="ml-3">Logout</span>}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Sidebar Overlay */}
@@ -179,37 +172,15 @@ export function CustomerSidebar({
                 </button>
               ))}
             </div>
-
-            {/* Pending Requests Section for Mobile */}
-            {pendingRequests.length > 0 && (
-              <div className="mt-8 px-5">
-                <h3 className="text-sm font-semibold uppercase text-white/70 mb-2">
-                  Pending Requests
-                </h3>
-                <div className="space-y-2">
-                  {pendingRequests.map((request) => (
-                    <button
-                      key={request.id}
-                      onClick={() => {
-                        handleRequestClick(request);
-                        toggleMobileMenu();
-                      }}
-                      className="w-full text-left p-2 rounded bg-blue-800/50 hover:bg-blue-800 text-sm flex items-center"
-                    >
-                      <Clock className="h-4 w-4 mr-2" />
-                      <div className="overflow-hidden">
-                        <div className="truncate">
-                          {request.vehicle_type} - {request.id}
-                        </div>
-                        <div className="text-xs text-white/70 truncate">
-                          {new Date(request.created_at).toLocaleDateString()}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+          </div>
+          <div className="mt-auto mb-5">
+            <button
+              onClick={handleLogout}
+              className="flex items-center py-3 px-5 w-full transition-colors duration-200 border-l-4 border-transparent hover:bg-blue-600"
+            >
+              <LogOut className="h-5 w-5" />
+              <span className="ml-3">Logout</span>
+            </button>
           </div>
         </div>
       )}

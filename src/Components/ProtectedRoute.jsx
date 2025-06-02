@@ -1,42 +1,70 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
 export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, handleAuthError, isTokenExpired } = useAuth();
   const navigate = useNavigate();
+  const [isValidating, setIsValidating] = useState(true);
 
   useEffect(() => {
-    // Only redirect if user is authenticated but doesn't have proper role
-    if (!loading && user && allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-      // Redirect to user's appropriate dashboard
-      switch (user.role) {
-        case "Admin":
-          navigate("/admin-dashboard", { replace: true });
-          break;
-        case "Customer":
-          navigate("/customer-dashboard", { replace: true });
-          break;
-        case "Driver":
-          navigate("/driver-dashboard", { replace: true });
-          break;
-        case "Accounts":
-          navigate("/accounts-dashboard", { replace: true });
-          break;
-        case "Reports & MIS":
-          navigate("/reports-dashboard", { replace: true });
-          break;
-        default:
-          navigate("/", { replace: true });
-      }
-    }
-  }, [user, loading, allowedRoles, navigate]);
+    const validateAccess = async () => {
+      if (loading) return; // Wait for auth context to finish loading
 
-  // Show loading state while checking authentication
-  if (loading) {
+      // Check if user exists and token is valid
+      if (user) {
+        const token = localStorage.getItem("token");
+
+        // Check if token exists and is not expired
+        if (!token || isTokenExpired(token)) {
+          handleAuthError(
+            navigate,
+            "Your session has expired. Please log in again."
+          );
+          return;
+        }
+
+        // If user has required role, allow access
+        if (allowedRoles.length === 0 || allowedRoles.includes(user.role)) {
+          setIsValidating(false);
+          return;
+        }
+
+        // User doesn't have required role, redirect to their dashboard
+        switch (user.role) {
+          case "Admin":
+            navigate("/admin-dashboard", { replace: true });
+            break;
+          case "Customer":
+            navigate("/customer-dashboard", { replace: true });
+            break;
+          case "Driver":
+            navigate("/driver-dashboard", { replace: true });
+            break;
+          case "Accounts":
+            navigate("/accounts-dashboard", { replace: true });
+            break;
+          case "Reports & MIS":
+            navigate("/reports-dashboard", { replace: true });
+            break;
+          default:
+            navigate("/", { replace: true });
+        }
+      } else {
+        // No user, will be handled by the redirect below
+        setIsValidating(false);
+      }
+    };
+
+    validateAccess();
+  }, [user, loading, allowedRoles, navigate, handleAuthError, isTokenExpired]);
+
+  // Show loading state while checking authentication or validating
+  if (loading || isValidating) {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <span className="ml-3 text-gray-600">Validating access...</span>
       </div>
     );
   }
@@ -46,9 +74,15 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     return <Navigate to="/login" replace />;
   }
 
+  // Check token validity one more time before rendering
+  const token = localStorage.getItem("token");
+  if (!token || isTokenExpired(token)) {
+    handleAuthError(navigate, "Your session has expired. Please log in again.");
+    return <Navigate to="/login" replace />;
+  }
+
   // If specific roles are required and user doesn't have them, redirect
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-    // Redirect based on user's role
     switch (user.role) {
       case "Admin":
         return <Navigate to="/admin-dashboard" replace />;

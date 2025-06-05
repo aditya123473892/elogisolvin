@@ -262,7 +262,7 @@ export const generateInvoice = (request, transporterDetails) => {
     doc.setFontSize(8);
     const terms = [
       "1. Consignor/Consignee will be responsible for paying GST applicable from 1-July-2017.",
-      "2. Cheques/DD should be drawn in favour of JSB CARGO MOVERS PRIVATE LIMITED payable at New Delhi.",
+      "2. Cheques/DD should be drawn in favour of ELOGISOL PRIVATE LIMITED payable at New Delhi.",
       "3. Any discrepancies in the bill should be brought to the notice of the company within 2 week of bill date.",
       "4. GST on \"Road Transportation\" to be paid by Service Recipient under reverse charge i.e. @ 5%.",
       "5. Interest @ 18% p.a. is applicable if invoice is not paid in 30 Days"

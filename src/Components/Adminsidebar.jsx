@@ -250,22 +250,7 @@ export function AdminSidebar({
 
         {/* User Section & Logout */}
         <div className="border-t border-slate-700 p-4 space-y-3 bg-slate-800/30">
-          {!collapsed && user && (
-            <div className="flex items-center space-x-3 p-3 bg-slate-800 rounded-xl border border-slate-600/50 hover:bg-slate-700 transition-colors duration-200">
-              <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-lg">
-                {user.name?.charAt(0) || "A"}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-white text-sm truncate">
-                  {user.name || "Admin User"}
-                </p>
-                <p className="text-xs text-slate-400 truncate">
-                  {user.email || "admin@fleet.com"}
-                </p>
-              </div>
-              <div className="w-3 h-3 bg-green-400 rounded-full shadow-lg animate-pulse"></div>
-            </div>
-          )}
+         
 
           {collapsed && user && (
             <div className="flex justify-center">

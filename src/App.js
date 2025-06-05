@@ -16,6 +16,7 @@ import { useAuth } from "./contexts/AuthContext";
 import AdminTransportRequests from "./Pages/AdminTransportRequests"; // Import the new component
 import EditRequestModal from "./Components/EditRequestModal"; // Import the new component
 import AdminLayout from "./Pages/AdminLayout";
+import ShipmentsPage from "./Pages/Myshipments";
 
 const DashboardLayout = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
@@ -112,6 +113,16 @@ function App() {
               <ProtectedRoute allowedRoles={["Customer"]}>
                 <DashboardLayout>
                   <CustomerDashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/my-shipments" // Changed from "/my-shipments"
+            element={
+              <ProtectedRoute allowedRoles={["Customer"]}>
+                <DashboardLayout>
+                  <ShipmentsPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }

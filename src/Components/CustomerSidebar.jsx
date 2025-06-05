@@ -44,7 +44,7 @@ export function CustomerSidebar({
     {
       name: "My Shipments",
       icon: Truck,
-      path: "shipments",
+      path: "my-shipments",
       description: "Track Deliveries",
     },
     {

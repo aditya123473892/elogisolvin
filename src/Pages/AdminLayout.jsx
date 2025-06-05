@@ -117,7 +117,7 @@ const AdminLayout = () => {
         />
 
         {/* Main Content with Routes */}
-        <main className="flex-1 overflow-y-auto bg-gray-50 p-6">
+  
           <Routes>
             <Route path="/" element={<FleetManagementAdminDashboard />} />
             <Route path="/users" element={<AdminUsers />} />
@@ -126,7 +126,7 @@ const AdminLayout = () => {
               element={<AdminTransportRequests />}
             />
           </Routes>
-        </main>
+     
       </div>
     </div>
   );

@@ -416,7 +416,7 @@ export default function EditRequestModal({ request, onClose, onUpdate }) {
             </div>
             <div>
               <label className="block text-sm font-medium mb-2">
-                Cargo Weight (KG)
+                Total Weight (KG)
               </label>
               <input
                 type="number"
@@ -511,9 +511,7 @@ export default function EditRequestModal({ request, onClose, onUpdate }) {
 
           {/* Total Amount */}
           <div>
-            <label className="block text-sm font-medium mb-2">
-              Total Amount
-            </label>
+            <label className="block text-sm font-medium mb-2"></label>
             <div className="relative">
               <input
                 type="number"

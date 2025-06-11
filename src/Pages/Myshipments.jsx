@@ -171,6 +171,16 @@ const ShipmentsPage = () => {
     toast.success("Shipments data refreshed successfully");
   };
 
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-IN", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -410,26 +420,38 @@ const ShipmentsPage = () => {
                       <div className="flex items-center mb-2">
                         <Truck className="w-4 h-4 text-gray-400 mr-2" />
                         <span className="text-sm font-medium">
-                          {shipment.vehicle_type}
+                          {shipment.vehicle_type} ({shipment.vehicle_size} ft) ×{" "}
+                          {shipment.no_of_vehicles}
                         </span>
                       </div>
-                      <div className="flex flex-wrap gap-1">
-                        {parseServices(shipment.service_type).map(
-                          (service, idx) => (
-                            <span
-                              key={idx}
-                              className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800"
-                            >
-                              {service}
-                            </span>
-                          )
+                      <div className="text-sm text-gray-500">
+                        {shipment.total_containers > 0 && (
+                          <div>
+                            Containers:{" "}
+                            {shipment.containers_20ft > 0 &&
+                              `${shipment.containers_20ft}×20ft`}
+                            {shipment.containers_20ft > 0 &&
+                              shipment.containers_40ft > 0 &&
+                              ", "}
+                            {shipment.containers_40ft > 0 &&
+                              `${shipment.containers_40ft}×40ft`}
+                          </div>
                         )}
                       </div>
                     </td>
 
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        ₹{shipment.requested_price}
+                    <td className="px-6 py-4">
+                      <div className="text-sm">
+                        <div className="font-medium text-gray-900">
+                          ₹{shipment.requested_price}
+                        </div>
+                        <div className="text-gray-500">
+                          ₹
+                          {(
+                            shipment.requested_price / shipment.no_of_vehicles
+                          ).toFixed(2)}{" "}
+                          per vehicle
+                        </div>
                       </div>
                     </td>
 

@@ -72,7 +72,6 @@ export default function AdminTransportRequests() {
       );
       if (response.data.success) {
         setTransporterDetails(response.data.data);
-        console.log("fetched transporter details:", response.data.data);
       } else {
         setTransporterDetails(null);
       }
@@ -718,17 +717,11 @@ export default function AdminTransportRequests() {
                           <label className="block text-sm font-medium text-gray-700">
                             Vehicle Make
                           </label>
-                          <div className="text-sm text-gray-900">
-                            {transporterDetails.vehicle_make || "Not specified"}
-                          </div>
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700">
                             Model Year
                           </label>
-                          <div className="text-sm text-gray-900">
-                            {transporterDetails.model_year || "Not specified"}
-                          </div>
                         </div>
                       </div>
 

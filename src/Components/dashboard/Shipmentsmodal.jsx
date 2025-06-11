@@ -154,7 +154,14 @@ const ShipmentDetailsModal = ({ shipment, onClose, onDownloadInvoice }) => {
             <InfoCard icon={Truck} title="Vehicle & Transport">
               <div className="space-y-1">
                 <InfoRow label="Vehicle Type" value={shipment.vehicle_type} />
-                <InfoRow label="Vehicle Size" value={shipment.vehicle_size} />
+                <InfoRow
+                  label="Vehicle Size"
+                  value={`${shipment.vehicle_size} ft`}
+                />
+                <InfoRow
+                  label="Number of Vehicles"
+                  value={shipment.no_of_vehicles}
+                />
                 {shipment.driver_name && (
                   <>
                     <InfoRow label="Driver" value={shipment.driver_name} />

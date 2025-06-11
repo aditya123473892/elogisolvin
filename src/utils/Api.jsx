@@ -264,16 +264,6 @@ export const transporterAPI = {
       throw error.response?.data || error.message;
     }
   },
-
-  // Get all transporter details (admin only) - New method
-  getAllTransporters: async () => {
-    try {
-      const response = await api.get("/transporter");
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
 };
 
 export const transportRequestAPI = {
@@ -347,3 +337,38 @@ export const setAuthToken = (token) => {
 export { api };
 
 export default api;
+
+export const transporterListAPI = {
+  getAllTransporters: async () => {
+    try {
+      const response = await api.get("/transporterlist/getall");
+      return response.data; // Return direct data since it's already in correct format
+    } catch (error) {
+      console.error("Error fetching transporters:", error);
+      return [];
+    }
+  },
+};
+
+export const servicesAPI = {
+  getAllServices: async () => {
+    try {
+      const response = await api.get("/services/getallservices");
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching services:", error);
+      throw error;
+    }
+  },
+
+  // Add new method for creating service
+  createService: async (serviceData) => {
+    try {
+      const response = await api.post("/services/services", serviceData);
+      return response.data;
+    } catch (error) {
+      console.error("Error creating service:", error);
+      throw error;
+    }
+  },
+};

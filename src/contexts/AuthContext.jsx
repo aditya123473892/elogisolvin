@@ -132,7 +132,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     // Check every 5 minutes
-    const interval = setInterval(validateTokenPeriodically, 100 * 60 * 1000);
+    const interval = setInterval(validateTokenPeriodically, 1000 * 60 * 1000);
 
     return () => clearInterval(interval);
   }, [user, handleAuthError]);

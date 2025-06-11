@@ -45,6 +45,7 @@ export default function CustomerDashboard({
     consigner: "",
     vehicle_type: "",
     vehicle_size: "",
+    no_of_vehicles: "1",
     containers_20ft: 0,
     containers_40ft: 0,
     total_containers: 0,
@@ -97,7 +98,6 @@ export default function CustomerDashboard({
       const response = await api.get("/transport-requests/my-requests");
       if (response.data?.success) {
         setPastRequests(response.data.requests);
-        console.log("Fetched requests:", response.data.requests);
       } else {
         toast.error("Failed to fetch requests");
       }
@@ -119,6 +119,7 @@ export default function CustomerDashboard({
         consigner: requestData.consigner.trim(),
         vehicle_type: requestData.vehicle_type,
         vehicle_size: requestData.vehicle_size,
+        no_of_vehicles: requestData.no_of_vehicles,
         pickup_location: requestData.pickup_location.trim(),
         stuffing_location: requestData.stuffing_location.trim(),
         delivery_location: requestData.delivery_location.trim(),
@@ -173,6 +174,7 @@ export default function CustomerDashboard({
       vehicle_size: "",
       containers_20ft: 0,
       containers_40ft: 0,
+      no_of_vehicles: "",
       total_containers: 0,
       pickup_location: "",
       stuffing_location: "",
@@ -199,6 +201,7 @@ export default function CustomerDashboard({
         consigner: request.consigner || "",
         vehicle_type: request.vehicle_type || "",
         vehicle_size: request.vehicle_size || "",
+        no_of_vehicles: request.no_of_vehicles || "1",
         pickup_location: request.pickup_location || "",
         stuffing_location: request.stuffing_location || "",
         delivery_location: request.delivery_location || "",
@@ -465,10 +468,12 @@ export default function CustomerDashboard({
                 />
 
                 <TransporterDetails
-                  transportRequestId={requestData.id} // Pass the request ID
+                  transportRequestId={requestData.id}
+                  numberOfVehicles={requestData.no_of_vehicles}
                   transporterData={transporterData}
                   setTransporterData={setTransporterData}
-                  isEditMode={Boolean(requestData.id)} // Optional: indicates if we're editing
+                  isEditMode={Boolean(requestData.id)}
+                  selectedServices={requestData.service_type} // Changed from safeRequestData to requestData
                 />
               </div>
             </div>

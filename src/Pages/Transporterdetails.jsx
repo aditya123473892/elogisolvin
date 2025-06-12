@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { transporterAPI, transporterListAPI } from "../utils/Api"; // Import the specific API methods
-
+import VehicleBasicDetailsTable from "../Components/dashboard/Vehiclebasicdetailstable";
+import VehicleChargesTable from "../Components/dashboard/VehicleChargetable";
+import ContainerDetailsTable from "../Components/dashboard/Containerdetailstable";
 const TransporterSearchInput = ({ value, onChange, placeholder }) => {
   const [transporters, setTransporters] = useState([]);
   const [filteredTransporters, setFilteredTransporters] = useState([]);
@@ -148,12 +150,12 @@ export const TransporterDetails = ({
       line: "",
       sealNo: "",
       numberOfContainers: "",
-      seal1: "",                 // Add this
-      seal2: "",                 // Add this
-      containerTotalWeight: "",  // Add this
-      cargoTotalWeight: "",      // Add this
-      containerType: "",         // Add this
-      containerSize: "",         // Add this
+      seal1: "", // Add this
+      seal2: "", // Add this
+      containerTotalWeight: "", // Add this
+      cargoTotalWeight: "", // Add this
+      containerType: "", // Add this
+      containerSize: "", // Add this
     };
 
     // Initialize serviceCharges with zero values for each selected service
@@ -238,33 +240,33 @@ export const TransporterDetails = ({
               }
             });
 
-           // Inside the loadTransporterDetails function, update the mappedData.push call:
-  mappedData.push({
-    id: existingDetail.id,
-    vehicleIndex: i + 1,
-    transporterName: existingDetail.transporter_name || "",
-    vehicleNumber: existingDetail.vehicle_number || "",
-    driverName: existingDetail.driver_name || "",
-    driverContact: existingDetail.driver_contact || "",
-    licenseNumber: existingDetail.license_number || "",
-    licenseExpiry: existingDetail.license_expiry
-      ? existingDetail.license_expiry.split("T")[0]
-      : "",
-    baseCharge: existingDetail.base_charge || "",
-    additionalCharges: existingDetail.additional_charges || "",
-    totalCharge: existingDetail.total_charge || 0,
-    serviceCharges: serviceCharges,
-    containerNo: existingDetail.container_no || "",
-    line: existingDetail.line || "",
-    sealNo: existingDetail.seal_no || "",
-    numberOfContainers: existingDetail.number_of_containers || "",
-    seal1: existingDetail.seal1 || "",                                 // Add this
-    seal2: existingDetail.seal2 || "",                                 // Add this
-    containerTotalWeight: existingDetail.container_total_weight || "",  // Add this
-    cargoTotalWeight: existingDetail.cargo_total_weight || "",         // Add this
-    containerType: existingDetail.container_type || "",                // Add this
-    containerSize: existingDetail.container_size || "",                // Add this
-  });
+            // Inside the loadTransporterDetails function, update the mappedData.push call:
+            mappedData.push({
+              id: existingDetail.id,
+              vehicleIndex: i + 1,
+              transporterName: existingDetail.transporter_name || "",
+              vehicleNumber: existingDetail.vehicle_number || "",
+              driverName: existingDetail.driver_name || "",
+              driverContact: existingDetail.driver_contact || "",
+              licenseNumber: existingDetail.license_number || "",
+              licenseExpiry: existingDetail.license_expiry
+                ? existingDetail.license_expiry.split("T")[0]
+                : "",
+              baseCharge: existingDetail.base_charge || "",
+              additionalCharges: existingDetail.additional_charges || "",
+              totalCharge: existingDetail.total_charge || 0,
+              serviceCharges: serviceCharges,
+              containerNo: existingDetail.container_no || "",
+              line: existingDetail.line || "",
+              sealNo: existingDetail.seal_no || "",
+              numberOfContainers: existingDetail.number_of_containers || "",
+              seal1: existingDetail.seal1 || "", // Add this
+              seal2: existingDetail.seal2 || "", // Add this
+              containerTotalWeight: existingDetail.container_total_weight || "", // Add this
+              cargoTotalWeight: existingDetail.cargo_total_weight || "", // Add this
+              containerType: existingDetail.container_type || "", // Add this
+              containerSize: existingDetail.container_size || "", // Add this
+            });
           } else {
             // Create empty vehicle data for vehicles without existing data
             mappedData.push({
@@ -337,12 +339,14 @@ export const TransporterDetails = ({
             field === "serviceCharges"
           ) {
             const baseCharge = parseFloat(updatedVehicle.baseCharge) || 0;
-            const additionalCharges = parseFloat(updatedVehicle.additionalCharges) || 0;
+            const additionalCharges =
+              parseFloat(updatedVehicle.additionalCharges) || 0;
             const serviceChargesTotal = Object.values(
               updatedVehicle.serviceCharges || {}
             ).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
 
-            updatedVehicle.totalCharge = baseCharge + additionalCharges + serviceChargesTotal;
+            updatedVehicle.totalCharge =
+              baseCharge + additionalCharges + serviceChargesTotal;
           }
           return updatedVehicle;
         }
@@ -412,32 +416,33 @@ export const TransporterDetails = ({
         const serviceChargesJson = JSON.stringify(vehicle.serviceCharges || {});
 
         // ... existing code ...
-       // Inside the handleSubmit function, update the payload:
-  const payload = {
-    transport_request_id: transportRequestId,
-    transporter_name: vehicle.transporterName.trim(),
-    vehicle_number: vehicle.vehicleNumber.trim(),
-    driver_name: vehicle.driverName.trim(),
-    driver_contact: vehicle.driverContact.trim(),
-    license_number: vehicle.licenseNumber.trim(),
-    license_expiry: vehicle.licenseExpiry,
-    base_charge: parseFloat(vehicle.baseCharge) || 0,
-    additional_charges: parseFloat(vehicle.additionalCharges) || 0,
-    service_charges: serviceChargesJson, // Add service charges as JSON string
-    total_charge: parseFloat(vehicle.totalCharge) || 0,
-    container_no: vehicle.containerNo.trim() || null,
-    line: vehicle.line.trim() || null,
-    seal_no: vehicle.sealNo.trim() || null,
-    number_of_containers: vehicle.numberOfContainers
-      ? parseInt(vehicle.numberOfContainers)
-      : null,
-    seal1: vehicle.seal1?.trim() || null,                                // Add this
-    seal2: vehicle.seal2?.trim() || null,                                // Add this
-    container_total_weight: parseFloat(vehicle.containerTotalWeight) || null, // Add this
-    cargo_total_weight: parseFloat(vehicle.cargoTotalWeight) || null,    // Add this
-    container_type: vehicle.containerType?.trim() || null,               // Add this
-    container_size: vehicle.containerSize?.trim() || null,               // Add this
-  };
+        // Inside the handleSubmit function, update the payload:
+        const payload = {
+          transport_request_id: transportRequestId,
+          transporter_name: vehicle.transporterName.trim(),
+          vehicle_number: vehicle.vehicleNumber.trim(),
+          driver_name: vehicle.driverName.trim(),
+          driver_contact: vehicle.driverContact.trim(),
+          license_number: vehicle.licenseNumber.trim(),
+          license_expiry: vehicle.licenseExpiry,
+          base_charge: parseFloat(vehicle.baseCharge) || 0,
+          additional_charges: parseFloat(vehicle.additionalCharges) || 0,
+          service_charges: serviceChargesJson, // Add service charges as JSON string
+          total_charge: parseFloat(vehicle.totalCharge) || 0,
+          container_no: vehicle.containerNo.trim() || null,
+          line: vehicle.line.trim() || null,
+          seal_no: vehicle.sealNo.trim() || null,
+          number_of_containers: vehicle.numberOfContainers
+            ? parseInt(vehicle.numberOfContainers)
+            : null,
+          seal1: vehicle.seal1?.trim() || null, // Add this
+          seal2: vehicle.seal2?.trim() || null, // Add this
+          container_total_weight:
+            parseFloat(vehicle.containerTotalWeight) || null, // Add this
+          cargo_total_weight: parseFloat(vehicle.cargoTotalWeight) || null, // Add this
+          container_type: vehicle.containerType?.trim() || null, // Add this
+          container_size: vehicle.containerSize?.trim() || null, // Add this
+        };
         // ... existing code ...
 
         console.log(`Saving vehicle ${index + 1}:`, payload);
@@ -538,401 +543,23 @@ export const TransporterDetails = ({
       <div className="p-6">
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Vehicle Basic Details Table */}
-          <div>
-            <h4 className="text-lg font-medium text-gray-900 mb-4">
-              Vehicle & Driver Information
-              <span className="text-sm font-normal text-gray-500 ml-2">
-                (All fields marked with * are required)
-              </span>
-            </h4>
-            <div className="overflow-x-auto border rounded-lg">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
-                      Vehicle #
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-40">
-                      Transporter Name *
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-32">
-                      Vehicle Number *
-                    </th>
-
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-32">
-                      Driver Name *
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-32">
-                      Driver Contact *
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-32">
-                      License Number *
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-32">
-                      License Expiry *
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {vehicleDataList.map((vehicle, index) => (
-                    <tr key={`vehicle-${index}`} className="hover:bg-gray-50">
-                      <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
-                        <div className="flex items-center justify-center">
-                          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-semibold">
-                            {vehicle.vehicleIndex}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap">
-                        {/* Replace the select element with TransporterSearchInput */}
-                        <TransporterSearchInput
-                          value={vehicle.transporterName}
-                          onChange={(value) =>
-                            updateVehicleData(index, "transporterName", value)
-                          }
-                          placeholder="Search and select transporter"
-                        />
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap">
-                        <input
-                          type="text"
-                          className="w-full min-w-32 border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          value={vehicle.vehicleNumber}
-                          onChange={(e) =>
-                            updateVehicleData(
-                              index,
-                              "vehicleNumber",
-                              e.target.value.toUpperCase()
-                            )
-                          }
-                          placeholder="e.g., MH01AB1234"
-                          required
-                        />
-                      </td>
-
-                      <td className="px-3 py-4 whitespace-nowrap">
-                        <input
-                          type="text"
-                          className="w-full min-w-32 border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          value={vehicle.driverName}
-                          onChange={(e) =>
-                            updateVehicleData(
-                              index,
-                              "driverName",
-                              e.target.value
-                            )
-                          }
-                          placeholder="Driver full name"
-                          required
-                        />
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap">
-                        <input
-                          type="tel"
-                          className="w-full min-w-32 border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          value={vehicle.driverContact}
-                          onChange={(e) =>
-                            updateVehicleData(
-                              index,
-                              "driverContact",
-                              e.target.value.replace(/\D/g, "").slice(0, 10)
-                            )
-                          }
-                          placeholder="10-digit mobile number"
-                          maxLength="10"
-                          required
-                        />
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap">
-                        <input
-                          type="text"
-                          className="w-full min-w-32 border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          value={vehicle.licenseNumber}
-                          onChange={(e) =>
-                            updateVehicleData(
-                              index,
-                              "licenseNumber",
-                              e.target.value.toUpperCase()
-                            )
-                          }
-                          placeholder="License number"
-                          required
-                        />
-                      </td>
-                      <td className="px-3 py-4 whitespace-nowrap">
-                        <input
-                          type="date"
-                          className="w-full min-w-32 border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          value={vehicle.licenseExpiry}
-                          onChange={(e) =>
-                            updateVehicleData(
-                              index,
-                              "licenseExpiry",
-                              e.target.value
-                            )
-                          }
-                          min={new Date().toISOString().split("T")[0]}
-                          required
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <VehicleBasicDetailsTable
+            vehicleDataList={vehicleDataList}
+            updateVehicleData={updateVehicleData}
+          />
           {/* Charges Table */}
 
           {/* Charges Table */}
-          <div>
-            <h4 className="text-lg font-medium text-gray-900 mb-4">
-              Vehicle Charges
-            </h4>
-            <div className="overflow-x-auto border rounded-lg">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
-                      Vehicle #
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Base Charge (INR) *
-                    </th>
-                    {/* Fixed: Dynamic columns for selected services */}
-                    {services.map((serviceName, idx) => (
-                      <th
-                        key={serviceName}
-                        className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        {serviceName} (INR)
-                      </th>
-                    ))}
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Additional Charges (INR)
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Total Charge (INR)
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {vehicleDataList.map((vehicle, index) => (
-                    <tr key={`charges-${index}`} className="hover:bg-gray-50">
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
-                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-semibold">
-                          {vehicle.vehicleIndex}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <input
-                          type="number"
-                          className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          value={vehicle.baseCharge}
-                          onChange={(e) =>
-                            updateVehicleData(
-                              index,
-                              "baseCharge",
-                              e.target.value
-                            )
-                          }
-                          placeholder="Base charge"
-                          min="0"
-                          step="0.01"
-                          required
-                        />
-                      </td>
-                      {/* Fixed: Service charge inputs */}
-                      {services.map((serviceName) => (
-                        <td
-                          key={serviceName}
-                          className="px-4 py-4 whitespace-nowrap"
-                        >
-                          <input
-                            type="number"
-                            className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            value={vehicle.serviceCharges?.[serviceName] || ""}
-                            onChange={(e) => {
-                              const updatedCharges = {
-                                ...vehicle.serviceCharges,
-                                [serviceName]: e.target.value,
-                              };
-                              updateVehicleData(
-                                index,
-                                "serviceCharges",
-                                updatedCharges
-                              );
+          <VehicleChargesTable
+            vehicleDataList={vehicleDataList}
+            services={services}
+            updateVehicleData={updateVehicleData}
+          />
 
-                              // Recalculate total including service charges
-                              const serviceTotal = Object.values(
-                                updatedCharges
-                              ).reduce(
-                                (sum, val) => sum + (parseFloat(val) || 0),
-                                0
-                              );
-                              const newTotal =
-                                (parseFloat(vehicle.baseCharge) || 0) +
-                                (parseFloat(vehicle.additionalCharges) || 0) +
-                                serviceTotal;
-
-                              updateVehicleData(index, "totalCharge", newTotal);
-                            }}
-                            placeholder={`${serviceName} charge`}
-                            min="0"
-                            step="0.01"
-                          />
-                        </td>
-                      ))}
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <input
-                          type="number"
-                          className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          value={vehicle.additionalCharges}
-                          onChange={(e) => {
-                            updateVehicleData(
-                              index,
-                              "additionalCharges",
-                              e.target.value
-                            );
-
-                            // Recalculate total including additional charges
-                            const serviceTotal = Object.values(
-                              vehicle.serviceCharges || {}
-                            ).reduce(
-                              (sum, val) => sum + (parseFloat(val) || 0),
-                              0
-                            );
-                            const newTotal =
-                              (parseFloat(vehicle.baseCharge) || 0) +
-                              (parseFloat(e.target.value) || 0) +
-                              serviceTotal;
-
-                            updateVehicleData(index, "totalCharge", newTotal);
-                          }}
-                          placeholder="Additional charges"
-                          min="0"
-                          step="0.01"
-                        />
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <input
-                          type="text"
-                          className="w-full border border-gray-300 rounded-md p-2 text-sm bg-gray-50 cursor-not-allowed font-medium text-gray-900"
-                          value={`₹${vehicle.totalCharge.toLocaleString(
-                            "en-IN",
-                            {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            }
-                          )}`}
-                          readOnly
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          {/* Container Details Table */}
-          <div>
-            <h4 className="text-lg font-medium text-gray-900 mb-4">
-              Container Details
-              <span className="text-sm font-normal text-gray-500 ml-2">
-                (Optional)
-              </span>
-            </h4>
-            <div className="overflow-x-auto border rounded-lg">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
-                      Vehicle #
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Container Number
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Number of Containers
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Shipping Line
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Seal Number
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {vehicleDataList.map((vehicle, index) => (
-                    <tr key={`container-${index}`} className="hover:bg-gray-50">
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
-                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-semibold">
-                          {vehicle.vehicleIndex}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <input
-                          type="text"
-                          className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          value={vehicle.containerNo}
-                          onChange={(e) =>
-                            updateVehicleData(
-                              index,
-                              "containerNo",
-                              e.target.value.toUpperCase()
-                            )
-                          }
-                          placeholder="Container number"
-                        />
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <input
-                          type="number"
-                          className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          value={vehicle.numberOfContainers}
-                          onChange={(e) =>
-                            updateVehicleData(
-                              index,
-                              "numberOfContainers",
-                              e.target.value
-                            )
-                          }
-                          placeholder="Number of containers"
-                          min="1"
-                        />
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <input
-                          type="text"
-                          className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          value={vehicle.line}
-                          onChange={(e) =>
-                            updateVehicleData(index, "line", e.target.value)
-                          }
-                          placeholder="Shipping line"
-                        />
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <input
-                          type="text"
-                          className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          value={vehicle.sealNo}
-                          onChange={(e) =>
-                            updateVehicleData(
-                              index,
-                              "sealNo",
-                              e.target.value.toUpperCase()
-                            )
-                          }
-                          placeholder="Seal number"
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <ContainerDetailsTable
+            vehicleDataList={vehicleDataList}
+            updateVehicleData={updateVehicleData}
+          />
           {/* Total Summary */}
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-200">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

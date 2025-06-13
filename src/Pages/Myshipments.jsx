@@ -7,6 +7,7 @@ import ShipmentDetailsModal from "../Components/dashboard/Shipmentsmodal";
 import ShipmentFilters from "../Components/Shipmentfilter";
 import ShipmentSummary from "../Components/ShipmentSummary";
 import ShipmentTable from "../Components/Shipmentstable";
+import { transporterAPI, transporterListAPI } from "../utils/Api";
 
 const ShipmentsPage = () => {
   const [shipments, setShipments] = useState([]);
@@ -18,13 +19,99 @@ const ShipmentsPage = () => {
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState("desc");
   const [selectedShipment, setSelectedShipment] = useState(null);
+  const [containerDetails, setContainerDetails] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingContainerDetails, setIsLoadingContainerDetails] = useState(false);
   const { user } = useAuth();
+  const [vehicleDataList, setVehicleDataList] = useState([]);
+  const [services, setServices] = useState([]);
+  const [numberOfVehicles, setNumberOfVehicles] = useState(1);
+  const [transportRequestId, setTransportRequestId] = useState(null);
 
   useEffect(() => {
     fetchShipments();
   }, []);
+  
+  const initializeVehicleData = (count) => {
+    return Array(count).fill().map((_, index) => ({
+      id: null,
+      vehicleIndex: index + 1,
+      transporterName: "",
+      vehicleNumber: "",
+      driverName: "",
+      driverContact: "",
+      licenseNumber: "",
+      licenseExpiry: "",
+      baseCharge: "",
+      additionalCharges: "",
+      totalCharge: 0,
+      serviceCharges: {},
+      containerNo: "",
+      line: "",
+      sealNo: "",
+      numberOfContainers: "",
+      seal1: "",
+      seal2: "",
+      containerTotalWeight: "",
+      cargoTotalWeight: "",
+      containerType: "",
+      containerSize: ""
+    }));
+  };
+
+  const loadTransporterDetails = async (requestId) => {
+    if (!requestId) return [];
+
+    setIsLoadingContainerDetails(true);
+    try {
+      const response = await transporterAPI.getTransporterByRequestId(requestId);
+
+      if (response.success) {
+        console.log("Container details response:", response);
+        const details = Array.isArray(response.data)
+          ? response.data
+          : [response.data];
+
+        // Map the API response to match the expected format for the modal
+        const mappedContainerDetails = details.map((detail, index) => ({
+          id: detail.id,
+          driver_name: detail.driver_name || "",
+          driver_contact: detail.driver_contact || "",
+          vehicle_number: detail.vehicle_number || "",
+          transporter_name: detail.transporter_name || "",
+          container_no: detail.container_no || "",
+          container_size: detail.container_size || "",
+          container_type: detail.container_type || "",
+          number_of_containers: detail.number_of_containers || "",
+          container_total_weight: detail.container_total_weight || 0,
+          license_number: detail.license_number || "",
+          license_expiry: detail.license_expiry || "",
+          seal1: detail.seal1 || "",
+          seal2: detail.seal2 || "",
+          line: detail.line || "",
+          base_charge: detail.base_charge || 0,
+          additional_charges: detail.additional_charges || 0,
+          total_charge: detail.total_charge || 0,
+          service_charges: detail.service_charges || "{}"
+        }));
+
+        return mappedContainerDetails;
+      }
+      return [];
+    } catch (error) {
+      if (error.status === 404 || error.message?.includes("not found")) {
+        console.log("No existing transporter details found for request:", requestId);
+        return [];
+      } else {
+        console.error("Error loading transporter details:", error);
+        toast.error(error.message || "Error loading container details");
+        return [];
+      }
+    } finally {
+      setIsLoadingContainerDetails(false);
+    }
+  };
 
   const fetchShipments = async () => {
     try {
@@ -103,14 +190,23 @@ const ShipmentsPage = () => {
     sortOrder,
   ]);
 
-  const handleViewDetails = (shipment) => {
+  const handleViewDetails = async (shipment) => {
     setSelectedShipment(shipment);
+    setTransportRequestId(shipment.id);
+    setNumberOfVehicles(shipment.no_of_vehicles || 1);
+    
+    // Load container details before showing modal
+    const containerData = await loadTransporterDetails(shipment.id);
+    setContainerDetails(containerData);
+    
     setShowModal(true);
   };
 
   const handleCloseModal = () => {
     setShowModal(false);
     setSelectedShipment(null);
+    setContainerDetails([]);
+    setTransportRequestId(null);
   };
 
   const handleDownloadInvoice = (shipment) => {
@@ -193,9 +289,20 @@ const ShipmentsPage = () => {
       {showModal && selectedShipment && (
         <ShipmentDetailsModal
           shipment={selectedShipment}
+          containerDetails={containerDetails}
           onClose={handleCloseModal}
           onDownloadInvoice={handleDownloadInvoice}
         />
+      )}
+
+      {/* Loading overlay for container details */}
+      {isLoadingContainerDetails && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-40">
+          <div className="bg-white rounded-lg p-6 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-2 text-gray-600">Loading container details...</p>
+          </div>
+        </div>
       )}
     </div>
   );

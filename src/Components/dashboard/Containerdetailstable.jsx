@@ -31,9 +31,7 @@ const ContainerDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Shipping Line
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Seal Number
-              </th>
+          
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Seal 1
               </th>

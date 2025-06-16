@@ -431,7 +431,7 @@ export const TransporterDetails = ({
           total_charge: parseFloat(vehicle.totalCharge) || 0,
           container_no: vehicle.containerNo.trim() || null,
           line: vehicle.line.trim() || null,
-          seal_no: vehicle.sealNo.trim() || null,
+          seal_no: "1",
           number_of_containers: vehicle.numberOfContainers
             ? parseInt(vehicle.numberOfContainers)
             : null,

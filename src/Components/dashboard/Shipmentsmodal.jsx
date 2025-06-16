@@ -182,14 +182,7 @@ const ShipmentDetailsModal = ({
                       : "N/A"
                   }
                 />
-                <InfoRow
-                  label="Requested Price"
-                  value={
-                    <span className="text-green-600 font-semibold">
-                      ₹{shipment.requested_price?.toLocaleString() || "0"}
-                    </span>
-                  }
-                />
+           
               </div>
             </InfoCard>
 
@@ -536,29 +529,15 @@ const ShipmentDetailsModal = ({
                 className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
               >
                 <span>💰</span>
-                Add Payment
+                Vendor Payment
               </button>
-              {onDownloadInvoice && (
-                <button
-                  onClick={() => onDownloadInvoice(shipment)}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-                >
-                  <span>📥</span>
-                  Download Invoice
-                </button>
-              )}
-              <button
-                onClick={onClose}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
-              >
-                Close
-              </button>
+           
             </div>
 
             {/* Transaction History */}
             <InfoCard
-              iconText="💰"
-              title="Payment Details"
+             
+            
               className="lg:col-span-2 xl:col-span-3"
             >
               {isLoadingTransactions ? (
@@ -571,7 +550,9 @@ const ShipmentDetailsModal = ({
                   transactions={transactions} 
                   totalAmount={transactions.length > 0 && transactions[0].transporter_charge 
                     ? transactions[0].transporter_charge 
-                    : shipment.requested_price} 
+                    : containerDetails && containerDetails.length > 0 && containerDetails[0].total_charge 
+                      ? containerDetails[0].total_charge.toLocaleString()
+                      : 0} 
                 />
               )}
             </InfoCard>
@@ -610,7 +591,10 @@ const ShipmentDetailsModal = ({
       {/* Payment Modal */}
       {showPaymentModal && (
         <PaymentModal
-          shipment={shipment}
+          shipment={{
+            ...shipment,
+            transporter_details: containerDetails && containerDetails.length > 0 ? containerDetails[0] : null
+          }}
           onClose={() => setShowPaymentModal(false)}
           onPaymentComplete={handlePaymentComplete}
         />

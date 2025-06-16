@@ -49,11 +49,14 @@ api.interceptors.response.use(
 
       // Show error message
       console.error("Authentication failed - redirecting to login");
-
-      // Redirect to login page
-      if (window.location.pathname !== "/login") {
-        window.location.href = "/login";
-      }
+      
+      // Use setTimeout to delay the redirect slightly, giving time for any toast messages to appear
+      setTimeout(() => {
+        // Redirect to login page
+        if (window.location.pathname !== "/login") {
+          window.location.href = "/login";
+        }
+      }, 1500); // 1.5 second delay
     }
 
     return Promise.reject(error);

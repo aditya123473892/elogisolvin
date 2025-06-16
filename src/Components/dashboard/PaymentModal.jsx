@@ -66,10 +66,11 @@ const PaymentModal = ({ shipment, onClose, onPaymentComplete }) => {
         // If no transaction exists, create a new one
         const transactionData = {
           request_id: shipment.id,
-          transporter_id: shipment.transporter_id || 1, // Default if not available
+          transporter_id: shipment.transporter_id || (shipment.transporter_details ? shipment.transporter_details.id : 1),
           gr_no: `GR-${shipment.id}-${Date.now().toString().slice(-6)}`, // Generate a unique GR number
           payment_amount: formData.payment_amount,
           payment_mode: formData.payment_mode,
+          payment_date: formData.payment_date, // Make sure this is included
           remarks: formData.remarks
         };
         
@@ -85,16 +86,25 @@ const PaymentModal = ({ shipment, onClose, onPaymentComplete }) => {
       }
     } catch (error) {
       console.error("Payment error:", error);
-      toast.error(error.response?.data?.message || "An error occurred while processing payment");
+      // Check if it's an authentication error
+      if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+        toast.error("Your session has expired. Please log in again.");
+        // Don't close the modal yet - let the interceptor handle the redirect
+      } else {
+        toast.error(error.response?.data?.message || "An error occurred while processing payment");
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
+  
 
   // Calculate remaining amount
   const totalAmount = existingTransaction && existingTransaction.transporter_charge 
     ? parseFloat(existingTransaction.transporter_charge) 
-    : parseFloat(shipment.requested_price || 0);
+    : shipment.transporter_details && shipment.transporter_details.total_charge 
+      ? parseFloat(shipment.transporter_details.total_charge) 
+      : 0;
   const totalPaid = existingTransaction ? parseFloat(existingTransaction.total_paid || 0) : 0;
   const remainingAmount = Math.max(0, totalAmount - totalPaid);
 
@@ -124,14 +134,14 @@ const PaymentModal = ({ shipment, onClose, onPaymentComplete }) => {
           <div className="mb-6 grid grid-cols-2 gap-4">
               <div className="bg-blue-50 p-3 rounded-lg text-center">
                 <div className="text-xs text-gray-500">Total Amount</div>
-                <div className="font-semibold text-blue-600">₹{totalAmount}</div>
+                <div className="font-semibold text-blue-600">₹{totalAmount.toLocaleString()}</div>
               </div>
               <div className="bg-green-50 p-3 rounded-lg text-center">
                 <div className="text-xs text-gray-500">Remaining</div>
                 <div className="font-semibold text-green-600">₹{remainingAmount.toLocaleString()}</div>
               </div>
             </div>
-            
+                            
             <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

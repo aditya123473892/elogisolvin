@@ -1,171 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { servicesAPI } from "../../utils/Api";
-import api from "../../utils/Api";
 import LocationSearchInput from "./LocationSearchInput";
-import NewServiceModal from "./NewServiceModal";
-
-const parsePrice = (value) => {
-  const parsed = parseFloat(value);
-  return isNaN(parsed) ? 0 : parsed;
-};
-
-// Customer Selection Component
-const CustomerSearchInput = ({ value, onChange, placeholder }) => {
-  const [customers, setCustomers] = useState([]);
-  const [filteredCustomers, setFilteredCustomers] = useState([]);
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(value || "");
-  const [loading, setLoading] = useState(false);
-
-  // Fetch customers from API
-  useEffect(() => {
-    const fetchCustomers = async () => {
-      setLoading(true); // Set loading to true BEFORE making the API call
-
-      try {
-        const response = await api.get("/customers/customers");
-
-        // Check if response exists and has valid data
-        if (response?.data) {
-          try {
-            // If data is a string, try to parse it
-            const customerData =
-              typeof response.data === "string"
-                ? JSON.parse(response.data)
-                : response.data;
-
-            // Validate that we have an array
-            const validCustomers = Array.isArray(customerData)
-              ? customerData
-              : [];
-
-            setCustomers(validCustomers);
-            setFilteredCustomers(validCustomers);
-          } catch (parseError) {
-            console.error("Error parsing customer data:", parseError);
-            setCustomers([]);
-            setFilteredCustomers([]);
-          }
-        } else {
-          console.warn("Invalid or missing customer data in response");
-          setCustomers([]);
-          setFilteredCustomers([]);
-        }
-      } catch (error) {
-        console.error("Error fetching customers:", error);
-        setCustomers([]);
-        setFilteredCustomers([]);
-      } finally {
-        setLoading(false); // Set loading to false after API call completes
-      }
-    };
-
-    fetchCustomers();
-  }, []);
-
-  // Update searchTerm when value prop changes (for editing scenarios)
-  useEffect(() => {
-    setSearchTerm(value || "");
-  }, [value]);
-
-  // Filter customers based on search term
-  useEffect(() => {
-    if (searchTerm && Array.isArray(customers) && customers.length > 0) {
-      const filtered = customers.filter(
-        (customer) =>
-          (customer?.CustomerName || "")
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          (customer?.GSTNumber || "")
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase())
-      );
-      setFilteredCustomers(filtered);
-    } else {
-      setFilteredCustomers(customers || []);
-    }
-  }, [searchTerm, customers]);
-
-  const handleInputChange = (e) => {
-    const inputValue = e.target.value;
-    setSearchTerm(inputValue);
-    onChange(inputValue);
-    setIsOpen(true);
-  };
-
-  const handleCustomerSelect = (customer) => {
-    if (!customer) {
-      console.warn("No customer data provided");
-      return;
-    }
-
-    const customerName = customer.CustomerName || "";
-    setSearchTerm(customerName);
-    onChange(customerName);
-    setIsOpen(false);
-  };
-
-  const handleInputFocus = () => {
-    setIsOpen(true);
-  };
-
-  const handleInputBlur = () => {
-    // Delay closing to allow for selection
-    setTimeout(() => setIsOpen(false), 200);
-  };
-
-  return (
-    <div className="relative">
-      <input
-        type="text"
-        className="w-full border rounded-md p-2"
-        value={searchTerm}
-        onChange={handleInputChange}
-        onFocus={handleInputFocus}
-        onBlur={handleInputBlur}
-        placeholder={placeholder}
-        required
-      />
-
-      {loading && (
-        <div className="absolute right-2 top-2">
-          <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-500"></div>
-        </div>
-      )}
-
-      {isOpen && filteredCustomers.length > 0 && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-          {filteredCustomers.map((customer) => (
-            <div
-              key={customer.Id || customer.id}
-              className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-              onClick={() => handleCustomerSelect(customer)}
-            >
-              <div className="font-medium text-gray-900">
-                {customer.CustomerName || "Unknown Customer"}
-              </div>
-              <div className="text-sm text-gray-500">
-                GST: {customer.GSTNumber || "N/A"} |{" "}
-                {customer.StateCode || "N/A"}, {customer.Country || "N/A"}
-              </div>
-              <div className="text-xs text-gray-400">
-                {customer.BillingAddress || "No address available"}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {isOpen && filteredCustomers.length === 0 && !loading && searchTerm && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
-          <div className="px-3 py-2 text-gray-500 text-sm">
-            No customers found matching "{searchTerm}"
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
+import CustomerSearchInput from "../dashboard/CustomerSearchinput";
+import ServicesSelection from "../dashboard/ServiceSelection";
 
 const ServiceRequestForm = ({
   requestData,
@@ -186,7 +23,7 @@ const ServiceRequestForm = ({
     vehicle_size: "",
     trailerSize: "",
     truckSize: "",
-    no_of_vehicles: 1, // Default to 1
+    no_of_vehicles: 1,
     containers_20ft: 0,
     containers_40ft: 0,
     total_containers: 0,
@@ -201,11 +38,10 @@ const ServiceRequestForm = ({
     requested_price: 0,
     expected_pickup_date: "",
     expected_delivery_date: "",
-    transporterDetails: [], // Add this array to store multiple transporter details
-    ...requestData, // Override with actual values if they exist
+    transporterDetails: [],
+    ...requestData,
   };
 
-  // Ensure no_of_vehicles is properly parsed and has a valid value
   const currentNoOfVehicles = parseInt(safeRequestData.no_of_vehicles) || 1;
 
   // Helper function to create transporter details array based on number of vehicles
@@ -230,7 +66,7 @@ const ServiceRequestForm = ({
     return newArray;
   };
 
-  // Add state for services
+  // Services state
   const [services, setServices] = useState([]);
   const [loadingServices, setLoadingServices] = useState(false);
   const [isNewServiceModalOpen, setIsNewServiceModalOpen] = useState(false);
@@ -247,9 +83,27 @@ const ServiceRequestForm = ({
     }
   };
 
-  // Add handler for new service that includes refetching
   const handleServiceAdded = async (newService) => {
-    await fetchServices(); // Refresh the services list
+    await fetchServices();
+  };
+
+  const handleServiceToggle = (serviceName, isSelected) => {
+    const updatedServices = isSelected
+      ? safeRequestData.service_type.filter((s) => s !== serviceName)
+      : [...safeRequestData.service_type, serviceName];
+
+    const updatedPrices = { ...safeRequestData.service_prices };
+    if (isSelected) {
+      delete updatedPrices[serviceName];
+    } else {
+      updatedPrices[serviceName] = "0";
+    }
+
+    setRequestData({
+      ...safeRequestData,
+      service_type: updatedServices,
+      service_prices: updatedPrices,
+    });
   };
 
   useEffect(() => {
@@ -387,7 +241,7 @@ const ServiceRequestForm = ({
                 value={currentNoOfVehicles}
                 onChange={(e) => {
                   const newValue = parseInt(e.target.value) || 1;
-                  const validValue = Math.max(1, Math.min(50, newValue)); // Ensure value is between 1 and 50
+                  const validValue = Math.max(1, Math.min(50, newValue));
 
                   setRequestData((prev) => {
                     const updatedData = {
@@ -606,118 +460,16 @@ const ServiceRequestForm = ({
           </div>
 
           {/* Services Required */}
-          <div className="space-y-6">
-            <div className="flex justify-between items-center mb-4">
-              <label className="block text-sm font-medium">
-                Services Required
-              </label>
-              <button
-                type="button"
-                onClick={() => setIsNewServiceModalOpen(true)}
-                className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
-                Add New Service
-              </button>
-            </div>
-            {loadingServices ? (
-              <div className="flex justify-center py-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {services.map((service) => (
-                  <div
-                    key={service.SERVICE_ID}
-                    className={`border rounded-lg p-3 cursor-pointer transition-all ${
-                      safeRequestData.service_type.includes(
-                        service.SERVICE_NAME
-                      )
-                        ? "bg-blue-50 border-blue-500 text-blue-700"
-                        : "border-gray-300 hover:border-gray-400"
-                    }`}
-                    onClick={() => {
-                      const isSelected = safeRequestData.service_type.includes(
-                        service.SERVICE_NAME
-                      );
-                      const updatedServices = isSelected
-                        ? safeRequestData.service_type.filter(
-                            (s) => s !== service.SERVICE_NAME
-                          )
-                        : [
-                            ...safeRequestData.service_type,
-                            service.SERVICE_NAME,
-                          ];
-
-                      const updatedPrices = {
-                        ...safeRequestData.service_prices,
-                      };
-                      if (isSelected) {
-                        delete updatedPrices[service.SERVICE_NAME];
-                      } else {
-                        updatedPrices[service.SERVICE_NAME] = "0";
-                      }
-
-                      setRequestData({
-                        ...safeRequestData,
-                        service_type: updatedServices,
-                        service_prices: updatedPrices,
-                      });
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                          checked={safeRequestData.service_type.includes(
-                            service.SERVICE_NAME
-                          )}
-                          onChange={() => {}}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <span className="ml-2 font-medium">
-                          {service.SERVICE_NAME}
-                        </span>
-                      </div>
-                      <span className="text-xs text-gray-500">
-                        {service.SERVICE_CODE}
-                      </span>
-                    </div>
-
-                    {safeRequestData.service_type.includes(
-                      service.SERVICE_NAME
-                    ) && (
-                      <div className="mt-2">
-                        <div className="text-xs text-gray-500">
-                          Unit: {service.UNIT}
-                          {service.TAX_ON_PERCENTAGE > 0 && (
-                            <span className="ml-2">
-                              Tax: {service.TAX_ON_PERCENTAGE}%
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Total Sale Amount */}
+          <ServicesSelection
+            services={services}
+            loadingServices={loadingServices}
+            selectedServices={safeRequestData.service_type}
+            servicePrices={safeRequestData.service_prices}
+            onServiceToggle={handleServiceToggle}
+            isNewServiceModalOpen={isNewServiceModalOpen}
+            setIsNewServiceModalOpen={setIsNewServiceModalOpen}
+            onServiceAdded={handleServiceAdded}
+          />
 
           {/* Dates */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -793,13 +545,6 @@ const ServiceRequestForm = ({
             )}
           </div>
         </form>
-
-        {/* New Service Modal */}
-        <NewServiceModal
-          isOpen={isNewServiceModalOpen}
-          onClose={() => setIsNewServiceModalOpen(false)}
-          onServiceAdded={handleServiceAdded}
-        />
       </div>
     </div>
   );

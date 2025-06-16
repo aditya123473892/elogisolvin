@@ -22,7 +22,8 @@ const ShipmentsPage = () => {
   const [containerDetails, setContainerDetails] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingContainerDetails, setIsLoadingContainerDetails] = useState(false);
+  const [isLoadingContainerDetails, setIsLoadingContainerDetails] =
+    useState(false);
   const { user } = useAuth();
   const [vehicleDataList, setVehicleDataList] = useState([]);
   const [services, setServices] = useState([]);
@@ -32,32 +33,46 @@ const ShipmentsPage = () => {
   useEffect(() => {
     fetchShipments();
   }, []);
-  
+
   const initializeVehicleData = (count) => {
-    return Array(count).fill().map((_, index) => ({
-      id: null,
-      vehicleIndex: index + 1,
-      transporterName: "",
-      vehicleNumber: "",
-      driverName: "",
-      driverContact: "",
-      licenseNumber: "",
-      licenseExpiry: "",
-      baseCharge: "",
-      additionalCharges: "",
-      totalCharge: 0,
-      serviceCharges: {},
-      containerNo: "",
-      line: "",
-      sealNo: "",
-      numberOfContainers: "",
-      seal1: "",
-      seal2: "",
-      containerTotalWeight: "",
-      cargoTotalWeight: "",
-      containerType: "",
-      containerSize: ""
-    }));
+    return Array(count)
+      .fill()
+      .map((_, index) => ({
+        id: null,
+        vehicleIndex: index + 1,
+        transporterName: "",
+        vehicleNumber: "",
+        driverName: "",
+        driverContact: "",
+        licenseNumber: "",
+        licenseExpiry: "",
+        baseCharge: "",
+        additionalCharges: "",
+        totalCharge: 0,
+        serviceCharges: {},
+        containerNo: "",
+        line: "",
+        sealNo: "",
+        numberOfContainers: "",
+        seal1: "",
+        seal2: "",
+        containerTotalWeight: "",
+        cargoTotalWeight: "",
+        containerType: "",
+        containerSize: "",
+      }));
+  };
+
+  // Helper function to calculate total amount for a request
+  const calculateRequestTotalAmount = (containerDetails) => {
+    if (!Array.isArray(containerDetails) || containerDetails.length === 0) {
+      return 0;
+    }
+
+    return containerDetails.reduce((total, detail) => {
+      const vehicleTotal = parseFloat(detail.total_charge || 0);
+      return total + vehicleTotal;
+    }, 0);
   };
 
   const loadTransporterDetails = async (requestId) => {
@@ -65,7 +80,9 @@ const ShipmentsPage = () => {
 
     setIsLoadingContainerDetails(true);
     try {
-      const response = await transporterAPI.getTransporterByRequestId(requestId);
+      const response = await transporterAPI.getTransporterByRequestId(
+        requestId
+      );
 
       if (response.success) {
         console.log("Container details response:", response);
@@ -93,20 +110,40 @@ const ShipmentsPage = () => {
           base_charge: detail.base_charge || 0,
           additional_charges: detail.additional_charges || 0,
           total_charge: detail.total_charge || 0,
-          service_charges: detail.service_charges || "{}"
+          service_charges: detail.service_charges || "{}",
         }));
+
+        // Calculate the total amount for this request
+        const requestTotalAmount = calculateRequestTotalAmount(
+          mappedContainerDetails
+        );
+        console.log(
+          `Total amount for request ${requestId}:`,
+          requestTotalAmount
+        );
 
         // Fetch transaction data for this request
         try {
-          const transactionResponse = await api.get(`/transactions/request/${requestId}`);
-          if (transactionResponse.data.success && transactionResponse.data.data.length > 0) {
+          const transactionResponse = await api.get(
+            `/transactions/request/${requestId}`
+          );
+          if (
+            transactionResponse.data.success &&
+            transactionResponse.data.data.length > 0
+          ) {
             // Add transaction data to the first container detail
             const transaction = transactionResponse.data.data[0];
             if (mappedContainerDetails.length > 0) {
               mappedContainerDetails[0].transaction = transaction;
-              // If transaction has transporter_charge, use it as the authoritative total
-              if (transaction.transporter_charge) {
-                mappedContainerDetails[0].total_charge = parseFloat(transaction.transporter_charge);
+
+              // Compare transaction amount with calculated total
+              const transactionAmount = parseFloat(
+                transaction.transporter_charge || 0
+              );
+              if (transactionAmount !== requestTotalAmount) {
+                console.warn(
+                  `Amount mismatch for request ${requestId}: Transaction amount: ${transactionAmount}, Calculated total: ${requestTotalAmount}`
+                );
               }
             }
           }
@@ -114,12 +151,21 @@ const ShipmentsPage = () => {
           console.log("No transaction data found for request:", requestId);
         }
 
+        // Add the calculated total amount to each detail for reference
+        mappedContainerDetails.forEach((detail) => {
+          detail.request_total_amount = requestTotalAmount;
+          detail.individual_vehicle_charge = detail.total_charge; // Keep individual charge separate
+        });
+
         return mappedContainerDetails;
       }
       return [];
     } catch (error) {
       if (error.status === 404 || error.message?.includes("not found")) {
-        console.log("No existing transporter details found for request:", requestId);
+        console.log(
+          "No existing transporter details found for request:",
+          requestId
+        );
         return [];
       } else {
         console.error("Error loading transporter details:", error);
@@ -135,9 +181,48 @@ const ShipmentsPage = () => {
     try {
       const response = await api.get("/transport-requests/my-requests");
       if (response.data?.success) {
-        setShipments(response.data.requests);
-        setFilteredShipments(response.data.requests);
-        console.log("Fetched shipments:", response.data.requests);
+        // Process shipments to include calculated total amounts
+        const shipmentsWithTotals = await Promise.all(
+          response.data.requests.map(async (shipment) => {
+            try {
+              // Fetch transporter details for each shipment to calculate total
+              const transporterResponse =
+                await transporterAPI.getTransporterByRequestId(shipment.id);
+              if (transporterResponse.success) {
+                const details = Array.isArray(transporterResponse.data)
+                  ? transporterResponse.data
+                  : [transporterResponse.data];
+
+                const calculatedTotal = calculateRequestTotalAmount(details);
+
+                return {
+                  ...shipment,
+                  requested_price: calculatedTotal, // Override requested_price with calculated total
+                  original_requested_price: shipment.requested_price, // Keep original for reference
+                  vehicle_count: details.length,
+                };
+              }
+            } catch (error) {
+              console.log(
+                `No transporter details found for shipment ${shipment.id}`
+              );
+            }
+
+            return {
+              ...shipment,
+              requested_price: parseFloat(shipment.requested_price || 0),
+              original_requested_price: shipment.requested_price,
+              vehicle_count: shipment.no_of_vehicles || 1,
+            };
+          })
+        );
+
+        setShipments(shipmentsWithTotals);
+        setFilteredShipments(shipmentsWithTotals);
+        console.log(
+          "Fetched shipments with calculated totals:",
+          shipmentsWithTotals
+        );
       }
     } catch (error) {
       console.error("Error fetching shipments:", error);
@@ -212,11 +297,31 @@ const ShipmentsPage = () => {
     setSelectedShipment(shipment);
     setTransportRequestId(shipment.id);
     setNumberOfVehicles(shipment.no_of_vehicles || 1);
-    
+
     // Load container details before showing modal
     const containerData = await loadTransporterDetails(shipment.id);
-    setContainerDetails(containerData);
-    
+
+    // Calculate the total amount from container details
+    const requestTotalAmount = calculateRequestTotalAmount(containerData);
+
+    // Ensure each container detail has the correct total amount
+    const updatedContainerData = containerData.map((detail) => ({
+      ...detail,
+      request_total_amount: requestTotalAmount, // Use the calculated requestTotalAmount
+      total_charge: detail.total_charge || 0,
+    }));
+
+    setContainerDetails(updatedContainerData);
+
+    // Update the selected shipment with the calculated total amount
+    const updatedShipment = {
+      ...shipment,
+      total_amount: requestTotalAmount, // Pass requestTotalAmount as total_amount
+      vehicle_total_amount: requestTotalAmount,
+      requested_price: requestTotalAmount, // Also update requested_price if needed
+    };
+
+    setSelectedShipment(updatedShipment);
     setShowModal(true);
   };
 
@@ -306,7 +411,11 @@ const ShipmentsPage = () => {
       {/* Modal for shipment details */}
       {showModal && selectedShipment && (
         <ShipmentDetailsModal
-          shipment={selectedShipment}
+          shipment={{
+            ...selectedShipment,
+            total_amount: selectedShipment.requested_price, // Ensure total amount is available
+            vehicle_total_amount: selectedShipment.requested_price,
+          }}
           containerDetails={containerDetails}
           onClose={handleCloseModal}
           onDownloadInvoice={handleDownloadInvoice}

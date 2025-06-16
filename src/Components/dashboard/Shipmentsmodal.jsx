@@ -13,7 +13,7 @@ const ShipmentDetailsModal = ({
   const [transactions, setTransactions] = useState([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  
+
   useEffect(() => {
     if (shipment && shipment.id) {
       fetchTransactions(shipment.id);
@@ -42,7 +42,7 @@ const ShipmentDetailsModal = ({
     }
     toast.success("Payment recorded successfully");
   };
-  
+
   if (!shipment) return null;
 
   const getStatusBadge = (status) => {
@@ -100,6 +100,32 @@ const ShipmentDetailsModal = ({
     } catch {
       return {};
     }
+  };
+  const getTotalAmount = () => {
+    // First priority: Use the total_amount from shipment (which should be requestTotalAmount)
+    if (shipment.total_amount) {
+      return shipment.total_amount;
+    }
+
+    // Second priority: Use transporter_charge from transaction
+    if (transactions.length > 0 && transactions[0].transporter_charge) {
+      return parseFloat(transactions[0].transporter_charge);
+    }
+
+    // Third priority: Calculate from container details
+    if (containerDetails && containerDetails.length > 0) {
+      const calculatedTotal = containerDetails.reduce((total, detail) => {
+        return total + parseFloat(detail.total_charge || 0);
+      }, 0);
+      return calculatedTotal;
+    }
+
+    // Fallback: Use requested_price from shipment
+    if (shipment.requested_price) {
+      return parseFloat(shipment.requested_price);
+    }
+
+    return 0;
   };
 
   const formatDate = (dateString) => {
@@ -182,7 +208,6 @@ const ShipmentDetailsModal = ({
                       : "N/A"
                   }
                 />
-           
               </div>
             </InfoCard>
 
@@ -319,7 +344,6 @@ const ShipmentDetailsModal = ({
             </InfoCard>
 
             {/* Services & Pricing */}
-           
 
             {/* Container Details */}
             {containerDetails && containerDetails.length > 0 && (
@@ -523,7 +547,7 @@ const ShipmentDetailsModal = ({
                 </div>
               </InfoCard>
             )}
-              <div className="flex gap-3">
+            <div className="flex gap-3">
               <button
                 onClick={() => setShowPaymentModal(true)}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
@@ -531,28 +555,21 @@ const ShipmentDetailsModal = ({
                 <span>💰</span>
                 Vendor Payment
               </button>
-           
             </div>
 
             {/* Transaction History */}
-            <InfoCard
-             
-            
-              className="lg:col-span-2 xl:col-span-3"
-            >
+            <InfoCard className="lg:col-span-2 xl:col-span-3">
               {isLoadingTransactions ? (
                 <div className="text-center py-4">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="mt-2 text-gray-600">Loading payment details...</p>
+                  <p className="mt-2 text-gray-600">
+                    Loading payment details...
+                  </p>
                 </div>
               ) : (
-                <TransactionHistory 
-                  transactions={transactions} 
-                  totalAmount={transactions.length > 0 && transactions[0].transporter_charge 
-                    ? transactions[0].transporter_charge 
-                    : containerDetails && containerDetails.length > 0 && containerDetails[0].total_charge 
-                      ? containerDetails[0].total_charge.toLocaleString()
-                      : 0} 
+                <TransactionHistory
+                  transactions={transactions}
+                  totalAmount={getTotalAmount()}
                 />
               )}
             </InfoCard>
@@ -583,17 +600,23 @@ const ShipmentDetailsModal = ({
                 ? formatDateTime(shipment.updated_at)
                 : "N/A"}
             </div>
-          
           </div>
         </div>
       </div>
-      
+
       {/* Payment Modal */}
       {showPaymentModal && (
         <PaymentModal
           shipment={{
             ...shipment,
-            transporter_details: containerDetails && containerDetails.length > 0 ? containerDetails[0] : null
+            total_amount: getTotalAmount(), // Pass the calculated total amount
+            transporter_details:
+              containerDetails && containerDetails.length > 0
+                ? {
+                    ...containerDetails[0],
+                    request_total_amount: getTotalAmount(), // Also add it to transporter details
+                  }
+                : null,
           }}
           onClose={() => setShowPaymentModal(false)}
           onPaymentComplete={handlePaymentComplete}

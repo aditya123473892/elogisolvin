@@ -44,6 +44,16 @@ const TransactionHistory = ({ transactions, totalAmount }) => {
     }
   };
 
+  // Group transactions by vehicle
+  const groupedTransactions = transactions.reduce((acc, transaction) => {
+    const vehicleKey = transaction.vehicle_number || 'unknown';
+    if (!acc[vehicleKey]) {
+      acc[vehicleKey] = [];
+    }
+    acc[vehicleKey].push(transaction);
+    return acc;
+  }, {});
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-center gap-3 mb-4">
@@ -51,7 +61,8 @@ const TransactionHistory = ({ transactions, totalAmount }) => {
         <h4 className="font-semibold text-gray-900 text-lg">Payment History</h4>
       </div>
 
-      <div className="mb-4 grid grid-cols-3 gap-3">
+      {/* Overall Summary */}
+      <div className="mb-6 grid grid-cols-3 gap-3">
         <div className="bg-blue-50 p-3 rounded-lg text-center">
           <div className="text-xs text-gray-500">Total Amount</div>
           <div className="font-semibold text-blue-600">₹{parseFloat(totalAmount || 0).toLocaleString()}</div>

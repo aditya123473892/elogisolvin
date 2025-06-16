@@ -61,9 +61,7 @@ const ShipmentTable = ({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Vehicle & Services
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Price
-              </th>
+             
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Status
               </th>
@@ -129,20 +127,6 @@ const ShipmentTable = ({
                   </div>
                 </td>
 
-                <td className="px-6 py-4">
-                  <div className="text-sm">
-                    <div className="font-medium text-gray-900">
-                      ₹{shipment.requested_price}
-                    </div>
-                    <div className="text-gray-500">
-                      ₹
-                      {(
-                        shipment.requested_price / shipment.no_of_vehicles
-                      ).toFixed(2)}{" "}
-                      per vehicle
-                    </div>
-                  </div>
-                </td>
 
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
@@ -195,3 +179,16 @@ const ShipmentTable = ({
 };
 
 export default ShipmentTable;
+
+const calculateTotalCharges = (transporterDetails) => {
+  // First check if any transporter detail has transaction data
+  const transactionDetail = transporterDetails.find(detail => detail.transaction);
+  
+  if (transactionDetail && transactionDetail.transaction.transporter_charge) {
+    // If we have transaction data, use the transporter_charge from there
+    return parseFloat(transactionDetail.transaction.transporter_charge);
+  }
+  
+  // Otherwise fall back to the old calculation method
+  return transporterDetails.reduce((sum, detail) => sum + (detail.total_charge || 0), 0);
+};

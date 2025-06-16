@@ -96,6 +96,24 @@ const ShipmentsPage = () => {
           service_charges: detail.service_charges || "{}"
         }));
 
+        // Fetch transaction data for this request
+        try {
+          const transactionResponse = await api.get(`/transactions/request/${requestId}`);
+          if (transactionResponse.data.success && transactionResponse.data.data.length > 0) {
+            // Add transaction data to the first container detail
+            const transaction = transactionResponse.data.data[0];
+            if (mappedContainerDetails.length > 0) {
+              mappedContainerDetails[0].transaction = transaction;
+              // If transaction has transporter_charge, use it as the authoritative total
+              if (transaction.transporter_charge) {
+                mappedContainerDetails[0].total_charge = parseFloat(transaction.transporter_charge);
+              }
+            }
+          }
+        } catch (transactionError) {
+          console.log("No transaction data found for request:", requestId);
+        }
+
         return mappedContainerDetails;
       }
       return [];

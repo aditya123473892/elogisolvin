@@ -1,4 +1,8 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import api from "../../utils/Api";
+import { toast } from "react-toastify";
+import PaymentModal from "./PaymentModal";
+import TransactionHistory from "./TransactionHistory";
 
 const ShipmentDetailsModal = ({
   shipment,
@@ -6,6 +10,39 @@ const ShipmentDetailsModal = ({
   onClose,
   onDownloadInvoice,
 }) => {
+  const [transactions, setTransactions] = useState([]);
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  
+  useEffect(() => {
+    if (shipment && shipment.id) {
+      fetchTransactions(shipment.id);
+    }
+  }, [shipment]);
+
+  const fetchTransactions = async (requestId) => {
+    setIsLoadingTransactions(true);
+    try {
+      const response = await api.get(`/transactions/request/${requestId}`);
+      if (response.data.success) {
+        setTransactions(response.data.data || []);
+      }
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+      // Don't show error toast as transactions might not exist yet
+    } finally {
+      setIsLoadingTransactions(false);
+    }
+  };
+
+  const handlePaymentComplete = (updatedTransaction) => {
+    // Refresh transactions after payment
+    if (shipment && shipment.id) {
+      fetchTransactions(shipment.id);
+    }
+    toast.success("Payment recorded successfully");
+  };
+  
   if (!shipment) return null;
 
   const getStatusBadge = (status) => {
@@ -493,6 +530,51 @@ const ShipmentDetailsModal = ({
                 </div>
               </InfoCard>
             )}
+              <div className="flex gap-3">
+              <button
+                onClick={() => setShowPaymentModal(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                <span>💰</span>
+                Add Payment
+              </button>
+              {onDownloadInvoice && (
+                <button
+                  onClick={() => onDownloadInvoice(shipment)}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                >
+                  <span>📥</span>
+                  Download Invoice
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
+              >
+                Close
+              </button>
+            </div>
+
+            {/* Transaction History */}
+            <InfoCard
+              iconText="💰"
+              title="Payment Details"
+              className="lg:col-span-2 xl:col-span-3"
+            >
+              {isLoadingTransactions ? (
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-2 text-gray-600">Loading payment details...</p>
+                </div>
+              ) : (
+                <TransactionHistory 
+                  transactions={transactions} 
+                  totalAmount={transactions.length > 0 && transactions[0].transporter_charge 
+                    ? transactions[0].transporter_charge 
+                    : shipment.requested_price} 
+                />
+              )}
+            </InfoCard>
 
             {/* Admin Comment */}
             {shipment.admin_comment && (
@@ -520,26 +602,19 @@ const ShipmentDetailsModal = ({
                 ? formatDateTime(shipment.updated_at)
                 : "N/A"}
             </div>
-            <div className="flex gap-3">
-              {onDownloadInvoice && (
-                <button
-                  onClick={() => onDownloadInvoice(shipment)}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-                >
-                  <span>📥</span>
-                  Download Invoice
-                </button>
-              )}
-              <button
-                onClick={onClose}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
-              >
-                Close
-              </button>
-            </div>
+          
           </div>
         </div>
       </div>
+      
+      {/* Payment Modal */}
+      {showPaymentModal && (
+        <PaymentModal
+          shipment={shipment}
+          onClose={() => setShowPaymentModal(false)}
+          onPaymentComplete={handlePaymentComplete}
+        />
+      )}
     </div>
   );
 };

@@ -556,10 +556,11 @@ export const TransporterDetails = ({
             updateVehicleData={updateVehicleData}
           />
 
-          <ContainerDetailsTable
-            vehicleDataList={vehicleDataList}
-            updateVehicleData={updateVehicleData}
-          />
+<ContainerDetailsTable
+  vehicleDataList={vehicleDataList}
+  updateVehicleData={updateVehicleData}
+  transportRequestId={transportRequestId}
+/>
           {/* Total Summary */}
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-200">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -192,9 +192,15 @@ export default function CustomerDashboard({
     });
   };
 
+  // Helper function to check if a request can be edited
+  const canEditRequest = (status) => {
+    const normalizedStatus = status.toLowerCase();
+    return normalizedStatus !== "completed";
+  };
+
   // Handle clicking on a request for editing
   const handleRequestClick = (request) => {
-    if (request.status.toLowerCase() === "pending") {
+    if (canEditRequest(request.status)) {
       setRequestData({
         id: request.id,
         consignee: request.consignee || "",
@@ -234,7 +240,7 @@ export default function CustomerDashboard({
         ?.scrollIntoView({ behavior: "smooth" });
       toast.info("Request loaded for editing");
     } else {
-      toast.info("Only pending requests can be edited");
+      toast.info("Completed requests cannot be edited");
     }
   };
 
@@ -473,7 +479,7 @@ export default function CustomerDashboard({
                   transporterData={transporterData}
                   setTransporterData={setTransporterData}
                   isEditMode={Boolean(requestData.id)}
-                  selectedServices={requestData.service_type} // Changed from safeRequestData to requestData
+                  selectedServices={requestData.service_type}
                 />
               </div>
             </div>
@@ -491,10 +497,10 @@ export default function CustomerDashboard({
                     <div
                       key={request.id}
                       onClick={() => handleRequestClick(request)}
-                      className={`bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md transition-shadow ${
-                        request.status === "Pending"
-                          ? "hover:border-blue-500"
-                          : ""
+                      className={`bg-white rounded-lg shadow p-4 transition-shadow ${
+                        canEditRequest(request.status)
+                          ? "cursor-pointer hover:shadow-md hover:border-blue-500"
+                          : "cursor-not-allowed opacity-75"
                       }`}
                     >
                       <div className="flex justify-between items-center mb-2">

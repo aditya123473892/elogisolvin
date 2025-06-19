@@ -17,6 +17,7 @@ import AdminTransportRequests from "./Pages/AdminTransportRequests"; // Import t
 import EditRequestModal from "./Components/EditRequestModal"; // Import the new component
 import AdminLayout from "./Pages/AdminLayout";
 import ShipmentsPage from "./Pages/Myshipments";
+import ContainerDetailsPage from "./Pages/Containerdetailspage";
 
 const DashboardLayout = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
@@ -123,6 +124,16 @@ function App() {
               <ProtectedRoute allowedRoles={["Customer"]}>
                 <DashboardLayout>
                   <ShipmentsPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+           <Route
+            path="/customer/container-page" // Changed from "/my-shipments"
+            element={
+              <ProtectedRoute allowedRoles={["Customer"]}>
+                <DashboardLayout>
+                  <ContainerDetailsPage></ContainerDetailsPage>
                 </DashboardLayout>
               </ProtectedRoute>
             }

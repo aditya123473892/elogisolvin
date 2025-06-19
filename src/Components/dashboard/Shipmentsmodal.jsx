@@ -13,6 +13,7 @@ const ShipmentDetailsModal = ({
   const [transactions, setTransactions] = useState([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
 
   useEffect(() => {
     if (shipment && shipment.id) {
@@ -520,6 +521,20 @@ const ShipmentDetailsModal = ({
                             </div>
                           </div>
                         </div>
+                        
+                        {/* Add payment button for this vehicle */}
+                        <div className="mt-4 flex justify-end">
+                          <button
+                            onClick={() => {
+                              setSelectedVehicle(container);
+                              setShowPaymentModal(true);
+                            }}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                          >
+                            <span>💰</span>
+                            Add Payment
+                          </button>
+                        </div>
 
                         {/* Service Charges Detail */}
                         {container.service_charges && (
@@ -547,15 +562,7 @@ const ShipmentDetailsModal = ({
                 </div>
               </InfoCard>
             )}
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowPaymentModal(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-              >
-                <span>💰</span>
-                Vendor Payment
-              </button>
-            </div>
+       
 
             {/* Transaction History */}
             <InfoCard className="lg:col-span-2 xl:col-span-3">
@@ -610,15 +617,12 @@ const ShipmentDetailsModal = ({
           shipment={{
             ...shipment,
             total_amount: getTotalAmount(), // Pass the calculated total amount
-            transporter_details:
-              containerDetails && containerDetails.length > 0
-                ? {
-                    ...containerDetails[0],
-                    request_total_amount: getTotalAmount(), // Also add it to transporter details
-                  }
-                : null,
           }}
-          onClose={() => setShowPaymentModal(false)}
+          vehicleData={selectedVehicle || (containerDetails && containerDetails.length > 0 ? containerDetails[0] : null)}
+          onClose={() => {
+            setShowPaymentModal(false);
+            setSelectedVehicle(null);
+          }}
           onPaymentComplete={handlePaymentComplete}
         />
       )}

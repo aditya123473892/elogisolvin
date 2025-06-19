@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import api from "../../utils/Api";
 import { toast } from "react-toastify";
 
-const PaymentModal = ({ shipment, onClose, onPaymentComplete }) => {
+const PaymentModal = ({ shipment, vehicleData, onClose, onPaymentComplete }) => {
   const [formData, setFormData] = useState({
     payment_amount: "",
     payment_mode: "Cash",
@@ -14,15 +14,15 @@ const PaymentModal = ({ shipment, onClose, onPaymentComplete }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (shipment && shipment.id) {
-      fetchExistingTransaction(shipment.id);
+    if (vehicleData && vehicleData.id) {
+      fetchExistingTransaction(vehicleData.id);
     }
-  }, [shipment]);
+  }, [vehicleData]);
 
-  const fetchExistingTransaction = async (requestId) => {
+  const fetchExistingTransaction = async (transporterId) => {
     setIsLoading(true);
     try {
-      const response = await api.get(`/transactions/request/${requestId}`);
+      const response = await api.get(`/transactions/transporter/${transporterId}`);
       if (
         response.data.success &&
         response.data.data &&
@@ -56,9 +56,9 @@ const PaymentModal = ({ shipment, onClose, onPaymentComplete }) => {
     setIsSubmitting(true);
 
     try {
-      // First check if a transaction exists for this shipment
+      // First check if a transaction exists for this vehicle
       const transactionsResponse = await api.get(
-        `/transactions/request/${shipment.id}`
+        `/transactions/transporter/${vehicleData.id}`
       );
 
       let response;
@@ -77,12 +77,18 @@ const PaymentModal = ({ shipment, onClose, onPaymentComplete }) => {
         // If no transaction exists, create a new one
         const transactionData = {
           request_id: shipment.id,
-          transporter_id:
-            shipment.transporter_id ||
-            (shipment.transporter_details
-              ? shipment.transporter_details.id
-              : 1),
-          gr_no: `GR-${shipment.id}-${Date.now().toString().slice(-6)}`, // Generate a unique GR number
+          transporter_id: vehicleData.id,
+          gr_no: `GR-${shipment.id}-${vehicleData.id}-${Date.now().toString().slice(-6)}`, // Generate a unique GR number
+          transporter_name: vehicleData.transporter_name || "",
+          vehicle_number: vehicleData.vehicle_number || "",
+          driver_name: vehicleData.driver_name || "",
+          pickup_location: shipment.pickup_location || "",
+          delivery_location: shipment.delivery_location || "",
+          consigner: shipment.consigner || "",
+          consignee: shipment.consignee || "",
+          service_type: shipment.service_type || "",
+          requested_price: vehicleData.total_charge || 0,
+          transporter_charge: vehicleData.total_charge || 0,
           payment_amount: formData.payment_amount,
           payment_mode: formData.payment_mode,
           payment_date: formData.payment_date,
@@ -119,37 +125,16 @@ const PaymentModal = ({ shipment, onClose, onPaymentComplete }) => {
     }
   };
 
-  // Calculate total amount - use the passed total_amount from shipment first
+  // Calculate total amount - use the vehicle's total_charge
   const getTotalAmount = () => {
-    // First priority: Use the total_amount passed from parent component
-    if (shipment.total_amount) {
-      return parseFloat(shipment.total_amount);
+    // First priority: Use the total_charge from vehicle data
+    if (vehicleData && vehicleData.total_charge) {
+      return parseFloat(vehicleData.total_charge);
     }
 
     // Second priority: Use transporter_charge from existing transaction
     if (existingTransaction && existingTransaction.transporter_charge) {
       return parseFloat(existingTransaction.transporter_charge);
-    }
-
-    // Third priority: Use transporter_details total_charge
-    if (
-      shipment.transporter_details &&
-      shipment.transporter_details.total_charge
-    ) {
-      return parseFloat(shipment.transporter_details.total_charge);
-    }
-
-    // Fourth priority: Use request_total_amount from transporter_details
-    if (
-      shipment.transporter_details &&
-      shipment.transporter_details.request_total_amount
-    ) {
-      return parseFloat(shipment.transporter_details.request_total_amount);
-    }
-
-    // Fallback: Use requested_price from shipment
-    if (shipment.requested_price) {
-      return parseFloat(shipment.requested_price);
     }
 
     return 0;
@@ -174,7 +159,7 @@ const PaymentModal = ({ shipment, onClose, onPaymentComplete }) => {
               ✕
             </button>
           </div>
-          <p className="text-blue-100 mt-1">Shipment ID: {shipment.id}</p>
+          <p className="text-blue-100 mt-1">Vehicle: {vehicleData.vehicle_number}</p>
         </div>
 
         {isLoading ? (

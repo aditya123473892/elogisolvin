@@ -77,85 +77,93 @@ const TransactionHistory = ({ transactions, totalAmount }) => {
         </div>
       </div>
 
-      {transactions.length > 0 ? (
+      {Object.entries(groupedTransactions).length > 0 ? (
         <div className="space-y-6">
-          {transactions.map((transaction, index) => (
-            <div key={transaction.id || index} className="border border-gray-200 rounded-lg overflow-hidden">
-              <div className="bg-gray-50 p-3 flex justify-between items-center">
-                <div>
-                  <span className="font-medium text-gray-900">Transaction #{transaction.id}</span>
-                  <span className="ml-2 text-sm text-gray-500">GR: {transaction.gr_no || 'N/A'}</span>
-                </div>
-                <button 
-                  onClick={() => fetchPaymentDetails(transaction.id)}
-                  className="text-blue-600 text-sm hover:underline flex items-center"
-                >
-                  {loading[transaction.id] ? (
-                    <span className="animate-spin mr-1">⏳</span>
-                  ) : (
-                    <span>{paymentDetails[transaction.id] ? 'Hide Details' : 'View Payments'}</span>
-                  )}
-                </button>
+          {Object.entries(groupedTransactions).map(([vehicleNumber, vehicleTransactions]) => (
+            <div key={vehicleNumber} className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="bg-gray-50 p-3">
+                <span className="font-medium text-gray-900">Vehicle: {vehicleNumber}</span>
               </div>
               
-              {paymentDetails[transaction.id] && (
-                <div className="p-3">
-                  <h6 className="text-sm font-medium text-gray-700 mb-2">Payment Details</h6>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Invoice ID
-                          </th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Date
-                          </th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Amount
-                          </th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Mode
-                          </th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Remarks
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {paymentDetails[transaction.id].map((payment, idx) => (
-                          <tr key={payment.id || idx} className="hover:bg-gray-50">
-                            <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
-                              {payment.invoice_id}
-                            </td>
-                            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
-                              {formatDate(payment.payment_date)}
-                            </td>
-                            <td className="px-3 py-2 whitespace-nowrap text-sm text-green-600 font-medium">
-                              ₹{parseFloat(payment.amount || 0).toLocaleString()}
-                            </td>
-                            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
-                              {payment.payment_mode || "N/A"}
-                            </td>
-                            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
-                              {payment.remarks || "-"}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+              {vehicleTransactions.map((transaction, index) => (
+                <div key={transaction.id || index} className="border-t border-gray-200">
+                  <div className="p-3 flex justify-between items-center">
+                    <div>
+                      <span className="font-medium text-gray-900">Transaction #{transaction.id}</span>
+                      <span className="ml-2 text-sm text-gray-500">GR: {transaction.gr_no || 'N/A'}</span>
+                    </div>
+                    <button 
+                      onClick={() => fetchPaymentDetails(transaction.id)}
+                      className="text-blue-600 text-sm hover:underline flex items-center"
+                    >
+                      {loading[transaction.id] ? (
+                        <span className="animate-spin mr-1">⏳</span>
+                      ) : (
+                        <span>{paymentDetails[transaction.id] ? 'Hide Details' : 'View Payments'}</span>
+                      )}
+                    </button>
+                  </div>
+                  
+                  {paymentDetails[transaction.id] && (
+                    <div className="p-3">
+                      <h6 className="text-sm font-medium text-gray-700 mb-2">Payment Details</h6>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Invoice ID
+                              </th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Date
+                              </th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Amount
+                              </th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Mode
+                              </th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Remarks
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {paymentDetails[transaction.id].map((payment, idx) => (
+                              <tr key={payment.id || idx} className="hover:bg-gray-50">
+                                <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                                  {payment.invoice_id}
+                                </td>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
+                                  {formatDate(payment.payment_date)}
+                                </td>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm text-green-600 font-medium">
+                                  ₹{parseFloat(payment.amount || 0).toLocaleString()}
+                                </td>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
+                                  {payment.payment_mode || "N/A"}
+                                </td>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
+                                  {payment.remarks || "-"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="p-3 bg-gray-50 border-t border-gray-200 flex justify-between">
+                    <div className="text-sm text-gray-500">
+                      Last payment: {formatDate(transaction.last_payment_date)}
+                    </div>
+                    <div className="text-sm font-medium">
+                      Total paid: <span className="text-green-600">₹{parseFloat(transaction.total_paid || 0).toLocaleString()}</span>
+                    </div>
                   </div>
                 </div>
-              )}
-              
-              <div className="p-3 bg-gray-50 border-t border-gray-200 flex justify-between">
-                <div className="text-sm text-gray-500">
-                  Last payment: {formatDate(transaction.last_payment_date)}
-                </div>
-                <div className="text-sm font-medium">
-                  Total paid: <span className="text-green-600">₹{parseFloat(transaction.total_paid || 0).toLocaleString()}</span>
-                </div>
-              </div>
+              ))}
             </div>
           ))}
         </div>

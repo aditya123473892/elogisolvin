@@ -415,7 +415,6 @@ export const TransporterDetails = ({
         // Convert serviceCharges object to JSON string
         const serviceChargesJson = JSON.stringify(vehicle.serviceCharges || {});
 
-        // ... existing code ...
         // Inside the handleSubmit function, update the payload:
         const payload = {
           transport_request_id: transportRequestId,
@@ -442,6 +441,8 @@ export const TransporterDetails = ({
           cargo_total_weight: parseFloat(vehicle.cargoTotalWeight) || null, // Add this
           container_type: vehicle.containerType?.trim() || null, // Add this
           container_size: vehicle.containerSize?.trim() || null, // Add this
+          // Remove this line to let the backend handle vehicle_sequence
+          // vehicle_sequence: index + 1, // Add this line to include vehicle sequence
         };
         // ... existing code ...
 

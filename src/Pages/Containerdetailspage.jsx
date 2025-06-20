@@ -468,210 +468,79 @@ const ContainerDetailsPage = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Table Structure */}
               <div className="overflow-x-auto border rounded-lg">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
-                        Vehicle #
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Container Number *
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Number of Containers *
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Container Type
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Container Size
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Shipping Line
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Seal 1
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Seal 2
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Trailer Weight (kg)
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Cargo Weight (kg)
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {containers.map((container, index) => (
-                      <tr key={`container-${index}`} className="hover:bg-gray-50">
-                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
-                          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-semibold">
-                            {container.vehicleIndex}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <input
-                            type="text"
-                            required
-                            className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            value={container.containerNo}
-                            onChange={(e) =>
-                              updateVehicleData(
-                                index,
-                                "containerNo",
-                                e.target.value.toUpperCase()
-                              )
-                            }
-                            placeholder="Container number"
-                          />
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <input
-                            type="number"
-                            required
-                            min="1"
-                            className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            value={container.numberOfContainers}
-                            onChange={(e) =>
-                              updateVehicleData(
-                                index,
-                                "numberOfContainers",
-                                e.target.value
-                              )
-                            }
-                            placeholder="Number of containers"
-                          />
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <input
-                            type="text"
-                            className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            value={container.containerType}
-                            onChange={(e) =>
-                              updateVehicleData(index, "containerType", e.target.value)
-                            }
-                            placeholder="Container type"
-                          />
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <input
-                            type="text"
-                            className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            value={container.containerSize}
-                            onChange={(e) =>
-                              updateVehicleData(index, "containerSize", e.target.value)
-                            }
-                            placeholder="Container size"
-                          />
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <input
-                            type="text"
-                            className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            value={container.line}
-                            onChange={(e) =>
-                              updateVehicleData(index, "line", e.target.value)
-                            }
-                            placeholder="Shipping line"
-                          />
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <input
-                            type="text"
-                            className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            value={container.seal1}
-                            onChange={(e) =>
-                              updateVehicleData(
-                                index,
-                                "seal1",
-                                e.target.value.toUpperCase()
-                              )
-                            }
-                            placeholder="Seal 1"
-                          />
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <input
-                            type="text"
-                            className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            value={container.seal2}
-                            onChange={(e) =>
-                              updateVehicleData(
-                                index,
-                                "seal2",
-                                e.target.value.toUpperCase()
-                              )
-                            }
-                            placeholder="Seal 2"
-                          />
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <input
-                            type="number"
-                            className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            value={container.containerTotalWeight}
-                            onChange={(e) =>
-                              updateVehicleData(
-                                index,
-                                "containerTotalWeight",
-                                e.target.value
-                              )
-                            }
-                            placeholder="Container weight"
-                            min="0"
-                            step="0.01"
-                          />
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <input
-                            type="number"
-                            className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            value={container.cargoTotalWeight}
-                            onChange={(e) =>
-                              updateVehicleData(
-                                index,
-                                "cargoTotalWeight",
-                                e.target.value
-                              )
-                            }
-                            placeholder="Cargo weight"
-                            min="0"
-                            step="0.01"
-                          />
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-center">
-                          {containers.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => removeContainer(index)}
-                              className="inline-flex items-center px-2 py-1 bg-red-100 text-red-700 rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200"
-                              title="Remove Container"
-                            >
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                />
-                              </svg>
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <table className="min-w-full divide-y divide-gray-200">
+  <thead className="bg-gray-50">
+    <tr>
+      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Vehicle #</th>
+      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Container Number *</th>
+      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Number of Containers *</th>
+      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Container Type</th>
+      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Container Size</th>
+      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shipping Line</th>
+      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Seal 1</th>
+      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Seal 2</th>
+      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trailer Weight (kg)</th>
+      <th className="px-3 pr-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cargo Weight (kg)</th>
+         </tr>
+  </thead>
+  <tbody className="bg-white divide-y divide-gray-200">
+    {containers.map((container, index) => (
+      <tr key={`container-${index}`} className="hover:bg-gray-50">
+        <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
+          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-semibold">
+            {container.vehicleIndex}
+          </span>
+        </td>
+        {["containerNo", "numberOfContainers", "containerType", "containerSize", "line", "seal1", "seal2", "containerTotalWeight", "cargoTotalWeight"].map((fieldKey) => (
+          <td key={fieldKey} className="px-3 py-2 whitespace-nowrap">
+            <input
+              type={fieldKey.includes("Weight") || fieldKey === "numberOfContainers" ? "number" : "text"}
+              required={fieldKey === "containerNo" || fieldKey === "numberOfContainers"}
+              min={fieldKey === "numberOfContainers" || fieldKey.includes("Weight") ? "0" : undefined}
+              step={fieldKey.includes("Weight") ? "0.01" : undefined}
+              className="w-full h-12 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              value={container[fieldKey]}
+              onChange={(e) =>
+                updateVehicleData(
+                  index,
+                  fieldKey,
+                  fieldKey === "containerNo" || fieldKey.startsWith("seal")
+                    ? e.target.value.toUpperCase()
+                    : e.target.value
+                )
+              }
+              placeholder={fieldKey.replace(/([A-Z])/g, " $1").trim()}
+            />
+          </td>
+        ))}
+        <td className="px-3 py-2 whitespace-nowrap text-center">
+          {containers.length > 1 && (
+            <button
+              type="button"
+              onClick={() => removeContainer(index)}
+              className="inline-flex items-center px-2 py-1 bg-red-100 text-red-700 rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200"
+              title="Remove Container"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+            </button>
+          )}
+        </td>
+      </tr>
+    ))}
+  </tbody>
+</table>
               </div>
 
               {/* Submit Buttons */}

@@ -46,7 +46,7 @@ const TransporterSearchInput = ({ value, onChange, placeholder }) => {
     <div className="relative">
       <input
         type="text"
-        className="w-full min-w-40 border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        className="w-full min-w-[160px] border border-gray-300 rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         value={searchTerm}
         onChange={(e) => {
           setSearchTerm(e.target.value);
@@ -115,22 +115,22 @@ const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
               <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                 Vehicle #
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-40">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]">
                 Transporter Name *
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-32">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[140px]">
                 Vehicle Number *
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-32">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[140px]">
                 Driver Name *
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-32">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[160px]">
                 Driver Contact *
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-32">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[160px]">
                 License Number *
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-32">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[160px]">
                 License Expiry *
               </th>
             </tr>
@@ -157,7 +157,7 @@ const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
                 <td className="px-3 py-4 whitespace-nowrap">
                   <input
                     type="text"
-                    className="w-full min-w-32 border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full min-w-[140px] border border-gray-300 rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={vehicle.vehicleNumber}
                     onChange={(e) =>
                       updateVehicleData(
@@ -173,7 +173,7 @@ const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
                 <td className="px-3 py-4 whitespace-nowrap">
                   <input
                     type="text"
-                    className="w-full min-w-32 border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full min-w-[140px] border border-gray-300 rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={vehicle.driverName}
                     onChange={(e) =>
                       updateVehicleData(index, "driverName", e.target.value)
@@ -185,7 +185,7 @@ const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
                 <td className="px-3 py-4 whitespace-nowrap">
                   <input
                     type="tel"
-                    className="w-full min-w-32 border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full min-w-[160px] border border-gray-300 rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={vehicle.driverContact}
                     onChange={(e) =>
                       updateVehicleData(
@@ -202,7 +202,7 @@ const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
                 <td className="px-3 py-4 whitespace-nowrap">
                   <input
                     type="text"
-                    className="w-full min-w-32 border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full min-w-[160px] border border-gray-300 rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={vehicle.licenseNumber}
                     onChange={(e) =>
                       updateVehicleData(
@@ -218,7 +218,7 @@ const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
                 <td className="px-3 py-4 whitespace-nowrap">
                   <input
                     type="date"
-                    className="w-full min-w-32 border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full min-w-[160px] border border-gray-300 rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={vehicle.licenseExpiry}
                     onChange={(e) =>
                       updateVehicleData(index, "licenseExpiry", e.target.value)

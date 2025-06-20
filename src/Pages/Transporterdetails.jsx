@@ -387,35 +387,33 @@ export const TransporterDetails = ({
 
     return errors;
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+  
     if (!transportRequestId) {
       toast.error("Transport request ID is required");
       return;
     }
-
+  
     // Validate all vehicles
     const allErrors = [];
     vehicleDataList.forEach((vehicle, index) => {
       const vehicleErrors = validateVehicleData(vehicle, index);
       allErrors.push(...vehicleErrors);
     });
-
+  
     if (allErrors.length > 0) {
       toast.error(`Please fix the following errors:\n${allErrors.join("\n")}`);
       return;
     }
-
+  
     setIsSubmitting(true);
-
+  
     try {
       const promises = vehicleDataList.map(async (vehicle, index) => {
         // Convert serviceCharges object to JSON string
         const serviceChargesJson = JSON.stringify(vehicle.serviceCharges || {});
-
-        // Inside the handleSubmit function, update the payload:
+  
         const payload = {
           transport_request_id: transportRequestId,
           transporter_name: vehicle.transporterName.trim(),
@@ -426,7 +424,7 @@ export const TransporterDetails = ({
           license_expiry: vehicle.licenseExpiry,
           base_charge: parseFloat(vehicle.baseCharge) || 0,
           additional_charges: parseFloat(vehicle.additionalCharges) || 0,
-          service_charges: serviceChargesJson, // Add service charges as JSON string
+          service_charges: serviceChargesJson,
           total_charge: parseFloat(vehicle.totalCharge) || 0,
           container_no: vehicle.containerNo.trim() || null,
           line: vehicle.line.trim() || null,
@@ -434,20 +432,17 @@ export const TransporterDetails = ({
           number_of_containers: vehicle.numberOfContainers
             ? parseInt(vehicle.numberOfContainers)
             : null,
-          seal1: vehicle.seal1?.trim() || null, // Add this
-          seal2: vehicle.seal2?.trim() || null, // Add this
+          seal1: vehicle.seal1?.trim() || null,
+          seal2: vehicle.seal2?.trim() || null,
           container_total_weight:
-            parseFloat(vehicle.containerTotalWeight) || null, // Add this
-          cargo_total_weight: parseFloat(vehicle.cargoTotalWeight) || null, // Add this
-          container_type: vehicle.containerType?.trim() || null, // Add this
-          container_size: vehicle.containerSize?.trim() || null, // Add this
-          // Remove this line to let the backend handle vehicle_sequence
-          // vehicle_sequence: index + 1, // Add this line to include vehicle sequence
+            parseFloat(vehicle.containerTotalWeight) || null,
+          cargo_total_weight: parseFloat(vehicle.cargoTotalWeight) || null,
+          container_type: vehicle.containerType?.trim() || null,
+          container_size: vehicle.containerSize?.trim() || null,
         };
-        // ... existing code ...
-
+  
         console.log(`Saving vehicle ${index + 1}:`, payload);
-
+  
         try {
           const response = vehicle.id
             ? await transporterAPI.updateTransporter(vehicle.id, payload)
@@ -455,6 +450,7 @@ export const TransporterDetails = ({
                 transportRequestId,
                 payload
               );
+              
           console.log(`Response for vehicle ${index + 1}:`, response);
           return response;
         } catch (error) {
@@ -462,9 +458,9 @@ export const TransporterDetails = ({
           throw error;
         }
       });
-
+  
       const responses = await Promise.all(promises);
-
+  
       // Update vehicle data with response IDs and data
       const updatedVehicleList = vehicleDataList.map((vehicle, index) => {
         const response = responses[index];
@@ -477,16 +473,26 @@ export const TransporterDetails = ({
         }
         return vehicle;
       });
-
+  
       setVehicleDataList(updatedVehicleList);
-
+  
       const successCount = responses.filter((r) => r.success).length;
       const failedCount = responses.length - successCount;
-
+  
       if (successCount === responses.length) {
         toast.success(
           `All ${successCount} vehicle details saved successfully!`
         );
+        
+        // Fetch recent request again after successful submission
+        try {
+          await loadTransporterDetails();
+          console.log("Recent request data refreshed successfully");
+        } catch (refreshError) {
+          console.error("Error refreshing recent request data:", refreshError);
+          // Don't show error toast for refresh failure as main operation succeeded
+        }
+        
       } else if (successCount > 0) {
         toast.warning(
           `${successCount} vehicle(s) saved successfully, ${failedCount} failed`
@@ -501,7 +507,6 @@ export const TransporterDetails = ({
       setIsSubmitting(false);
     }
   };
-
   // Calculate total amount across all vehicles
   const totalAmount = vehicleDataList.reduce(
     (total, vehicle) => total + (parseFloat(vehicle.totalCharge) || 0),

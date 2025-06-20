@@ -13,6 +13,9 @@ import {
   Settings,
   Menu,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Download,
 } from "lucide-react";
 import api from "../utils/Api";
 import { toast, ToastContainer } from "react-toastify";
@@ -66,6 +69,11 @@ export default function CustomerDashboard({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pastRequests, setPastRequests] = useState([]);
+  const [allRequests, setAllRequests] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const requestsPerPage = 5;
+
   const [transporterData, setTransporterData] = useState({
     transporterName: "",
     vehicleNumber: "",
@@ -94,17 +102,33 @@ export default function CustomerDashboard({
   };
 
   const fetchRequests = async () => {
+    setLoading(true);
     try {
       const response = await api.get("/transport-requests/my-requests");
       if (response.data?.success) {
-        setPastRequests(response.data.requests);
+        setAllRequests(response.data.requests);
+        updateDisplayedRequests(response.data.requests, 1);
       } else {
         toast.error("Failed to fetch requests");
       }
     } catch (error) {
       console.error("Fetch requests error:", error);
       toast.error(error.response?.data?.message || "Failed to fetch requests");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const updateDisplayedRequests = (requests, page) => {
+    const startIndex = (page - 1) * requestsPerPage;
+    const endIndex = startIndex + requestsPerPage;
+    const displayedRequests = requests.slice(startIndex, endIndex);
+    setPastRequests(displayedRequests);
+    setCurrentPage(page);
+  };
+
+  const getTotalPages = () => {
+    return Math.ceil(allRequests.length / requestsPerPage);
   };
 
   // Handle form submission - CLEANED UP POST REQUEST
@@ -154,7 +178,7 @@ export default function CustomerDashboard({
             : "Request created successfully!"
         );
         handleCancelEdit();
-        fetchRequests(); // Refresh the list
+        fetchRequests(); // Refresh all requests
       }
     } catch (error) {
       console.error("Submit error:", error);
@@ -266,80 +290,40 @@ export default function CustomerDashboard({
     }
   };
 
-  // Status badge component
+  // Compact status badge component
   const getStatusBadge = (status) => {
     const statusConfig = {
-      Completed: {
-        bg: "bg-green-100",
-        text: "text-green-800",
-        icon: CheckCircle,
-      },
-      "In Progress": { bg: "bg-blue-100", text: "text-blue-800", icon: Clock },
-      Pending: {
-        bg: "bg-yellow-100",
-        text: "text-yellow-800",
-        icon: AlertTriangle,
-      },
+      Completed: { bg: "bg-green-100", text: "text-green-700", dot: "bg-green-500" },
+      "In Progress": { bg: "bg-blue-100", text: "text-blue-700", dot: "bg-blue-500" },
+      Pending: { bg: "bg-yellow-100", text: "text-yellow-700", dot: "bg-yellow-500" },
     };
 
     const config = statusConfig[status] || {
       bg: "bg-gray-100",
-      text: "text-gray-800",
-      icon: null,
+      text: "text-gray-700",
+      dot: "bg-gray-500",
     };
-    const Icon = config.icon;
 
     return (
-      <span
-        className={`px-2 py-1 text-xs font-medium rounded-full ${config.bg} ${config.text} flex items-center`}
-      >
-        {Icon && <Icon className="w-3 h-3 mr-1" />} {status}
+      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
+        <span className={`w-2 h-2 rounded-full mr-1 ${config.dot}`}></span>
+        {status}
       </span>
     );
   };
 
-  // Progress tracker component
-  const renderOrderProgress = (status) => {
-    const steps = [
-      "Pending",
-      "Driver Assigned",
-      "Out For Delivery",
-      "Completed",
-    ];
-    const currentStep = steps.indexOf(status) + 1;
+  // Pagination handlers
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      updateDisplayedRequests(allRequests, currentPage - 1);
+    }
+  };
 
-    return (
-      <div className="w-full mt-2">
-        <div className="flex justify-between mb-1 text-xs font-medium">
-          <div>Journey Request</div>
-          <div>Vehicle Assigned</div>
-          <div>Out For Delivery</div>
-          <div>Delivered</div>
-        </div>
-        <div className="flex items-center">
-          {steps.map((_, index) => (
-            <div key={index} className="flex items-center flex-1">
-              <div
-                className={`w-4 h-4 rounded-full flex items-center justify-center ${
-                  currentStep > index ? "bg-blue-600" : "bg-gray-300"
-                }`}
-              >
-                {currentStep > index + 1 && (
-                  <CheckCircle className="w-3 h-3 text-white" />
-                )}
-              </div>
-              {index < steps.length - 1 && (
-                <div
-                  className={`flex-1 h-1 mx-2 ${
-                    currentStep > index + 1 ? "bg-blue-600" : "bg-gray-300"
-                  }`}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+  const handleNextPage = () => {
+    const totalPages = getTotalPages();
+    if (currentPage < totalPages) {
+      updateDisplayedRequests(allRequests, currentPage + 1);
+    }
   };
 
   // Fetch requests on component mount
@@ -370,16 +354,7 @@ export default function CustomerDashboard({
           >
             <Menu className="h-6 w-6" />
           </button>
-          <div className="relative hidden md:block">
-            <input
-              type="text"
-              placeholder="Search..."
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 w-64"
-              value={searchQuery}
-              onChange={handleSearch}
-            />
-            <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-          </div>
+       
         </div>
 
         <div className="flex items-center space-x-4">
@@ -461,9 +436,9 @@ export default function CustomerDashboard({
 
           <StatsCards />
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Service Request Form */}
-            <div className="lg:col-span-2 bg-white rounded-lg shadow">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Service Request Form - Takes 3 columns */}
+            <div className="lg:col-span-3 bg-white rounded-lg shadow">
               <div>
                 <ServiceRequestForm
                   requestData={requestData}
@@ -484,114 +459,134 @@ export default function CustomerDashboard({
               </div>
             </div>
 
-            {/* Past Requests */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900">
+            {/* Compact Past Requests - Takes 1 column */}
+            <div className="lg:col-span-1 bg-white rounded-lg shadow h-fit">
+              <div className="px-4 py-3 border-b border-gray-200">
+                <h3 className="text-sm font-medium text-gray-900">
                   Recent Requests
                 </h3>
               </div>
-              <div className="p-6">
-                <div className="space-y-4">
-                  {pastRequests.map((request) => (
-                    <div
-                      key={request.id}
-                      onClick={() => handleRequestClick(request)}
-                      className={`bg-white rounded-lg shadow p-4 transition-shadow ${
-                        canEditRequest(request.status)
-                          ? "cursor-pointer hover:shadow-md hover:border-blue-500"
-                          : "cursor-not-allowed opacity-75"
-                      }`}
-                    >
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium text-gray-900">
-                          Request #{request.id}
-                        </span>
-                        <div className="flex items-center space-x-2">
-                          {getStatusBadge(request.status)}
-                          {request.status === "approved" && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDownloadInvoice(request);
-                              }}
-                              className="text-green-600 hover:text-green-800"
-                              title="Download Invoice"
-                            >
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                />
-                              </svg>
-                            </button>
-                          )}
-                        </div>
+              <div className="p-4">
+                {loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {pastRequests.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <p className="text-sm">No requests found</p>
                       </div>
-
-                      <div className="text-sm text-gray-600">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            Date:{" "}
-                            {new Date(request.created_at).toLocaleDateString()}
+                    ) : (
+                      pastRequests.map((request) => (
+                        <div
+                          key={request.id}
+                          onClick={() => handleRequestClick(request)}
+                          className={`border rounded-lg p-3 transition-all duration-200 ${
+                            canEditRequest(request.status)
+                              ? "cursor-pointer hover:border-blue-300 hover:shadow-sm"
+                              : "cursor-not-allowed opacity-60"
+                          }`}
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                Request #{request.id}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {new Date(request.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <div className="flex items-center space-x-1 ml-2">
+                              {getStatusBadge(request.status)}
+                              {request.status === "approved" && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDownloadInvoice(request);
+                                  }}
+                                  className="text-green-600 hover:text-green-800 p-1 rounded"
+                                  title="Download Invoice"
+                                >
+                                  <Download className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          <div>Price: ₹{request.requested_price}</div>
-                          <div>Vehicle: {request.vehicle_type}</div>
-                          <div>
-                            Service:
-                            <div className="mt-2 flex flex-wrap gap-1">
-                              {(() => {
-                                try {
-                                  const services = JSON.parse(
-                                    request.service_type || "[]"
-                                  );
-                                  return Array.isArray(services) ? (
-                                    services.map((service, idx) => (
+
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-gray-500">Vehicle:</span>
+                              <span className="text-gray-900 font-medium">
+                                {request.vehicle_type}
+                              </span>
+                            </div>
+                          
+                            <div className="text-xs">
+                              <span className="text-gray-500">Services:</span>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {(() => {
+                                  try {
+                                    const services = JSON.parse(request.service_type || "[]");
+                                    const serviceArray = Array.isArray(services) ? services : [String(services)];
+                                    return serviceArray.slice(0, 2).map((service, idx) => (
                                       <span
                                         key={idx}
-                                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                                        className="inline-block px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-700"
                                       >
                                         {service}
                                       </span>
-                                    ))
-                                  ) : (
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                      {String(services)}
-                                    </span>
-                                  );
-                                } catch (error) {
-                                  return (
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                      N/A
-                                    </span>
-                                  );
-                                }
-                              })()}
+                                    ));
+                                  } catch (error) {
+                                    return (
+                                      <span className="inline-block px-1.5 py-0.5 rounded text-xs bg-gray-50 text-gray-700">
+                                        N/A
+                                      </span>
+                                    );
+                                  }
+                                })()}
+                              </div>
                             </div>
                           </div>
+
+                          {request.admin_comment && (
+                            <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
+                              <p className="text-gray-600 font-medium">Admin:</p>
+                              <p className="text-gray-700 truncate">{request.admin_comment}</p>
+                            </div>
+                          )}
                         </div>
+                      ))
+                    )}
+                  </div>
+                )}
 
-                        {request.admin_comment && (
-                          <div className="mt-2 p-2 bg-gray-50 rounded">
-                            <p className="text-sm font-medium">
-                              Admin Comment:
-                            </p>
-                            <p className="text-sm">{request.admin_comment}</p>
-                          </div>
-                        )}
-
-                        {renderOrderProgress(request.status)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                {/* Pagination */}
+                {getTotalPages() > 1 && (
+                  <div className="flex items-center justify-between mt-4 pt-3 border-t">
+                    <button
+                      onClick={handlePrevPage}
+                      disabled={currentPage === 1}
+                      className="flex items-center px-2 py-1 text-xs text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="w-3 h-3 mr-1" />
+                      Prev
+                    </button>
+                    
+                    <span className="text-xs text-gray-500">
+                      {currentPage} of {getTotalPages()}
+                    </span>
+                    
+                    <button
+                      onClick={handleNextPage}
+                      disabled={currentPage === getTotalPages()}
+                      className="flex items-center px-2 py-1 text-xs text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                      <ChevronRight className="w-3 h-3 ml-1" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

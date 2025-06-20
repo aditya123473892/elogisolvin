@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { generateInvoice } from "../utils/pdfGenerator";
 import { generateGR } from "../utils/grGenerator";
+import { data } from "react-router-dom";
 
 const parseServiceType = (serviceType) => {
   if (!serviceType) return [];
@@ -58,6 +59,7 @@ export default function AdminTransportRequests() {
     try {
       const response = await api.get("/transport-requests/all");
       setRequests(response.data.requests);
+      console.log("dahta",response)
     } catch (error) {
       toast.error("Failed to fetch transport requests");
     } finally {
@@ -71,7 +73,10 @@ export default function AdminTransportRequests() {
         `/transport-requests/${requestId}/transporter`
       );
       if (response.data.success) {
-        setTransporterDetails(response.data.data);
+        console.log("data" ,response.data)
+        // Update to handle multiple transporters
+        setTransporterDetails(Array.isArray(response.data.data) ? 
+          response.data.data : [response.data.data]);
       } else {
         setTransporterDetails(null);
       }
@@ -126,9 +131,11 @@ export default function AdminTransportRequests() {
         const response = await api.get(
           `/transport-requests/${request.id}/transporter`
         );
+        
 
         if (response.data.success) {
           transporterDetails = response.data.data;
+          console.log("response",response.data.data)
         }
       } catch (error) {
         console.log("No transporter details found");
@@ -165,6 +172,7 @@ export default function AdminTransportRequests() {
         );
         if (response.data.success) {
           transporterData = response.data.data;
+          console.log("data" ,response.data.data)
         }
       } catch (error) {
         console.log(
@@ -382,9 +390,7 @@ export default function AdminTransportRequests() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm">
-                      <div className="flex items-center text-gray-900 font-medium">
-                        ₹{request.requested_price}
-                      </div>
+                     
                       <div className="text-xs text-gray-500 mt-1">
                         Weight: {request.cargo_weight}kg
                       </div>
@@ -606,22 +612,7 @@ export default function AdminTransportRequests() {
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Service Prices
-                      </label>
-                      <div className="text-sm text-gray-900 bg-white p-2 rounded border">
-                        {Object.entries(
-                          parseServicePrices(selectedRequest.service_prices)
-                        ).map(([service, price]) => (
-                          <div key={service} className="flex justify-between">
-                            <span>{service}:</span>
-                            <span>₹{price}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
+               
                     <div className="grid grid-cols-1 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700">
@@ -677,9 +668,7 @@ export default function AdminTransportRequests() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Requested Price
-                      </label>
+                    
                       <div className="text-lg font-semibold text-gray-900">
                         ₹{selectedRequest.requested_price}
                       </div>
@@ -694,107 +683,109 @@ export default function AdminTransportRequests() {
                     Transporter Details
                   </h4>
 
-                  {transporterDetails ? (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Transporter Name
-                          </label>
-                          <div className="text-sm text-gray-900">
-                            {transporterDetails.transporter_name}
+                  {transporterDetails && transporterDetails.length > 0 ? (
+                    <div className="space-y-6">
+                      {transporterDetails.map((transporter, index) => (
+                        <div key={transporter.id || index} className="bg-white p-4 rounded-lg border mb-4">
+                          <h5 className="font-medium text-gray-900 mb-3">
+                            Vehicle {index + 1} {transporter.vehicle_sequence ? `(Sequence: ${transporter.vehicle_sequence})` : ''}
+                          </h5>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">
+                                Transporter Name
+                              </label>
+                              <div className="text-sm text-gray-900">
+                                {transporter.transporter_name}
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">
+                                Vehicle Number
+                              </label>
+                              <div className="text-sm text-gray-900">
+                                {transporter.vehicle_number}
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">
+                                Driver Name
+                              </label>
+                              <div className="text-sm text-gray-900">
+                                {transporter.driver_name}
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">
+                                Driver Contact
+                              </label>
+                              <div className="text-sm text-gray-900">
+                                {transporter.driver_contact}
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">
+                                License Number
+                              </label>
+                              <div className="text-sm text-gray-900">
+                                {transporter.license_number}
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">
+                                License Expiry
+                              </label>
+                              <div className="text-sm text-gray-900">
+                                {transporter.license_expiry
+                                  ? new Date(transporter.license_expiry).toLocaleDateString()
+                                  : "Not specified"}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Vehicle Number
-                          </label>
-                          <div className="text-sm text-gray-900">
-                            {transporterDetails.vehicle_number}
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Vehicle Make
-                          </label>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Model Year
-                          </label>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Driver Name
-                          </label>
-                          <div className="text-sm text-gray-900">
-                            {transporterDetails.driver_name}
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Driver Contact
-                          </label>
-                          <div className="text-sm text-gray-900">
-                            {transporterDetails.driver_contact}
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            License Number
-                          </label>
-                          <div className="text-sm text-gray-900">
-                            {transporterDetails.license_number}
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            License Expiry
-                          </label>
-                          <div className="text-sm text-gray-900">
-                            {transporterDetails.license_expiry
-                              ? new Date(
-                                  transporterDetails.license_expiry
-                                ).toLocaleDateString()
-                              : "Not specified"}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-white p-4 rounded-lg border">
-                        <h5 className="font-medium text-gray-900 mb-3">
-                          Transporter Charges
-                        </h5>
-                        <div className="grid grid-cols-3 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">
-                              Base Charge
-                            </label>
+                          
+                          {/* Container Details */}
+                          {transporter.container_no && (
+                            <div className="mt-4 pt-4 border-t">
+                              <h6 className="font-medium text-gray-900 mb-2">Container Details</h6>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700">
+                                    Container Number
+                                  </label>
+                                  <div className="text-sm text-gray-900">
+                                    {transporter.container_no}
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700">
+                                    Line
+                                  </label>
+                                  <div className="text-sm text-gray-900">
+                                    {transporter.line}
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700">
+                                    Seal Number
+                                  </label>
+                                  <div className="text-sm text-gray-900">
+                                    {transporter.seal_no}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          <div className="mt-4 pt-4 border-t">
+                            <h6 className="font-medium text-gray-900 mb-2">Charges</h6>
                             <div className="text-sm text-gray-900">
-                              ₹{transporterDetails.base_charge}
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">
-                              Additional Charges
-                            </label>
-                            <div className="text-sm text-gray-900">
-                              ₹{transporterDetails.additional_charges}
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">
-                              Total Charge
-                            </label>
-                            <div className="text-lg font-semibold text-gray-900">
-                              ₹{transporterDetails.total_charge}
+                              <div className="font-semibold text-gray-900">
+                                Total Charge: ₹{transporter.total_charge}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
+                      ))}
                     </div>
                   ) : (
                     <div className="text-center py-8">

@@ -451,7 +451,7 @@ const ServiceRequestForm = ({
                 onChange={(e) =>
                   setRequestData((prev) => ({
                     ...prev,
-                    cargo_weight: Number(e.target.value) || 0,
+                    cargo_weight: Number(e.target.value)
                   }))
                 }
                 required

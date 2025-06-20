@@ -26,16 +26,7 @@ const Header = ({
         <button onClick={toggleMobileMenu} className="text-gray-600 md:hidden">
           <Menu className="h-6 w-6" />
         </button>
-        <div className="relative hidden md:block">
-          <input
-            type="text"
-            placeholder="Search..."
-            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 w-64"
-            value={searchQuery}
-            onChange={handleSearch}
-          />
-          <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-        </div>
+      
       </div>
 
       <div className="flex items-center space-x-4">

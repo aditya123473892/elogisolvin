@@ -11,27 +11,27 @@ const VehicleChargesTable = ({
         Vehicle Charges
       </h4>
       <div className="overflow-x-auto border rounded-lg">
-        <table className="min-w-full divide-y divide-gray-200">
+        <table className="w-full table-auto divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                 Vehicle Number
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[140px]">
                 Base Charge (INR) *
               </th>
               {services.map((serviceName) => (
                 <th
                   key={serviceName}
-                  className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[140px]"
                 >
                   {serviceName} (INR)
                 </th>
               ))}
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[160px]">
                 Additional Charges (INR)
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[160px]">
                 Total Charge (INR)
               </th>
             </tr>
@@ -47,7 +47,7 @@ const VehicleChargesTable = ({
                 <td className="px-4 py-4 whitespace-nowrap">
                   <input
                     type="number"
-                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="min-w-[140px] border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={vehicle.baseCharge}
                     onChange={(e) =>
                       updateVehicleData(index, "baseCharge", e.target.value)
@@ -62,7 +62,7 @@ const VehicleChargesTable = ({
                   <td key={serviceName} className="px-4 py-4 whitespace-nowrap">
                     <input
                       type="number"
-                      className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="min-w-[140px] border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       value={vehicle.serviceCharges?.[serviceName] || ""}
                       onChange={(e) => {
                         const updatedCharges = {
@@ -75,10 +75,10 @@ const VehicleChargesTable = ({
                           updatedCharges
                         );
 
-                        // Recalculate total including service charges
-                        const serviceTotal = Object.values(
-                          updatedCharges
-                        ).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+                        const serviceTotal = Object.values(updatedCharges).reduce(
+                          (sum, val) => sum + (parseFloat(val) || 0),
+                          0
+                        );
                         const newTotal =
                           (parseFloat(vehicle.baseCharge) || 0) +
                           (parseFloat(vehicle.additionalCharges) || 0) +
@@ -95,7 +95,7 @@ const VehicleChargesTable = ({
                 <td className="px-4 py-4 whitespace-nowrap">
                   <input
                     type="number"
-                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="min-w-[140px] border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={vehicle.additionalCharges}
                     onChange={(e) => {
                       updateVehicleData(
@@ -104,7 +104,6 @@ const VehicleChargesTable = ({
                         e.target.value
                       );
 
-                      // Recalculate total including additional charges
                       const serviceTotal = Object.values(
                         vehicle.serviceCharges || {}
                       ).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
@@ -123,7 +122,7 @@ const VehicleChargesTable = ({
                 <td className="px-4 py-4 whitespace-nowrap">
                   <input
                     type="text"
-                    className="w-full border border-gray-300 rounded-md p-2 text-sm bg-gray-50 cursor-not-allowed font-medium text-gray-900"
+                    className="min-w-[160px] border border-gray-300 rounded-md p-2 text-sm bg-gray-50 cursor-not-allowed font-medium text-gray-900"
                     value={`₹${vehicle.totalCharge.toLocaleString("en-IN", {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,

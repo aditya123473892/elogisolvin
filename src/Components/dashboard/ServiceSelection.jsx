@@ -20,7 +20,7 @@ const ServicesSelection = ({
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-4">
         <label className="block text-sm font-medium">Services Required</label>
-        <button
+      { /*<button
           type="button"
           onClick={() => setIsNewServiceModalOpen(true)}
           className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
@@ -39,7 +39,7 @@ const ServicesSelection = ({
             />
           </svg>
           Add New Service
-        </button>
+        </button>*/}
       </div>
 
       {loadingServices ? (

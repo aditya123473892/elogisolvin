@@ -29,7 +29,7 @@ export const generateInvoice = (request, transporterDetails) => {
     doc.text("State Code: 07 GSTIN: 07AABCE3576G1Z1", pageWidth / 2, 41, { align: "center" });
     doc.text("PAN: AABCE3576G", pageWidth / 2, 45, { align: "center" });
     doc.text("CIN: U63090DL2004PTC123819", pageWidth / 2, 49, { align: "center" });
-    doc.text("http://www.jsb.in", pageWidth / 2, 53, { align: "center" });
+
 
     // QR Code placeholder
     doc.rect(pageWidth - 45, 15, 30, 30);

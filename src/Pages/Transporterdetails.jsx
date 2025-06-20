@@ -422,7 +422,7 @@ export const TransporterDetails = ({
           driver_contact: vehicle.driverContact.trim(),
           license_number: vehicle.licenseNumber.trim(),
           license_expiry: vehicle.licenseExpiry,
-          base_charge: parseFloat(vehicle.baseCharge) || 0,
+          base_charge:  0,
           additional_charges: parseFloat(vehicle.additionalCharges) || 0,
           service_charges: serviceChargesJson,
           total_charge: parseFloat(vehicle.totalCharge) || 0,

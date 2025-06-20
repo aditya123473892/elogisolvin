@@ -17,9 +17,7 @@ const VehicleChargesTable = ({
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                 Vehicle Number
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[140px]">
-                Base Charge (INR) *
-              </th>
+            
               {services.map((serviceName) => (
                 <th
                   key={serviceName}
@@ -44,20 +42,7 @@ const VehicleChargesTable = ({
                     {vehicle.vehicleNumber}
                   </span>
                 </td>
-                <td className="px-4 py-4 whitespace-nowrap">
-                  <input
-                    type="number"
-                    className="min-w-[140px] border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    value={vehicle.baseCharge}
-                    onChange={(e) =>
-                      updateVehicleData(index, "baseCharge", e.target.value)
-                    }
-                    placeholder="Base charge"
-                    min="0"
-                    step="0.01"
-                    required
-                  />
-                </td>
+               
                 {services.map((serviceName) => (
                   <td key={serviceName} className="px-4 py-4 whitespace-nowrap">
                     <input

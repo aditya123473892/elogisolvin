@@ -417,8 +417,8 @@ export default function Login() {
                 Back to login
               </button>
             )}
-
-            {/* Error Message */}
+            
+            
             {error && (
               <div className="mb-4 p-3 text-sm text-red-500 bg-red-50 rounded-lg">
                 {error}

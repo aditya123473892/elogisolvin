@@ -60,12 +60,13 @@ const VehicleChargesTable = ({
                           updatedCharges
                         );
 
+                        // Change this calculation to remove baseCharge
                         const serviceTotal = Object.values(updatedCharges).reduce(
                           (sum, val) => sum + (parseFloat(val) || 0),
                           0
                         );
                         const newTotal =
-                          (parseFloat(vehicle.baseCharge) || 0) +
+                          // (parseFloat(vehicle.baseCharge) || 0) + // Remove this line
                           (parseFloat(vehicle.additionalCharges) || 0) +
                           serviceTotal;
 
@@ -93,7 +94,7 @@ const VehicleChargesTable = ({
                         vehicle.serviceCharges || {}
                       ).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
                       const newTotal =
-                        (parseFloat(vehicle.baseCharge) || 0) +
+                        // (parseFloat(vehicle.baseCharge) || 0) + // Remove this line
                         (parseFloat(e.target.value) || 0) +
                         serviceTotal;
 

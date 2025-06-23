@@ -25,7 +25,8 @@ const Header = ({
   toggleSidebar,
 }) => {
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
+    // Change the header class to adjust z-index and ensure proper positioning
+    <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
       <div className="flex items-center justify-between p-4 h-16">
         {/* Left Section */}
         <div className="flex items-center space-x-4">

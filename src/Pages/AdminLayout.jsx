@@ -99,6 +99,7 @@ const AdminLayout = () => {
       />
 
       {/* Main Content Area */}
+      // Update the main content area to handle overflow properly
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <Header
@@ -116,8 +117,8 @@ const AdminLayout = () => {
           toggleSidebar={toggleSidebar}
         />
 
-        {/* Main Content with Routes */}
-  
+        {/* Main Content with Routes - Add overflow-y-auto to enable scrolling */}
+        <div className="flex-1 overflow-y-auto pb-6">
           <Routes>
             <Route path="/" element={<FleetManagementAdminDashboard />} />
             <Route path="/users" element={<AdminUsers />} />
@@ -126,7 +127,7 @@ const AdminLayout = () => {
               element={<AdminTransportRequests />}
             />
           </Routes>
-     
+        </div>
       </div>
     </div>
   );

@@ -135,6 +135,7 @@ export const TransporterDetails = ({
   }, [selectedServices]);
 
   const initializeVehicleData = (numVehicles) => {
+    // In the initializeVehicleData function
     const defaultVehicleData = {
       transporterName: "",
       vehicleNumber: "",
@@ -142,7 +143,7 @@ export const TransporterDetails = ({
       driverContact: "",
       licenseNumber: "",
       licenseExpiry: "",
-      baseCharge: "",
+      baseCharge: "0", // Set default to "0"
       additionalCharges: "",
       totalCharge: 0,
       serviceCharges: {}, // Initialize empty object for service charges
@@ -381,9 +382,7 @@ export const TransporterDetails = ({
     if (!vehicle.licenseExpiry) {
       errors.push(`Vehicle ${index + 1}: License expiry date is required`);
     }
-    if (!vehicle.baseCharge || parseFloat(vehicle.baseCharge) <= 0) {
-      errors.push(`Vehicle ${index + 1}: Base charge must be greater than 0`);
-    }
+  
 
     return errors;
   };
@@ -422,7 +421,7 @@ export const TransporterDetails = ({
           driver_contact: vehicle.driverContact.trim(),
           license_number: vehicle.licenseNumber.trim(),
           license_expiry: vehicle.licenseExpiry,
-          base_charge:  0,
+          base_charge: 0, // Always set to 0
           additional_charges: parseFloat(vehicle.additionalCharges) || 0,
           service_charges: serviceChargesJson,
           total_charge: parseFloat(vehicle.totalCharge) || 0,

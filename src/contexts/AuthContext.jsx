@@ -58,44 +58,21 @@ export const AuthProvider = ({ children }) => {
   const checkUserSession = useCallback(async () => {
     const token = localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");
-
+  
     if (!token || !storedUser) {
       return false;
     }
-
-    // Check token format
-    if (!isValidTokenFormat(token)) {
-      console.log("Invalid token format");
-      clearAuthData();
-      return false;
-    }
-
-    // Check if token is expired
-    if (isTokenExpired(token)) {
-      console.log("Token expired");
-      clearAuthData();
-      return false;
-    }
-
+  
     try {
       // Parse user data
       const userData = JSON.parse(storedUser);
-
-      // Validate token with server
-      const isValid = await authAPI.checkSession();
-
-      if (isValid) {
-        setUser(userData);
-        setAuthToken(token);
-        return true;
-      } else {
-        console.log("Session validation failed");
-        clearAuthData();
-        return false;
-      }
+      
+      // Set user data without strict validation
+      setUser(userData);
+      setAuthToken(token);
+      return true;
     } catch (error) {
       console.error("Error checking user session:", error);
-      clearAuthData();
       return false;
     }
   }, []);
@@ -117,25 +94,28 @@ export const AuthProvider = ({ children }) => {
     initializeAuth();
   }, [checkUserSession]);
 
-  // Set up periodic token validation (every 5 minutes)
+  // Set up periodic token validation (every 30 minutes instead of 5 minutes)
   useEffect(() => {
     const validateTokenPeriodically = async () => {
       if (user) {
-        const isValid = await authAPI.checkSession();
-        if (!isValid) {
-          handleAuthError(
-            null,
-            "Your session has expired. Please log in again."
-          );
+        try {
+          const isValid = await authAPI.checkSession();
+          if (!isValid) {
+            console.log("Session validation failed, but not logging out automatically");
+            // Don't call handleAuthError to prevent automatic logout
+          }
+        } catch (error) {
+          console.error("Error validating token:", error);
+          // Don't log out on validation errors
         }
       }
     };
-
-    // Check every 5 minutes
-    const interval = setInterval(validateTokenPeriodically, 1000 * 60 * 1000);
-
+  
+    // Check every 30 minutes (fixed the calculation: 30 minutes in milliseconds)
+    const interval = setInterval(validateTokenPeriodically, 30 * 60 * 1000);
+  
     return () => clearInterval(interval);
-  }, [user, handleAuthError]);
+  }, [user]);
 
   const login = async (credentials, navigate) => {
     try {

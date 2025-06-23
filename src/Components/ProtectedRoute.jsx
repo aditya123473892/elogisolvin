@@ -11,17 +11,15 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     const validateAccess = async () => {
       if (loading) return; // Wait for auth context to finish loading
 
-      // Check if user exists and token is valid
+      // Check if user exists
       if (user) {
         const token = localStorage.getItem("token");
 
-        // Check if token exists and is not expired
-        if (!token || isTokenExpired(token)) {
-          handleAuthError(
-            navigate,
-            "Your session has expired. Please log in again."
-          );
-          return;
+        // Only log token issues without redirecting
+        if (!token) {
+          console.log("Token missing in ProtectedRoute, but continuing");
+        } else if (isTokenExpired(token)) {
+          console.log("Token expired in ProtectedRoute, but continuing");
         }
 
         // If user has required role, allow access
@@ -57,7 +55,7 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     };
 
     validateAccess();
-  }, [user, loading, allowedRoles, navigate, handleAuthError, isTokenExpired]);
+  }, [user, loading, allowedRoles, navigate, isTokenExpired]);
 
   // Show loading state while checking authentication or validating
   if (loading || isValidating) {

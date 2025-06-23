@@ -28,37 +28,18 @@ api.interceptors.request.use(
   }
 );
 
-// Add response interceptor to handle token expiration
 api.interceptors.response.use(
   (response) => {
-    // Reset auth error handling flag on successful responses
     isHandlingAuthError = false;
     return response;
   },
   (error) => {
-    // Handle authentication errors (401 Unauthorized, 403 Forbidden)
-    if (
-      (error.response?.status === 401 || error.response?.status === 403) &&
-      !isHandlingAuthError
-    ) {
-      isHandlingAuthError = true;
-
-      // Clear authentication data
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-
-      // Show error message
-      console.error("Authentication failed - redirecting to login");
-      
-      // Use setTimeout to delay the redirect slightly, giving time for any toast messages to appear
-      setTimeout(() => {
-        // Redirect to login page
-        if (window.location.pathname !== "/login") {
-          window.location.href = "/login";
-        }
-      }, 1500); // 1.5 second delay
+    // Just log the error without any redirection or clearing auth data
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      console.log("Auth error occurred, but not redirecting or clearing data");
     }
-
+    
+    // Simply return the error without any redirection
     return Promise.reject(error);
   }
 );
@@ -97,14 +78,93 @@ export const clearAuthData = () => {
 };
 
 export const authAPI = {
-  login: async (credentials) => {
+  // UPDATED: Two-step OTP authentication system
+  
+  // Step 1: Send OTP after password verification
+  requestOtp: async (credentials) => {
     try {
-      const response = await api.post("/auth/login", credentials);
+      const response = await api.post("/auth/request-otp", credentials);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
     }
   },
+
+  // Step 2: Verify OTP and complete login
+  verifyOtpAndLogin: async (otpData) => {
+    try {
+      console.log("Sending OTP verification request:", {
+        url: `${API_BASE_URL}/auth/verify-otp`,
+        data: otpData
+      });
+      
+      const response = await api.post("/auth/verify-otp", otpData);
+      console.log("OTP verification response:", response.data);
+      
+      // Validate response format
+      if (!response.data) {
+        console.error("Empty response data");
+        throw new Error("Invalid server response");
+      }
+      
+      // Check for token and user data
+      if (!response.data.token) {
+        console.error("No token in response:", response.data);
+        throw new Error("Authentication token not received");
+      }
+      
+      if (!response.data.user) {
+        console.error("No user data in response:", response.data);
+        throw new Error("User information not received");
+      }
+      
+      // Set the token in the API headers immediately
+      setAuthToken(response.data.token);
+      
+      // Store user data and token in localStorage
+      localStorage.setItem("user", JSON.stringify(response.data.user));
+      localStorage.setItem("token", response.data.token);
+      
+      // Add a small delay to ensure localStorage is updated
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Verify the token was properly set
+      const storedToken = localStorage.getItem("token");
+      console.log("Stored token verification:", {
+        tokenReceived: response.data.token,
+        tokenStored: storedToken,
+        match: storedToken === response.data.token
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error("OTP verification error:", error);
+      console.error("Error details:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      // Enhanced error reporting
+      const errorMessage = error.response?.data?.message || 
+                           error.response?.data?.error || 
+                           error.message || 
+                           "Unknown error during OTP verification";
+      
+      console.error("Formatted error message:", errorMessage);
+      throw errorMessage;
+    }
+  },
+
+  // Keep the old login method commented for backward compatibility if needed
+  // login: async (credentials) => {
+  //   try {
+  //     const response = await api.post("/auth/login", credentials);
+  //     return response.data;
+  //   } catch (error) {
+  //     throw error.response?.data || error.message;
+  //   }
+  // },
 
   signup: async (userData) => {
     try {
@@ -142,31 +202,32 @@ export const authAPI = {
   // Check if current session is valid
   checkSession: async () => {
     const token = localStorage.getItem("token");
-
+  
     // Check if token exists and has valid format
     if (!token || !isValidTokenFormat(token)) {
+      console.log("Token missing or invalid format, but not clearing auth data");
       return false;
     }
-
+  
     // Check if token is expired
     if (isTokenExpired(token)) {
-      clearAuthData();
+      console.log("Token expired, but not clearing auth data");
       return false;
     }
-
+  
     try {
       // Validate with server
       await authAPI.validateToken();
       return true;
     } catch (error) {
       console.error("Session validation failed:", error);
-      clearAuthData();
+      // Don't clear auth data on validation failure
       return false;
     }
   },
 };
 
-// NEW: User Management API following the same pattern as transporterAPI
+// User Management API
 export const userAPI = {
   // Get all users (admin only)
   getAllUsers: async () => {
@@ -230,7 +291,7 @@ export const userAPI = {
 };
 
 export const transporterAPI = {
-  // Create transporter details - Updated to match Express routes
+  // Create transporter details
   createTransporter: async (requestId, transporterData) => {
     try {
       const response = await api.post(
@@ -243,7 +304,7 @@ export const transporterAPI = {
     }
   },
 
-  // Update transporter details - Updated to match Express routes
+  // Update transporter details
   updateTransporter: async (transporterId, transporterData) => {
     try {
       const response = await api.put(
@@ -256,7 +317,7 @@ export const transporterAPI = {
     }
   },
 
-  // Get transporter details by transport request ID - Updated to match Express routes
+  // Get transporter details by transport request ID
   getTransporterByRequestId: async (requestId) => {
     try {
       const response = await api.get(
@@ -329,11 +390,32 @@ export const transportRequestAPI = {
 
 export const setAuthToken = (token) => {
   if (token) {
-    localStorage.setItem("token", token);
-    api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+    try {
+      // Store token in localStorage
+      localStorage.setItem("token", token);
+      
+      // Set token in axios headers
+      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      
+      console.log("Auth token set in headers:", token);
+      console.log("Verification - localStorage token:", localStorage.getItem("token"));
+      console.log("Verification - axios headers:", api.defaults.headers.common["Authorization"]);
+      
+      return true;
+    } catch (error) {
+      console.error("Error setting auth token:", error);
+      return false;
+    }
   } else {
-    localStorage.removeItem("token");
-    delete api.defaults.headers.common["Authorization"];
+    try {
+      localStorage.removeItem("token");
+      delete api.defaults.headers.common["Authorization"];
+      console.log("Auth token removed from headers");
+      return true;
+    } catch (error) {
+      console.error("Error removing auth token:", error);
+      return false;
+    }
   }
 };
 
@@ -345,7 +427,7 @@ export const transporterListAPI = {
   getAllTransporters: async () => {
     try {
       const response = await api.get("/transporterlist/getall");
-      return response.data; // Return direct data since it's already in correct format
+      return response.data;
     } catch (error) {
       console.error("Error fetching transporters:", error);
       return [];

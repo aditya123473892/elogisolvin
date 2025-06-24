@@ -160,7 +160,7 @@ export default function FleetManagementAdminDashboard() {
         {/* Top Header */}
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto p-5">
+        <main className="flex-1 ">
           <Routes>
             <Route
               path="/"

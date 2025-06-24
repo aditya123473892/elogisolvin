@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Routes, Route } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import Header from "../Components/Header";
+import Header from "../Components/Header"; // Adjust import path as needed
 import FleetManagementAdminDashboard from "./Admindashboard";
 import AdminUsers from "./AdminUsers";
 import AdminTransportRequests from "./AdminTransportRequests";
@@ -9,7 +9,7 @@ import { AdminSidebar } from "../Components/Adminsidebar";
 
 const AdminLayout = () => {
   // Sidebar states
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activePage, setActivePage] = useState("dashboard");
 
@@ -25,13 +25,12 @@ const AdminLayout = () => {
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 768) {
-        setCollapsed(false); // Always expand on mobile when sidebar is shown
+        setCollapsed(false); // Expand on mobile when sidebar is shown
       }
     };
 
     window.addEventListener("resize", handleResize);
-    handleResize(); // Check initial size
-
+    handleResize();
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
@@ -39,7 +38,6 @@ const AdminLayout = () => {
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (showNotifications || showUserMenu) {
-        // Close dropdowns if clicking outside
         if (!event.target.closest(".dropdown-container")) {
           setShowNotifications(false);
           setShowUserMenu(false);
@@ -51,43 +49,33 @@ const AdminLayout = () => {
     return () => document.removeEventListener("click", handleClickOutside);
   }, [showNotifications, showUserMenu]);
 
-  // Toggle functions
-  const toggleSidebar = () => {
-    setCollapsed(!collapsed);
-  };
-
-  const toggleMobileMenu = () => {
-    setMobileMenuOpen(!mobileMenuOpen);
-    // Close other dropdowns when opening mobile menu
-    if (!mobileMenuOpen) {
-      setShowNotifications(false);
-      setShowUserMenu(false);
-    }
-  };
-
-  const toggleNotifications = () => {
-    setShowNotifications(!showNotifications);
-    setShowUserMenu(false); // Close user menu when opening notifications
-  };
-
-  const toggleUserMenu = () => {
-    setShowUserMenu(!showUserMenu);
-    setShowNotifications(false); // Close notifications when opening user menu
-  };
-
-  // Handler functions
-  const handleSearch = (e) => {
+  // Memoized toggle and handler functions to prevent unnecessary re-renders
+  const toggleSidebar = useCallback(() => setCollapsed((prev) => !prev), []);
+  const toggleMobileMenu = useCallback(() => {
+    setMobileMenuOpen((prev) => {
+      if (!prev) {
+        setShowNotifications(false);
+        setShowUserMenu(false);
+      }
+      return !prev;
+    });
+  }, []);
+  const toggleNotifications = useCallback(() => {
+    setShowNotifications((prev) => !prev);
+    setShowUserMenu(false);
+  }, []);
+  const toggleUserMenu = useCallback(() => {
+    setShowUserMenu((prev) => !prev);
+    setShowNotifications(false);
+  }, []);
+  const handleSearch = useCallback((e) => {
     setSearchQuery(e.target.value);
-    // Implement search logic here
     console.log("Searching for:", e.target.value);
-  };
-
-  const handleLogout = () => {
-    logout();
-  };
+  }, []);
+  const handleLogout = useCallback(() => logout(), [logout]);
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex min-h-screen bg-gray-100">
       {/* Sidebar */}
       <AdminSidebar
         collapsed={collapsed}
@@ -98,9 +86,12 @@ const AdminLayout = () => {
         toggleMobileMenu={toggleMobileMenu}
       />
 
-      {/* Main Content Area */}
-      // Update the main content area to handle overflow properly
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Main Content */}
+      <div
+        className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ease-in-out ${
+          collapsed ? "md:ml-16" : "md:ml-64"
+        }`}
+      >
         {/* Header */}
         <Header
           toggleMobileMenu={toggleMobileMenu}
@@ -117,17 +108,14 @@ const AdminLayout = () => {
           toggleSidebar={toggleSidebar}
         />
 
-        {/* Main Content with Routes - Add overflow-y-auto to enable scrolling */}
-        <div className="flex-1 overflow-y-auto pb-6">
+        {/* Content */}
+        <main className="flex-1 overflow-y-auto p-6">
           <Routes>
             <Route path="/" element={<FleetManagementAdminDashboard />} />
             <Route path="/users" element={<AdminUsers />} />
-            <Route
-              path="/transport-requests"
-              element={<AdminTransportRequests />}
-            />
+            <Route path="/transport-requests" element={<AdminTransportRequests />} />
           </Routes>
-        </div>
+        </main>
       </div>
     </div>
   );

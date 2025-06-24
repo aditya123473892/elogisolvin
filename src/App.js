@@ -18,6 +18,10 @@ import EditRequestModal from "./Components/EditRequestModal"; // Import the new 
 import AdminLayout from "./Pages/AdminLayout";
 import ShipmentsPage from "./Pages/Myshipments";
 import ContainerDetailsPage from "./Pages/Containerdetailspage";
+// Add these imports
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
 
 const DashboardLayout = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
@@ -32,7 +36,6 @@ const DashboardLayout = ({ children }) => {
     setMobileMenuOpen(!mobileMenuOpen);
   };
 
-  // Common props for all dashboards and sidebars
   const sidebarProps = {
     collapsed,
     toggleSidebar,
@@ -44,8 +47,19 @@ const DashboardLayout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
+      {/* Sidebar */}
       <RoleSidebar {...sidebarProps} />
-      <div className="flex-1">{React.cloneElement(children, sidebarProps)}</div>
+
+      {/* Main Content */}
+      <main
+        className={`flex-1 transition-all duration-300 ease-in-out ${
+          collapsed ? "md:ml-16" : "md:ml-64"
+        } md:min-w-0`}
+      >
+        <div className="p-6">
+          {React.cloneElement(children, sidebarProps)}
+        </div>
+      </main>
     </div>
   );
 };
@@ -71,6 +85,17 @@ const RoleRedirect = () => {
 function App() {
   return (
     <AuthProvider>
+         <ToastContainer 
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -148,7 +173,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-
+         
           {/* Driver route */}
           <Route
             path="/driver-dashboard"
@@ -168,6 +193,17 @@ function App() {
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Router>
+        <ToastContainer 
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
     </AuthProvider>
   );
 }

@@ -328,6 +328,46 @@ export const transporterAPI = {
       throw error.response?.data || error.message;
     }
   },
+
+  // Add multiple containers to a vehicle
+  addMultipleContainers: async (transporterId, containers) => {
+    try {
+      const response = await api.post(
+        `/transporter/${transporterId}/containers`,
+        { containers }
+      );
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  
+  // Get containers by transport request ID
+  getContainersByRequestId: async (requestId) => {
+    try {
+      const response = await api.get(
+        `/transport-requests/${requestId}/containers`
+      );
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Update container details for a specific container ID
+  updateContainerDetails: async (containerId, containerData) => {
+    try {
+      // Make sure this exactly matches the backend route format
+      const response = await api.put(
+        `/transporter/${containerId}/container`,
+        containerData
+      );
+      return response.data;
+    } catch (error) {
+      console.error("API Error:", error.response || error);
+      throw error.response?.data || error.message;
+    }
+  },
 };
 
 export const transportRequestAPI = {

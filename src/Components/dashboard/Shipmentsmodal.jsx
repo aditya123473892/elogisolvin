@@ -269,7 +269,7 @@ const ShipmentDetailsModal = ({
               </div>
             </InfoCard>
 
-            {/* Container Details */}
+                   {/* Container Details */}
             {containerDetails && containerDetails.length > 0 && (
               <InfoCard iconText="🚛" title="Container & Transport Details" className="md:col-span-2 xl:col-span-3">
                 <div className="space-y-6">
@@ -277,7 +277,7 @@ const ShipmentDetailsModal = ({
                     <div key={container.id} className="bg-gray-50 rounded-2xl p-6 border border-gray-100">
                       <div className="flex items-center justify-between mb-5">
                         <h6 className="font-bold text-lg text-gray-900">Transport Unit #{index + 1}</h6>
-                        <div className="text-sm text-gray-400">ID: {container.id}</div>
+                        <div className="text-sm text-gray-400">Vehicle No: {container.vehicle_number}</div>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

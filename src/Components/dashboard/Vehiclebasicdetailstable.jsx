@@ -99,7 +99,50 @@ const TransporterSearchInput = ({ value, onChange, placeholder }) => {
   );
 };
 
+// Add this validation function at the component level
 const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
+  // Add validation function
+  const validateVehicleData = (field, value) => {
+    switch (field) {
+      case "vehicleNumber":
+        // Format: MH01AB1234 (2 letters + 2 digits + 1-2 letters + 4 digits)
+        return /^[A-Z]{2}\d{2}[A-Z]{1,2}\d{4}$/.test(value);
+      case "driverName":
+        // At least 3 characters, letters, spaces and dots only
+        return value.length >= 3 && /^[A-Za-z.\s]+$/.test(value);
+      case "driverContact":
+        // Exactly 10 digits
+        return /^\d{10}$/.test(value);
+      case "licenseNumber":
+        // Alphanumeric, at least 5 characters
+        return value.length >= 5 && /^[A-Z0-9]+$/.test(value);
+      case "licenseExpiry":
+        // Must be a future date
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const expiryDate = new Date(value);
+        return expiryDate >= today;
+      default:
+        return true;
+    }
+  };
+
+  // Add state to track validation errors
+  const [validationErrors, setValidationErrors] = useState({});
+
+  // Handle input change with validation
+  const handleInputChange = (index, field, value) => {
+    // Update the data
+    updateVehicleData(index, field, value);
+    
+    // Validate and update errors
+    const isValid = validateVehicleData(field, value);
+    setValidationErrors(prev => ({
+      ...prev,
+      [`${index}-${field}`]: isValid ? null : `Invalid ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}`
+    }));
+  };
+
   return (
     <div>
       <h4 className="text-lg font-medium text-gray-900 mb-4">
@@ -155,77 +198,110 @@ const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
                   />
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap">
-                  <input
-                    type="text"
-                    className="w-full min-w-[140px] border border-gray-300 rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    value={vehicle.vehicleNumber}
-                    onChange={(e) =>
-                      updateVehicleData(
-                        index,
-                        "vehicleNumber",
-                        e.target.value.toUpperCase()
-                      )
-                    }
-                    placeholder="e.g., MH01AB1234"
-                    required
-                  />
+                  <div>
+                    <input
+                      type="text"
+                      className={`w-full min-w-[140px] border ${validationErrors[`${index}-vehicleNumber`] ? 'border-red-500' : 'border-gray-300'} rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
+                      value={vehicle.vehicleNumber}
+                      onChange={(e) =>
+                        handleInputChange(
+                          index,
+                          "vehicleNumber",
+                          e.target.value.toUpperCase()
+                        )
+                      }
+                      placeholder="e.g., MH01AB1234"
+                      pattern="[A-Z]{2}\d{2}[A-Z]{1,2}\d{4}"
+                      title="Vehicle number must be in format like MH01AB1234"
+                      required
+                    />
+                    {validationErrors[`${index}-vehicleNumber`] && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors[`${index}-vehicleNumber`]}</p>
+                    )}
+                  </div>
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap">
-                  <input
-                    type="text"
-                    className="w-full min-w-[140px] border border-gray-300 rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    value={vehicle.driverName}
-                    onChange={(e) =>
-                      updateVehicleData(index, "driverName", e.target.value)
-                    }
-                    placeholder="Driver full name"
-                    required
-                  />
+                  <div>
+                    <input
+                      type="text"
+                      className={`w-full min-w-[140px] border ${validationErrors[`${index}-driverName`] ? 'border-red-500' : 'border-gray-300'} rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
+                      value={vehicle.driverName}
+                      onChange={(e) =>
+                        handleInputChange(index, "driverName", e.target.value)
+                      }
+                      placeholder="Driver full name"
+                      pattern="[A-Za-z.\s]{3,}"
+                      title="Driver name must contain at least 3 characters, letters only"
+                      required
+                    />
+                    {validationErrors[`${index}-driverName`] && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors[`${index}-driverName`]}</p>
+                    )}
+                  </div>
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap">
-                  <input
-                    type="tel"
-                    className="w-full min-w-[160px] border border-gray-300 rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    value={vehicle.driverContact}
-                    onChange={(e) =>
-                      updateVehicleData(
-                        index,
-                        "driverContact",
-                        e.target.value.replace(/\D/g, "").slice(0, 10)
-                      )
-                    }
-                    placeholder="10-digit mobile number"
-                    maxLength="10"
-                    required
-                  />
+                  <div>
+                    <input
+                      type="tel"
+                      className={`w-full min-w-[160px] border ${validationErrors[`${index}-driverContact`] ? 'border-red-500' : 'border-gray-300'} rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
+                      value={vehicle.driverContact}
+                      onChange={(e) =>
+                        handleInputChange(
+                          index,
+                          "driverContact",
+                          e.target.value.replace(/\D/g, "").slice(0, 10)
+                        )
+                      }
+                      placeholder="10-digit mobile number"
+                      pattern="\d{10}"
+                      title="Driver contact must be exactly 10 digits"
+                      maxLength="10"
+                      required
+                    />
+                    {validationErrors[`${index}-driverContact`] && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors[`${index}-driverContact`]}</p>
+                    )}
+                  </div>
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap">
-                  <input
-                    type="text"
-                    className="w-full min-w-[160px] border border-gray-300 rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    value={vehicle.licenseNumber}
-                    onChange={(e) =>
-                      updateVehicleData(
-                        index,
-                        "licenseNumber",
-                        e.target.value.toUpperCase()
-                      )
-                    }
-                    placeholder="License number"
-                    required
-                  />
+                  <div>
+                    <input
+                      type="text"
+                      className={`w-full min-w-[160px] border ${validationErrors[`${index}-licenseNumber`] ? 'border-red-500' : 'border-gray-300'} rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
+                      value={vehicle.licenseNumber}
+                      onChange={(e) =>
+                        handleInputChange(
+                          index,
+                          "licenseNumber",
+                          e.target.value.toUpperCase()
+                        )
+                      }
+                      placeholder="License number"
+                      pattern="[A-Z0-9]{5,}"
+                      title="License number must be at least 5 alphanumeric characters"
+                      required
+                    />
+                    {validationErrors[`${index}-licenseNumber`] && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors[`${index}-licenseNumber`]}</p>
+                    )}
+                  </div>
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap">
-                  <input
-                    type="date"
-                    className="w-full min-w-[160px] border border-gray-300 rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    value={vehicle.licenseExpiry}
-                    onChange={(e) =>
-                      updateVehicleData(index, "licenseExpiry", e.target.value)
-                    }
-                    min={new Date().toISOString().split("T")[0]}
-                    required
-                  />
+                  <div>
+                    <input
+                      type="date"
+                      className={`w-full min-w-[160px] border ${validationErrors[`${index}-licenseExpiry`] ? 'border-red-500' : 'border-gray-300'} rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
+                      value={vehicle.licenseExpiry}
+                      onChange={(e) =>
+                        handleInputChange(index, "licenseExpiry", e.target.value)
+                      }
+                      min={new Date().toISOString().split("T")[0]}
+                      required
+                    />
+                    {validationErrors[`${index}-licenseExpiry`] && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors[`${index}-licenseExpiry`]}</p>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

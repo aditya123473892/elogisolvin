@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { transporterAPI } from "../utils/Api";
@@ -14,40 +15,56 @@ const ContainerDetailsPage = () => {
   const [existingTransporterData, setExistingTransporterData] = useState([]); // Store existing transporter data
   const [groupedContainers, setGroupedContainers] = useState({});
   const [expandedVehicle, setExpandedVehicle] = useState(null);
-  
 
-  
   // Initialize with data from sessionStorage
   useEffect(() => {
     const storedContainerData = sessionStorage.getItem("containerData");
     const storedRequestId = sessionStorage.getItem("transportRequestId");
-    
+
     if (storedRequestId) {
       setTransportRequestId(storedRequestId);
     }
-    
+
     if (storedContainerData) {
       try {
         const parsedData = JSON.parse(storedContainerData);
-        setVehicleDataList(parsedData);
-        
-        // Map vehicle data to container format
+
+        // First set the vehicle list for dropdown options
+        const uniqueVehicles = [];
+        const vehicleMap = {};
+
+        parsedData.forEach((item) => {
+          if (item.vehicleNumber && !vehicleMap[item.vehicleNumber]) {
+            vehicleMap[item.vehicleNumber] = true;
+            uniqueVehicles.push({
+              vehicleNumber: item.vehicleNumber,
+              transporterName: item.transporterName || "",
+            });
+          }
+        });
+
+        setVehicleDataList(uniqueVehicles);
+
+        // Then map to container format
         const containerData = parsedData.map((vehicle, index) => ({
           id: vehicle.id || null,
           containerNo: vehicle.containerNo || "",
-          numberOfContainers: vehicle.numberOfContainers || "",
+          numberOfContainers: vehicle.numberOfContainers?.toString() || "",
           containerType: vehicle.containerType || "",
           containerSize: vehicle.containerSize || "",
           line: vehicle.line || "",
           seal1: vehicle.seal1 || "",
           seal2: vehicle.seal2 || "",
-          containerTotalWeight: vehicle.containerTotalWeight || "",
-          cargoTotalWeight: vehicle.cargoTotalWeight || "",
+          containerTotalWeight: vehicle.containerTotalWeight?.toString() || "",
+          cargoTotalWeight: vehicle.cargoTotalWeight?.toString() || "",
           remarks: vehicle.remarks || "",
           vehicleNumber: vehicle.vehicleNumber || "",
-          vehicleIndex: vehicle.vehicleIndex || (index + 1),
+          vehicleIndex: vehicle.vehicleIndex || index + 1,
         }));
-        setContainers(containerData.length > 0 ? containerData : [createEmptyContainer()]);
+
+        setContainers(
+          containerData.length > 0 ? containerData : [createEmptyContainer()]
+        );
       } catch (error) {
         console.error("Error parsing container data:", error);
         setContainers([createEmptyContainer()]);
@@ -61,40 +78,49 @@ const ContainerDetailsPage = () => {
   useEffect(() => {
     console.log("Containers before grouping (count):", containers.length);
     console.log("Containers before grouping (details):", containers);
-    
+
     const grouped = {};
-    containers.forEach(container => {
+    containers.forEach((container) => {
       const vehicleNumber = container.vehicleNumber || "unassigned";
       if (!grouped[vehicleNumber]) {
         grouped[vehicleNumber] = [];
       }
       grouped[vehicleNumber].push(container);
     });
-    
-    console.log("Grouped containers (vehicle count):", Object.keys(grouped).length);
+
+    console.log(
+      "Grouped containers (vehicle count):",
+      Object.keys(grouped).length
+    );
     Object.entries(grouped).forEach(([vehicleNumber, vehicleContainers]) => {
-      console.log(`Vehicle ${vehicleNumber} has ${vehicleContainers.length} containers`);
+      console.log(
+        `Vehicle ${vehicleNumber} has ${vehicleContainers.length} containers`
+      );
     });
-    
+
     // Log the grouped containers to verify all containers are included
     console.log("Grouped containers:", grouped);
     setGroupedContainers(grouped);
-    
+
     // Set the first vehicle as expanded by default if none is selected
     if (expandedVehicle === null && Object.keys(grouped).length > 0) {
       setExpandedVehicle(Object.keys(grouped)[0]);
     }
-  }, [containers, expandedVehicle]);
+  }, [containers]); // Remove expandedVehicle from the dependency array
 
   // Fetch existing transporter data
   const fetchExistingTransporterData = async () => {
     if (!transportRequestId) return;
-    
+
     try {
-      const response = await transporterAPI.getTransporterByRequestId(transportRequestId);
-      
+      const response = await transporterAPI.getTransporterByRequestId(
+        transportRequestId
+      );
+
       if (response.success) {
-        const transporterData = Array.isArray(response.data) ? response.data : [response.data];
+        const transporterData = Array.isArray(response.data)
+          ? response.data
+          : [response.data];
         setExistingTransporterData(transporterData);
         console.log("Existing transporter data loaded:", transporterData);
       }
@@ -111,9 +137,36 @@ const ContainerDetailsPage = () => {
     }
   }, [transportRequestId]);
 
+  // New useEffect to automatically load containers for each vehicle when vehicleDataList changes
+  useEffect(() => {
+    const loadAllVehicleContainers = async () => {
+      if (!transportRequestId || vehicleDataList.length === 0) return;
+      
+      setIsLoading(true);
+      try {
+        // Create an array of promises for loading containers for each vehicle
+        const loadPromises = vehicleDataList.map(vehicle => 
+          loadVehicleContainers(vehicle.vehicleNumber)
+        );
+        
+        // Wait for all promises to resolve
+        await Promise.all(loadPromises);
+        
+        toast.success("All vehicle containers loaded successfully");
+      } catch (error) {
+        console.error("Error loading vehicle containers:", error);
+        toast.error("Failed to load some vehicle containers");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadAllVehicleContainers();
+  }, [vehicleDataList, transportRequestId]);
+
   const onBack = () => {
     // Update sessionStorage with current container data before going back
-    const updatedVehicleData = containers.map(container => ({
+    const updatedVehicleData = containers.map((container) => ({
       id: container.id,
       containerNo: container.containerNo,
       numberOfContainers: container.numberOfContainers,
@@ -128,7 +181,7 @@ const ContainerDetailsPage = () => {
       vehicleNumber: container.vehicleNumber,
       vehicleIndex: container.vehicleIndex,
     }));
-    
+
     sessionStorage.setItem("containerData", JSON.stringify(updatedVehicleData));
     navigate(-1); // Go back to previous page
   };
@@ -165,7 +218,7 @@ const ContainerDetailsPage = () => {
       // Update vehicle indices after removal
       const reindexedContainers = updatedContainers.map((container, i) => ({
         ...container,
-        vehicleIndex: i + 1
+        vehicleIndex: i + 1,
       }));
       setContainers(reindexedContainers);
     } else {
@@ -183,7 +236,9 @@ const ContainerDetailsPage = () => {
 
   // Toggle vehicle expansion
   const toggleVehicleExpansion = (vehicleNumber) => {
-    setExpandedVehicle(expandedVehicle === vehicleNumber ? null : vehicleNumber);
+    setExpandedVehicle(
+      expandedVehicle === vehicleNumber ? null : vehicleNumber
+    );
   };
 
   // Validate container data
@@ -193,14 +248,7 @@ const ContainerDetailsPage = () => {
       if (!container.containerNo.trim()) {
         errors.push(`Container ${index + 1}: Container number is required`);
       }
-      if (
-        !container.numberOfContainers ||
-        parseInt(container.numberOfContainers) <= 0
-      ) {
-        errors.push(
-          `Container ${index + 1}: Number of containers must be greater than 0`
-        );
-      }
+     
       if (!container.vehicleNumber) {
         errors.push(`Container ${index + 1}: Vehicle number is required`);
       }
@@ -213,17 +261,17 @@ const ContainerDetailsPage = () => {
     if (existingTransporterData.length === 0) {
       return null;
     }
-    
+
     // Find by vehicle number
     let matchingData = existingTransporterData.find(
       (data) => data.vehicle_number === vehicleNumber
     );
-    
+
     // If not found and we have any transporter data, use the first one as fallback
     if (!matchingData && existingTransporterData.length > 0) {
       matchingData = existingTransporterData[0];
     }
-    
+
     return matchingData;
   };
 
@@ -241,7 +289,7 @@ const ContainerDetailsPage = () => {
     try {
       // Group containers by vehicle number for processing
       const containersByVehicle = {};
-      containers.forEach(container => {
+      containers.forEach((container) => {
         if (!containersByVehicle[container.vehicleNumber]) {
           containersByVehicle[container.vehicleNumber] = [];
         }
@@ -249,20 +297,28 @@ const ContainerDetailsPage = () => {
       });
 
       const updatePromises = [];
-      
+
       // Process each vehicle's containers
-      for (const [vehicleNumber, vehicleContainers] of Object.entries(containersByVehicle)) {
+      for (const [vehicleNumber, vehicleContainers] of Object.entries(
+        containersByVehicle
+      )) {
         // Get existing transporter data for this vehicle
         const existingData = getExistingTransporterData(vehicleNumber);
-        
+
         // If no existing transporter data, show error
         if (!existingData) {
-          throw new Error(`No transporter data found for vehicle ${vehicleNumber}. Please add transporter details first.`);
+          throw new Error(
+            `No transporter data found for vehicle ${vehicleNumber}. Please add transporter details first.`
+          );
         }
 
         // Separate existing containers (with ID) from new ones (without ID)
-        const existingContainers = vehicleContainers.filter(container => container.id);
-        const newContainers = vehicleContainers.filter(container => !container.id);
+        const existingContainers = vehicleContainers.filter(
+          (container) => container.id
+        );
+        const newContainers = vehicleContainers.filter(
+          (container) => !container.id
+        );
 
         // Format containers for API
         const formatContainer = (container) => ({
@@ -276,129 +332,246 @@ const ContainerDetailsPage = () => {
           cargo_total_weight: parseFloat(container.cargoTotalWeight) || 0,
           container_type: container.containerType,
           container_size: container.containerSize,
-          vehicle_number: container.vehicleNumber
+          vehicle_number: container.vehicleNumber,
+          remarks: container.remarks,
         });
 
         // Update existing containers individually
         for (const container of existingContainers) {
           updatePromises.push(
-            transporterAPI.updateContainerDetails(container.id, formatContainer(container))
+            transporterAPI
+              .updateContainerDetails(container.id, formatContainer(container))
+              .then((response) => ({
+                success: response.success,
+                message: `Updated container ${container.containerNo}`,
+                data: response.data,
+              }))
+              .catch((error) => ({
+                success: false,
+                message: `Failed to update container ${
+                  container.containerNo
+                }: ${error.message || "Unknown error"}`,
+                error,
+              }))
           );
         }
 
-        // Add new containers using addMultipleContainers only if there are new containers
+        // Add new containers using addContainersToVehicle only if there are new containers
         if (newContainers.length > 0) {
           const formattedNewContainers = newContainers.map(formatContainer);
           updatePromises.push(
-            transporterAPI.addMultipleContainers(existingData.id, formattedNewContainers)
+            transporterAPI
+              .addContainersToVehicle(
+                transportRequestId,
+                vehicleNumber,
+                formattedNewContainers
+              )
+              .then((response) => ({
+                success: response.success,
+                message: `Added ${formattedNewContainers.length} new containers to vehicle ${vehicleNumber}`,
+                data: response.data,
+              }))
+              .catch((error) => ({
+                success: false,
+                message: `Failed to add containers to vehicle ${vehicleNumber}: ${
+                  error.message || "Unknown error"
+                }`,
+                error,
+              }))
           );
         }
       }
 
       const results = await Promise.all(updatePromises);
-      
-      // Check if all updates were successful
-      const allSuccessful = results.every(response => response.success);
 
-      if (allSuccessful) {
-        // Show success toast notification
-        toast.success("Container details updated successfully");
-        
-        // Update sessionStorage with the updated data
-        const updatedVehicleData = containers.map(container => ({
-          id: container.id,
-          containerNo: container.containerNo,
-          numberOfContainers: container.numberOfContainers,
-          containerType: container.containerType,
-          containerSize: container.containerSize,
-          line: container.line,
-          seal1: container.seal1,
-          seal2: container.seal2,
-          containerTotalWeight: container.containerTotalWeight,
-          cargoTotalWeight: container.cargoTotalWeight,
-          remarks: container.remarks,
-          vehicleNumber: container.vehicleNumber,
-          vehicleIndex: container.vehicleIndex,
-        }));
-        
-        sessionStorage.setItem("containerData", JSON.stringify(updatedVehicleData));
-        
-        // Refresh data instead of navigating away
+      // Check results and show appropriate messages
+      const successResults = results.filter((r) => r.success);
+      const failedResults = results.filter((r) => !r.success);
+
+      if (failedResults.length > 0) {
+        // Show errors for failed operations
+        failedResults.forEach((result) => {
+          toast.error(result.message);
+        });
+      }
+
+      if (successResults.length > 0) {
+        // Show success message
+        toast.success(
+          `Successfully updated ${successResults.length} container entries`
+        );
+
+        // Refresh data
         await fetchExistingTransporterData();
         await loadContainerData();
-      } else {
-        throw new Error('Some container updates failed');
       }
     } catch (error) {
       console.error("Error updating container details:", error);
       toast.error(
-        error.response?.data?.message || 
-        error.message || 
-        "Failed to update container details"
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to update container details"
       );
     } finally {
       setIsSubmitting(false);
     }
   };
+  // Load containers for a specific vehicle
+  const loadVehicleContainers = async (vehicleNumber) => {
+    if (!transportRequestId || !vehicleNumber) {
+      toast.error("Transport request ID or vehicle number is missing");
+      return;
+    }
 
+    // Show loading indicator for this specific operation
+    const vehicleLoadingToastId = toast.info(
+      `Loading containers for vehicle ${vehicleNumber}...`,
+      { autoClose: false }
+    );
+
+    try {
+      const response = await transporterAPI.getContainersByVehicleNumber(
+        transportRequestId,
+        vehicleNumber
+      );
+
+      if (response.success && response.data && response.data.length > 0) {
+        // Map the API response to our container format
+        const vehicleContainers = response.data.map((container, index) => ({
+          id: container.id,
+          containerNo: container.container_no || "",
+          numberOfContainers: container.number_of_containers?.toString() || "",
+          containerType: container.container_type || "",
+          containerSize: container.container_size || "",
+          line: container.line || "",
+          seal1: container.seal1 || container.seal_no || "",
+          seal2: container.seal2 || "",
+          containerTotalWeight:
+            container.container_total_weight?.toString() || "",
+          cargoTotalWeight: container.cargo_total_weight?.toString() || "",
+          remarks: container.remarks || "",
+          vehicleNumber: container.vehicle_number || "",
+          vehicleIndex: Date.now() + index, // Use timestamp + index for unique index
+        }));
+
+        // Update containers state by replacing containers for this vehicle
+        setContainers((prevContainers) => {
+          // Remove existing containers for this vehicle
+          const otherContainers = prevContainers.filter(
+            (c) => c.vehicleNumber !== vehicleNumber
+          );
+          // Add the newly loaded containers
+          return [...otherContainers, ...vehicleContainers];
+        });
+
+        // Update sessionStorage
+        setTimeout(() => {
+          const updatedContainers = [
+            ...document.querySelectorAll("[data-vehicle]"),
+          ].map((el) => JSON.parse(el.dataset.container || "{}"));
+          sessionStorage.setItem(
+            "containerData",
+            JSON.stringify(updatedContainers)
+          );
+        }, 100);
+
+        toast.dismiss(vehicleLoadingToastId);
+        toast.success(
+          `Loaded ${vehicleContainers.length} containers for vehicle ${vehicleNumber}`
+        );
+        return vehicleContainers;
+      } else {
+        toast.dismiss(vehicleLoadingToastId);
+        toast.info(`No containers found for vehicle ${vehicleNumber}`);
+        return [];
+      }
+    } catch (error) {
+      console.error(
+        `Error loading containers for vehicle ${vehicleNumber}:`,
+        error
+      );
+      toast.dismiss(vehicleLoadingToastId);
+      toast.error(`Failed to load containers for vehicle ${vehicleNumber}`);
+      return [];
+    }
+  };
+  // Load existing container data
   // Load existing container data
   const loadContainerData = async () => {
-    if (!transportRequestId) return;
-    
+    if (!transportRequestId) {
+      toast.error("Transport request ID is missing");
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const response = await transporterAPI.getContainersByRequestId(transportRequestId);
-      
-      if (response.success && response.containers && response.containers.length > 0) {
-        // Log the response to verify all containers are returned from API
-        console.log("Container data from API:", response.containers);
-        
-        const loadedContainers = response.containers.map((container, index) => ({
-          id: container.id,
-          containerNo: container.containerNo || "",
-          numberOfContainers: container.numberOfContainers?.toString() || "",
-          containerType: container.containerType || "",
-          containerSize: container.containerSize || "",
-          line: container.line || "",
-          seal1: container.seal1 || "",
-          seal2: container.seal2 || "",
-          containerTotalWeight: container.containerTotalWeight?.toString() || "",
-          cargoTotalWeight: container.cargoTotalWeight?.toString() || "",
-          remarks: container.remarks || "",
-          vehicleNumber: container.vehicleNumber || "",
-          vehicleIndex: index + 1, // Ensure unique index
-        }));
-        
+      // Get all containers for this request
+      const allContainersResponse =
+        await transporterAPI.getContainersByRequestId(transportRequestId);
+
+      if (
+        allContainersResponse.success &&
+        allContainersResponse.data &&
+        allContainersResponse.data.length > 0
+      ) {
+        // Map the API response to our container format
+        const loadedContainers = allContainersResponse.data.map(
+          (container, index) => ({
+            id: container.id,
+            containerNo: container.container_no || "",
+            numberOfContainers:
+              container.number_of_containers?.toString() || "",
+            containerType: container.container_type || "",
+            containerSize: container.container_size || "",
+            line: container.line || "",
+            seal1: container.seal1 || container.seal_no || "",
+            seal2: container.seal2 || "",
+            containerTotalWeight:
+              container.container_total_weight?.toString() || "",
+            cargoTotalWeight: container.cargo_total_weight?.toString() || "",
+            remarks: container.remarks || "",
+            vehicleNumber: container.vehicle_number || "",
+            vehicleIndex: index + 1, // Ensure unique index
+          })
+        );
+
         // Log the processed containers
         console.log("Processed containers:", loadedContainers);
-        
+
         setContainers(loadedContainers);
-        
+
         // Also update vehicleDataList to include all unique vehicles
         const uniqueVehicles = [];
         const vehicleMap = {};
-        
-        loadedContainers.forEach(container => {
+
+        loadedContainers.forEach((container) => {
           if (container.vehicleNumber && !vehicleMap[container.vehicleNumber]) {
             vehicleMap[container.vehicleNumber] = true;
             uniqueVehicles.push({
               vehicleNumber: container.vehicleNumber,
-              transporterName: "" // You might want to fetch this from transporter data if needed
+              transporterName: "", // You might want to fetch this from transporter data if needed
             });
           }
         });
-        
-        setVehicleDataList(prevList => {
+
+        setVehicleDataList((prevList) => {
           // Merge with existing list, avoiding duplicates
           const existingVehicleMap = {};
-          prevList.forEach(v => { existingVehicleMap[v.vehicleNumber] = true; });
-          
-          const newVehicles = uniqueVehicles.filter(v => !existingVehicleMap[v.vehicleNumber]);
+          prevList.forEach((v) => {
+            existingVehicleMap[v.vehicleNumber] = true;
+          });
+
+          const newVehicles = uniqueVehicles.filter(
+            (v) => !existingVehicleMap[v.vehicleNumber]
+          );
           return [...prevList, ...newVehicles];
         });
-        
+
         // Update sessionStorage with loaded data
-        sessionStorage.setItem("containerData", JSON.stringify(loadedContainers));
+        sessionStorage.setItem(
+          "containerData",
+          JSON.stringify(loadedContainers)
+        );
         toast.success("Container data loaded successfully");
       } else {
         // If no containers found, show a message but don't reset the containers array
@@ -433,7 +606,7 @@ const ContainerDetailsPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-        <ToastContainer 
+      <ToastContainer
         position="top-right"
         autoClose={5000}
         hideProgressBar={false}
@@ -459,31 +632,12 @@ const ContainerDetailsPage = () => {
                 </p>
                 {existingTransporterData.length > 0 && (
                   <p className="text-sm text-green-600 mt-1">
-                    ✓ {existingTransporterData.length} transporter record(s) found
+                    ✓ {existingTransporterData.length} transporter record(s)
+                    found
                   </p>
                 )}
               </div>
               <div className="flex space-x-3">
-                <button
-                  onClick={loadContainerData}
-                  disabled={isLoading}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                >
-                  <svg
-                    className="w-4 h-4 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                    />
-                  </svg>
-                  Refresh Data
-                </button>
                 <button
                   onClick={onBack}
                   className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -513,8 +667,16 @@ const ContainerDetailsPage = () => {
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
             <div className="flex">
               <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                <svg
+                  className="h-5 w-5 text-yellow-400"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                    clipRule="evenodd"
+                  />
                 </svg>
               </div>
               <div className="ml-3">
@@ -523,8 +685,10 @@ const ContainerDetailsPage = () => {
                 </h3>
                 <div className="mt-2 text-sm text-yellow-700">
                   <p>
-                    Please add transporter details first before updating container information.
-                    The container update requires existing transporter data to preserve vehicle and driver information.
+                    Please add transporter details first before updating
+                    container information. The container update requires
+                    existing transporter data to preserve vehicle and driver
+                    information.
                   </p>
                 </div>
               </div>
@@ -540,25 +704,7 @@ const ContainerDetailsPage = () => {
                 Container Information ({containers.length} Container
                 {containers.length > 1 ? "s" : ""})
               </h2>
-              <button
-                onClick={() => addContainer()}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
-              >
-                <svg
-                  className="w-4 h-4 mr-2"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
-                Add Container
-              </button>
+             
             </div>
           </div>
 
@@ -566,217 +712,347 @@ const ContainerDetailsPage = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Vehicle Groups */}
               <div className="space-y-6">
-                {Object.entries(groupedContainers).map(([vehicleNumber, vehicleContainers]) => (
-                  <div key={vehicleNumber} className="border border-gray-200 rounded-lg overflow-hidden">
-                    {/* Vehicle Header */}
-                    <div 
-                      className={`px-4 py-3 flex justify-between items-center cursor-pointer ${expandedVehicle === vehicleNumber ? 'bg-blue-50' : 'bg-gray-50'}`}
-                      onClick={() => toggleVehicleExpansion(vehicleNumber)}
+                {Object.entries(groupedContainers).map(
+                  ([vehicleNumber, vehicleContainers]) => (
+                    <div
+                      key={vehicleNumber}
+                      className="border border-gray-200 rounded-lg overflow-hidden"
                     >
-                      <div className="flex items-center">
-                        <span className="font-medium text-gray-900">
-                          {vehicleNumber === "unassigned" ? "Unassigned Containers" : `Vehicle: ${vehicleNumber}`}
-                        </span>
-                        <span className="ml-2 bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
-                          {vehicleContainers.length} container{vehicleContainers.length !== 1 ? 's' : ''}
-                        </span>
-                      </div>
-                      <div className="flex items-center">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            addContainer(vehicleNumber);
-                          }}
-                          className="mr-2 inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                          title="Add container to this vehicle"
-                        >
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      {/* Vehicle Header */}
+                      <div
+                        className={`px-4 py-3 flex justify-between items-center cursor-pointer ${
+                          expandedVehicle === vehicleNumber
+                            ? "bg-blue-50"
+                            : "bg-gray-50"
+                        }`}
+                        onClick={() => toggleVehicleExpansion(vehicleNumber)}
+                      >
+                        <div className="flex items-center">
+                          <span className="font-medium text-gray-900">
+                            {vehicleNumber === "unassigned"
+                              ? "Unassigned Containers"
+                              : `Vehicle: ${vehicleNumber}`}
+                          </span>
+                          <span className="ml-2 bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                            {vehicleContainers.length} container
+                            {vehicleContainers.length !== 1 ? "s" : ""}
+                          </span>
+                        </div>
+                        <div className="flex items-center">
+                          {/* Add Container Button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              addContainer(vehicleNumber);
+                            }}
+                            className="mr-2 inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            title="Add container to this vehicle"
+                          >
+                            <svg
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                              />
+                            </svg>
+                          </button>
+                          {/* Expand/Collapse Icon */}
+                          <svg
+                            className={`h-5 w-5 text-gray-500 transform transition-transform ${
+                              expandedVehicle === vehicleNumber
+                                ? "rotate-180"
+                                : ""
+                            }`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 9l-7 7-7-7"
+                            />
                           </svg>
-                        </button>
-                        <svg 
-                          className={`h-5 w-5 text-gray-500 transform transition-transform ${expandedVehicle === vehicleNumber ? 'rotate-180' : ''}`} 
-                          fill="none" 
-                          viewBox="0 0 24 24" 
-                          stroke="currentColor"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
+                        </div>
                       </div>
+
+                      {/* Container Cards */}
+                      {expandedVehicle === vehicleNumber && (
+                        <div className="p-4 bg-white">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {vehicleContainers.map(
+                              (container, containerIndex) => {
+                                // Use a stable key based on container.id or vehicleIndex
+                                const key =
+                                  container.id ||
+                                  `container-${container.vehicleIndex}-${vehicleNumber}-${containerIndex}`;
+
+                                return (
+                                  <div
+                                    key={key}
+                                    className="border border-gray-200 rounded-lg p-4 bg-gray-50"
+                                    data-vehicle={vehicleNumber}
+                                    data-container={JSON.stringify(container)}
+                                  >
+                                    <div className="flex justify-between items-center mb-4">
+                                      <h3 className="text-md font-medium text-gray-900">
+                                        Container #{containerIndex + 1}
+                                      </h3>
+                                      {containers.length > 1 && (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            removeContainer(
+                                              containers.findIndex(
+                                                (c) =>
+                                                  c.vehicleIndex ===
+                                                  container.vehicleIndex
+                                              )
+                                            )
+                                          }
+                                          className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                          title="Remove Container"
+                                        >
+                                          <svg
+                                            className="h-4 w-4"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M6 18L18 6M6 6l12 12"
+                                            />
+                                          </svg>
+                                        </button>
+                                      )}
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      {/* Vehicle Number */}
+                               
+
+                                      {/* Container Number */}
+                                      <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                          Container Number *
+                                        </label>
+                                        <input
+                                          type="text"
+                                          required
+                                          className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                          value={container.containerNo}
+                                          onChange={(e) =>
+                                            updateContainerData(
+                                              containers.findIndex(
+                                                (c) =>
+                                                  c.vehicleIndex ===
+                                                  container.vehicleIndex
+                                              ),
+                                              "containerNo",
+                                              e.target.value.toUpperCase()
+                                            )
+                                          }
+                                          placeholder="Container Number"
+                                        />
+                                      </div>
+
+                                      {/* Number of Containers */}
+                                
+
+                                      {/* Container Type */}
+                                      <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                          Container Type
+                                        </label>
+                                        <input
+                                          type="text"
+                                          className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                          value={container.containerType}
+                                          onChange={(e) =>
+                                            updateContainerData(
+                                              containers.findIndex(
+                                                (c) =>
+                                                  c.vehicleIndex ===
+                                                  container.vehicleIndex
+                                              ),
+                                              "containerType",
+                                              e.target.value
+                                            )
+                                          }
+                                          placeholder="Container Type"
+                                        />
+                                      </div>
+
+                                      {/* Container Size */}
+                                      <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                          Container Size
+                                        </label>
+                                        <input
+                                          type="text"
+                                          className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                          value={container.containerSize}
+                                          onChange={(e) =>
+                                            updateContainerData(
+                                              containers.findIndex(
+                                                (c) =>
+                                                  c.vehicleIndex ===
+                                                  container.vehicleIndex
+                                              ),
+                                              "containerSize",
+                                              e.target.value
+                                            )
+                                          }
+                                          placeholder="Container Size"
+                                        />
+                                      </div>
+
+                                      {/* Shipping Line */}
+                                      <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                          Shipping Line
+                                        </label>
+                                        <input
+                                          type="text"
+                                          className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                          value={container.line}
+                                          onChange={(e) =>
+                                            updateContainerData(
+                                              containers.findIndex(
+                                                (c) =>
+                                                  c.vehicleIndex ===
+                                                  container.vehicleIndex
+                                              ),
+                                              "line",
+                                              e.target.value
+                                            )
+                                          }
+                                          placeholder="Shipping Line"
+                                        />
+                                      </div>
+
+                                      {/* Seal 1 */}
+                                      <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                          Seal 1
+                                        </label>
+                                        <input
+                                          type="text"
+                                          className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                          value={container.seal1}
+                                          onChange={(e) =>
+                                            updateContainerData(
+                                              containers.findIndex(
+                                                (c) =>
+                                                  c.vehicleIndex ===
+                                                  container.vehicleIndex
+                                              ),
+                                              "seal1",
+                                              e.target.value.toUpperCase()
+                                            )
+                                          }
+                                          placeholder="Seal 1"
+                                        />
+                                      </div>
+
+                                      {/* Seal 2 */}
+                                      <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                          Seal 2
+                                        </label>
+                                        <input
+                                          type="text"
+                                          className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                          value={container.seal2}
+                                          onChange={(e) =>
+                                            updateContainerData(
+                                              containers.findIndex(
+                                                (c) =>
+                                                  c.vehicleIndex ===
+                                                  container.vehicleIndex
+                                              ),
+                                              "seal2",
+                                              e.target.value.toUpperCase()
+                                            )
+                                          }
+                                          placeholder="Seal 2"
+                                        />
+                                      </div>
+
+                                      {/* Container Weight */}
+                                      <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                          Container Weight (kg)
+                                        </label>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                          value={container.containerTotalWeight}
+                                          onChange={(e) =>
+                                            updateContainerData(
+                                              containers.findIndex(
+                                                (c) =>
+                                                  c.vehicleIndex ===
+                                                  container.vehicleIndex
+                                              ),
+                                              "containerTotalWeight",
+                                              e.target.value
+                                            )
+                                          }
+                                          placeholder="Container Weight"
+                                        />
+                                      </div>
+
+                                      {/* Cargo Weight */}
+
+                                      <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                          Cargo Weight (kg)
+                                        </label>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                          value={container.cargoTotalWeight}
+                                          onChange={(e) =>
+                                            updateContainerData(
+                                              containers.findIndex(
+                                                (c) =>
+                                                  c.vehicleIndex ===
+                                                  container.vehicleIndex
+                                              ),
+                                              "cargoTotalWeight",
+                                              e.target.value
+                                            )
+                                          }
+                                          placeholder="Cargo Weight"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    
-                    {/* Container Cards */}
-                 {expandedVehicle === vehicleNumber && (
-  <div className="p-4 bg-white">
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {vehicleContainers.map((container, containerIndex) => {
-        // Use a stable key based on container.vehicleIndex or a unique id
-        // Avoid using findIndex with object equality
-        const key = container.id || `container-${container.vehicleIndex}-${vehicleNumber}-${containerIndex}`;
-        
-        return (
-          <div key={key} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-md font-medium text-gray-900">
-                Container #{containerIndex + 1}
-              </h3>
-              {containers.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeContainer(containers.findIndex(c => c.vehicleIndex === container.vehicleIndex))}
-                  className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                  title="Remove Container"
-                >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Vehicle Number */}
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Number *</label>
-                <select
-                  className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={container.vehicleNumber}
-                  onChange={(e) => updateContainerData(containers.findIndex(c => c.vehicleIndex === container.vehicleIndex), "vehicleNumber", e.target.value)}
-                  required
-                >
-                  <option value="">Select Vehicle</option>
-                  {vehicleDataList.map((vehicle) => (
-                    <option key={vehicle.vehicleNumber} value={vehicle.vehicleNumber}>
-                      {vehicle.vehicleNumber} - {vehicle.transporterName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              {/* Container Number */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Container Number *</label>
-                <input
-                  type="text"
-                  required
-                  className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={container.containerNo}
-                  onChange={(e) => updateContainerData(containers.findIndex(c => c.vehicleIndex === container.vehicleIndex), "containerNo", e.target.value.toUpperCase())}
-                  placeholder="Container Number"
-                />
-              </div>
-              
-              {/* Number of Containers */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Number of Containers *</label>
-                <input
-                  type="number"
-                  required
-                  min="1"
-                  className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={container.numberOfContainers}
-                  onChange={(e) => updateContainerData(containers.findIndex(c => c.vehicleIndex === container.vehicleIndex), "numberOfContainers", e.target.value)}
-                  placeholder="Number of Containers"
-                />
-              </div>
-              
-              {/* Container Type */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Container Type</label>
-                <input
-                  type="text"
-                  className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={container.containerType}
-                  onChange={(e) => updateContainerData(containers.findIndex(c => c.vehicleIndex === container.vehicleIndex), "containerType", e.target.value)}
-                  placeholder="Container Type"
-                />
-              </div>
-              
-              {/* Container Size */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Container Size</label>
-                <input
-                  type="text"
-                  className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={container.containerSize}
-                  onChange={(e) => updateContainerData(containers.findIndex(c => c.vehicleIndex === container.vehicleIndex), "containerSize", e.target.value)}
-                  placeholder="Container Size"
-                />
-              </div>
-              
-              {/* Shipping Line */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Line</label>
-                <input
-                  type="text"
-                  className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={container.line}
-                  onChange={(e) => updateContainerData(containers.findIndex(c => c.vehicleIndex === container.vehicleIndex), "line", e.target.value)}
-                  placeholder="Shipping Line"
-                />
-              </div>
-              
-              {/* Seal 1 */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Seal 1</label>
-                <input
-                  type="text"
-                  className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={container.seal1}
-                  onChange={(e) => updateContainerData(containers.findIndex(c => c.vehicleIndex === container.vehicleIndex), "seal1", e.target.value.toUpperCase())}
-                  placeholder="Seal 1"
-                />
-              </div>
-              
-              {/* Seal 2 */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Seal 2</label>
-                <input
-                  type="text"
-                  className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={container.seal2}
-                  onChange={(e) => updateContainerData(containers.findIndex(c => c.vehicleIndex === container.vehicleIndex), "seal2", e.target.value.toUpperCase())}
-                  placeholder="Seal 2"
-                />
-              </div>
-              
-              {/* Container Weight */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Container Weight (kg)</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={container.containerTotalWeight}
-                  onChange={(e) => updateContainerData(containers.findIndex(c => c.vehicleIndex === container.vehicleIndex), "containerTotalWeight", e.target.value)}
-                  placeholder="Container Weight"
-                />
-              </div>
-              
-              {/* Cargo Weight */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Cargo Weight (kg)</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={container.cargoTotalWeight}
-                  onChange={(e) => updateContainerData(containers.findIndex(c => c.vehicleIndex === container.vehicleIndex), "cargoTotalWeight", e.target.value)}
-                  placeholder="Cargo Weight"
-                />
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  </div>
-)}
-                  </div>
-                ))}
+                  )
+                )}
               </div>
 
               {/* Submit Buttons */}
@@ -790,7 +1066,9 @@ const ContainerDetailsPage = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting || existingTransporterData.length === 0}
+                  disabled={
+                    isSubmitting || existingTransporterData.length === 0
+                  }
                   className={`
                     px-8 py-3 rounded-md text-white font-medium transition-all duration-200
                     ${
@@ -800,7 +1078,11 @@ const ContainerDetailsPage = () => {
                     }
                     flex items-center
                   `}
-                  title={existingTransporterData.length === 0 ? "Add transporter details first" : "Update container details"}
+                  title={
+                    existingTransporterData.length === 0
+                      ? "Add transporter details first"
+                      : "Update container details"
+                  }
                 >
                   {isSubmitting ? (
                     <>
@@ -855,5 +1137,3 @@ const ContainerDetailsPage = () => {
 };
 
 export default ContainerDetailsPage;
-
-

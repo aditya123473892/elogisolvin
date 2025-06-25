@@ -15,9 +15,34 @@ const PaymentModal = ({ shipment, vehicleData, onClose, onPaymentComplete }) => 
 
   useEffect(() => {
     if (vehicleData && vehicleData.id) {
-      fetchExistingTransaction(vehicleData.id);
+      // Check if it's a vehicle ID (starts with 'vehicle-')
+      if (vehicleData.id.toString().startsWith('vehicle-')) {
+        // For vehicle IDs, use the vehicle number to fetch transactions
+        fetchTransactionsByVehicleNumber(vehicleData.vehicle_number);
+      } else {
+        // For container IDs (legacy behavior), use the ID directly
+        fetchExistingTransaction(vehicleData.id);
+      }
     }
   }, [vehicleData]);
+
+  const fetchTransactionsByVehicleNumber = async (vehicleNumber) => {
+    setIsLoading(true);
+    try {
+      const response = await api.get(`/transactions/vehicle/${vehicleNumber}`);
+      if (
+        response.data.success &&
+        response.data.data &&
+        response.data.data.length > 0
+      ) {
+        setExistingTransaction(response.data.data[0]);
+      }
+    } catch (error) {
+      console.error("Error fetching transaction by vehicle number:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const fetchExistingTransaction = async (transporterId) => {
     setIsLoading(true);
@@ -56,10 +81,21 @@ const PaymentModal = ({ shipment, vehicleData, onClose, onPaymentComplete }) => 
     setIsSubmitting(true);
 
     try {
-      // First check if a transaction exists for this vehicle
-      const transactionsResponse = await api.get(
-        `/transactions/transporter/${vehicleData.id}`
-      );
+      // Determine if we're using a vehicle ID or container ID
+      const isVehicleId = vehicleData.id.toString().startsWith('vehicle-');
+      let transactionsResponse;
+      
+      if (isVehicleId) {
+        // For vehicle IDs, use the vehicle number to fetch transactions
+        transactionsResponse = await api.get(
+          `/transactions/vehicle/${vehicleData.vehicle_number}`
+        );
+      } else {
+        // For container IDs (legacy behavior), use the ID directly
+        transactionsResponse = await api.get(
+          `/transactions/transporter/${vehicleData.id}`
+        );
+      }
 
       let response;
 

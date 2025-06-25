@@ -89,7 +89,7 @@ const ShipmentsPage = () => {
         const details = Array.isArray(response.data)
           ? response.data
           : [response.data];
-
+          
         // Map the API response to match the expected format for the modal
         const mappedContainerDetails = details.map((detail, index) => ({
           id: detail.id,
@@ -113,12 +113,21 @@ const ShipmentsPage = () => {
           service_charges: detail.service_charges || "{}",
         }));
 
-        // Calculate the total amount for this request
-        const requestTotalAmount = calculateRequestTotalAmount(
-          mappedContainerDetails
-        );
+        // Filter unique vehicles based on vehicle_number
+        const uniqueVehicles = [];
+        const vehicleMap = new Map();
+        
+        mappedContainerDetails.forEach(detail => {
+          if (detail.vehicle_number && !vehicleMap.has(detail.vehicle_number)) {
+            vehicleMap.set(detail.vehicle_number, detail);
+            uniqueVehicles.push(detail);
+          }
+        });
+
+        // Calculate the total amount for this request (using only unique vehicles)
+        const requestTotalAmount = calculateRequestTotalAmount(uniqueVehicles);
         console.log(
-          `Total amount for request ${requestId}:`,
+          `Total amount for request ${requestId} (unique vehicles):`,
           requestTotalAmount
         );
 
@@ -133,8 +142,8 @@ const ShipmentsPage = () => {
           ) {
             // Add transaction data to the first container detail
             const transaction = transactionResponse.data.data[0];
-            if (mappedContainerDetails.length > 0) {
-              mappedContainerDetails[0].transaction = transaction;
+            if (uniqueVehicles.length > 0) {
+              uniqueVehicles[0].transaction = transaction;
 
               // Compare transaction amount with calculated total
               const transactionAmount = parseFloat(
@@ -152,12 +161,12 @@ const ShipmentsPage = () => {
         }
 
         // Add the calculated total amount to each detail for reference
-        mappedContainerDetails.forEach((detail) => {
+        uniqueVehicles.forEach((detail) => {
           detail.request_total_amount = requestTotalAmount;
           detail.individual_vehicle_charge = detail.total_charge; // Keep individual charge separate
         });
 
-        return mappedContainerDetails;
+        return uniqueVehicles;
       }
       return [];
     } catch (error) {
@@ -193,13 +202,24 @@ const ShipmentsPage = () => {
                   ? transporterResponse.data
                   : [transporterResponse.data];
 
-                const calculatedTotal = calculateRequestTotalAmount(details);
+                // Filter unique vehicles based on vehicle_number
+                const uniqueVehicles = [];
+                const vehicleMap = new Map();
+                
+                details.forEach(detail => {
+                  if (detail.vehicle_number && !vehicleMap.has(detail.vehicle_number)) {
+                    vehicleMap.set(detail.vehicle_number, detail);
+                    uniqueVehicles.push(detail);
+                  }
+                });
+
+                const calculatedTotal = calculateRequestTotalAmount(uniqueVehicles);
 
                 return {
                   ...shipment,
                   requested_price: calculatedTotal, // Override requested_price with calculated total
                   original_requested_price: shipment.requested_price, // Keep original for reference
-                  vehicle_count: details.length,
+                  vehicle_count: uniqueVehicles.length, // Use unique vehicle count
                 };
               }
             } catch (error) {
@@ -220,7 +240,7 @@ const ShipmentsPage = () => {
         setShipments(shipmentsWithTotals);
         setFilteredShipments(shipmentsWithTotals);
         console.log(
-          "Fetched shipments with calculated totals:",
+          "Fetched shipments with calculated totals (unique vehicles):",
           shipmentsWithTotals
         );
       }

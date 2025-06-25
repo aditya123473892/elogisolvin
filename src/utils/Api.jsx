@@ -354,10 +354,34 @@ export const transporterAPI = {
     }
   },
 
+  // Get containers by vehicle number for a specific request
+  getContainersByVehicleNumber: async (requestId, vehicleNumber) => {
+    try {
+      const response = await api.get(
+        `/transport-requests/${requestId}/vehicle/${vehicleNumber}/containers`
+      );
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Add multiple containers to a vehicle
+  addContainersToVehicle: async (requestId, vehicleNumber, containers) => {
+    try {
+      const response = await api.post(
+        `/transport-requests/${requestId}/vehicle/${vehicleNumber}/containers`,
+        { containers }
+      );
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
   // Update container details for a specific container ID
   updateContainerDetails: async (containerId, containerData) => {
     try {
-      // Make sure this exactly matches the backend route format
       const response = await api.put(
         `/transporter/${containerId}/container`,
         containerData
@@ -365,6 +389,18 @@ export const transporterAPI = {
       return response.data;
     } catch (error) {
       console.error("API Error:", error.response || error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Delete container
+  deleteContainer: async (containerId) => {
+    try {
+      const response = await api.delete(
+        `/transporter/container/${containerId}`
+      );
+      return response.data;
+    } catch (error) {
       throw error.response?.data || error.message;
     }
   },

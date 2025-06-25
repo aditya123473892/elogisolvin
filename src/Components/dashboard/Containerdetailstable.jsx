@@ -17,9 +17,9 @@ const ContainerDetailsTable = ({ vehicleDataList, updateVehicleData, transportRe
     <div>
       <div className="flex justify-between items-center mb-4">
         <h4 className="text-lg font-medium text-gray-900">
-          Container Details
+       
           <span className="text-sm font-normal text-gray-500 ml-2">
-            (Optional)
+         
           </span>
         </h4>
         <button

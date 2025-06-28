@@ -13,6 +13,22 @@ const PaymentModal = ({ shipment, vehicleData, onClose, onPaymentComplete }) => 
   const [existingTransaction, setExistingTransaction] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Inside the PaymentModal component, add a new state for payment history
+  const [paymentHistory, setPaymentHistory] = useState([]);
+  
+  // Add this function to fetch payment history
+  const fetchPaymentHistory = async (transactionId) => {
+    try {
+      const response = await api.get(`/transactions/${transactionId}/payments`);
+      if (response.data.success) {
+        setPaymentHistory(response.data.data || []);
+      }
+    } catch (error) {
+      console.error("Error fetching payment history:", error);
+    }
+  };
+  
+  // Update the useEffect to also fetch payment history
   useEffect(() => {
     if (vehicleData && vehicleData.id) {
       // Check if it's a vehicle ID (starts with 'vehicle-')
@@ -25,7 +41,49 @@ const PaymentModal = ({ shipment, vehicleData, onClose, onPaymentComplete }) => 
       }
     }
   }, [vehicleData]);
-
+  
+  // Add this useEffect to fetch payment history when we have a transaction
+  useEffect(() => {
+    if (existingTransaction && existingTransaction.id) {
+      fetchPaymentHistory(existingTransaction.id);
+    }
+  }, [existingTransaction]);
+  
+  // Add this section to the form to display payment history
+  // Add this after the form fields but before the buttons
+  {
+    paymentHistory.length > 0 && (
+      <div className="mt-6 border-t pt-4">
+        <h4 className="font-medium text-gray-700 mb-2">Payment History</h4>
+        <div className="max-h-40 overflow-y-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Date</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Amount</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Mode</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {paymentHistory.map((payment, idx) => (
+                <tr key={payment.id || idx}>
+                  <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
+                    {new Date(payment.payment_date).toLocaleDateString()}
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap text-sm text-green-600 font-medium">
+                    ₹{parseFloat(payment.amount).toLocaleString()}
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
+                    {payment.payment_mode}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )
+  }
   const fetchTransactionsByVehicleNumber = async (vehicleNumber) => {
     setIsLoading(true);
     try {

@@ -212,8 +212,34 @@ const ContainerDetailsPage = () => {
   };
 
   // Remove container
-  const removeContainer = (index) => {
+  const removeContainer = async (index) => {
     if (containers.length > 1) {
+      const containerToRemove = containers[index];
+      
+      // If the container has an ID, it exists in the database and needs to be deleted
+      if (containerToRemove.id) {
+        try {
+          setIsLoading(true);
+          const response = await transporterAPI.deleteContainer(containerToRemove.id);
+          
+          if (response.success) {
+            toast.success("Container deleted successfully");
+          } else {
+            toast.error("Failed to delete container from database");
+            setIsLoading(false);
+            return; // Don't proceed with removal if database deletion failed
+          }
+        } catch (error) {
+          console.error("Error deleting container:", error);
+          toast.error(error.message || "Failed to delete container");
+          setIsLoading(false);
+          return; // Don't proceed with removal if database deletion failed
+        } finally {
+          setIsLoading(false);
+        }
+      }
+      
+      // Remove from local state
       const updatedContainers = containers.filter((_, i) => i !== index);
       // Update vehicle indices after removal
       const reindexedContainers = updatedContainers.map((container, i) => ({
@@ -221,6 +247,10 @@ const ContainerDetailsPage = () => {
         vehicleIndex: i + 1,
       }));
       setContainers(reindexedContainers);
+      
+      // Update sessionStorage
+      sessionStorage.setItem("containerData", JSON.stringify(reindexedContainers));
+      toast.success("Container deleted successfully");
     } else {
       toast.warning("At least one container entry is required");
     }
@@ -228,10 +258,35 @@ const ContainerDetailsPage = () => {
 
   // Update container data
   const updateContainerData = (index, field, value) => {
+    // For containerNo field, enforce the 4 letters + 7 digits format
+    if (field === "containerNo") {
+      // Convert to uppercase
+      value = value.toUpperCase();
+      
+      // If the value is longer than 11 characters, truncate it
+      if (value.length > 11) {
+        value = value.substring(0, 11);
+      }
+      
+      // For the first 4 characters, only allow letters
+      if (value.length <= 4) {
+        value = value.replace(/[^A-Z]/g, "");
+      } 
+      // For characters after position 4, only allow digits
+      else {
+        const letters = value.substring(0, 4).replace(/[^A-Z]/g, "");
+        const digits = value.substring(4).replace(/[^0-9]/g, "");
+        value = letters + digits;
+      }
+    }
+    
     const updatedContainers = containers.map((container, i) =>
       i === index ? { ...container, [field]: value } : container
     );
     setContainers(updatedContainers);
+    
+    // Update sessionStorage with the latest data
+    sessionStorage.setItem("containerData", JSON.stringify(updatedContainers));
   };
 
   // Toggle vehicle expansion
@@ -247,6 +302,12 @@ const ContainerDetailsPage = () => {
     containers.forEach((container, index) => {
       if (!container.containerNo.trim()) {
         errors.push(`Container ${index + 1}: Container number is required`);
+      } else {
+        // Check container number format: 4 letters followed by 7 digits
+        const containerNoRegex = /^[A-Z]{4}[0-9]{7}$/;
+        if (!containerNoRegex.test(container.containerNo)) {
+          errors.push(`Container ${index + 1}: Container number must be 4 letters followed by 7 digits (e.g., ABCD1234567)`);
+        }
       }
      
       if (!container.vehicleNumber) {
@@ -346,13 +407,16 @@ const ContainerDetailsPage = () => {
                 message: `Updated container ${container.containerNo}`,
                 data: response.data,
               }))
-              .catch((error) => ({
-                success: false,
-                message: `Failed to update container ${
-                  container.containerNo
-                }: ${error.message || "Unknown error"}`,
-                error,
-              }))
+              .catch((error) => {
+                console.error("Error updating container:", error);
+                return {
+                  success: false,
+                  message: `Failed to update container ${
+                    container.containerNo
+                  }: ${error.message || "Unknown error"}`,
+                  error,
+                };
+              })
           );
         }
 
@@ -371,13 +435,16 @@ const ContainerDetailsPage = () => {
                 message: `Added ${formattedNewContainers.length} new containers to vehicle ${vehicleNumber}`,
                 data: response.data,
               }))
-              .catch((error) => ({
-                success: false,
-                message: `Failed to add containers to vehicle ${vehicleNumber}: ${
-                  error.message || "Unknown error"
-                }`,
-                error,
-              }))
+              .catch((error) => {
+                console.error("Error adding containers:", error);
+                return {
+                  success: false,
+                  message: `Failed to add containers to vehicle ${vehicleNumber}: ${
+                    error.message || "Unknown error"
+                  }`,
+                  error,
+                };
+              })
           );
         }
       }
@@ -476,9 +543,7 @@ const ContainerDetailsPage = () => {
         }, 100);
 
         toast.dismiss(vehicleLoadingToastId);
-        toast.success(
-          `Loaded ${vehicleContainers.length} containers for vehicle ${vehicleNumber}`
-        );
+      
         return vehicleContainers;
       } else {
         toast.dismiss(vehicleLoadingToastId);
@@ -993,7 +1058,7 @@ const ContainerDetailsPage = () => {
                                       {/* Container Weight */}
                                       <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                                          Container Weight (kg)
+                                         Tier Weight (kg)
                                         </label>
                                         <input
                                           type="number"

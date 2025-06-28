@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import api from "../../utils/Api";
-import { toast } from "react-toastify";
+import { toast,ToastContainer } from "react-toastify";
 import PaymentModal from "./PaymentModal";
 import TransactionHistory from "./TransactionHistory";
 
@@ -269,138 +269,93 @@ const ShipmentDetailsModal = ({
               </div>
             </InfoCard>
 
-                   {/* Container Details */}
+            {/* Vehicle Details */}
             {containerDetails && containerDetails.length > 0 && (
-              <InfoCard iconText="🚛" title="Container & Transport Details" className="md:col-span-2 xl:col-span-3">
-                <div className="space-y-6">
-                  {containerDetails.map((container, index) => (
-                    <div key={container.id} className="bg-gray-50 rounded-2xl p-6 border border-gray-100">
-                      <div className="flex items-center justify-between mb-5">
-                        <h6 className="font-bold text-lg text-gray-900">Transport Unit #{index + 1}</h6>
-                        <div className="text-sm text-gray-400">Vehicle No: {container.vehicle_number}</div>
-                      </div>
+              <InfoCard iconText="🚛" title="Vehicle Details" className="md:col-span-2 xl:col-span-3">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vehicle No.</th>
+                        <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver</th>
+                        <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                        <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">License</th>
+                        <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transporter</th>
+                        <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Charge</th>
+                        <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {containerDetails.map((container, index) => (
+                        <tr key={`vehicle-${container.id}`} className="hover:bg-gray-50">
+                          <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{container.vehicle_number || "N/A"}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{container.driver_name || "N/A"}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
+                            {container.driver_contact ? (
+                              <a href={`tel:${container.driver_contact}`} className="text-indigo-600 hover:underline">
+                                {container.driver_contact}
+                              </a>
+                            ) : (
+                              "N/A"
+                            )}
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{container.license_number || "N/A"}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{container.transporter_name || "N/A"}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-green-600">₹{container.total_charge?.toLocaleString() || 0}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
+                            <button
+                              onClick={() => {
+                                setSelectedVehicle(container);
+                                setShowPaymentModal(true);
+                              }}
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors text-xs font-semibold shadow-sm"
+                            >
+                              <span>💰</span>
+                              Pay
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </InfoCard>
+            )}
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {/* Driver & Vehicle Info */}
-                        <div className="space-y-3">
-                          <h7 className="font-semibold text-gray-700 text-sm">Driver & Vehicle</h7>
-                          <div className="space-y-1 text-sm">
-                            <InfoRow label="Driver" value={container.driver_name || "N/A"} />
-                            <InfoRow
-                              label="Contact"
-                              value={
-                                container.driver_contact ? (
-                                  <a href={`tel:${container.driver_contact}`} className="text-indigo-600 hover:underline">
-                                    {container.driver_contact}
-                                  </a>
-                                ) : (
-                                  "N/A"
-                                )
-                              }
-                            />
-                            <InfoRow label="Vehicle No." value={container.vehicle_number || "N/A"} />
-                            <InfoRow label="Transporter" value={container.transporter_name || "N/A"} />
-                          </div>
-                        </div>
-
-                        {/* Container Info */}
-                        {container.container_no && (
-                          <div className="space-y-3">
-                            <h7 className="font-semibold text-gray-700 text-sm">Container Details</h7>
-                            <div className="space-y-1 text-sm">
-                              <InfoRow label="Container No." value={container.container_no} />
-                              <InfoRow
-                                label="Size"
-                                value={container.container_size ? `${container.container_size}ft` : "N/A"}
-                              />
-                              <InfoRow label="Type" value={container.container_type || "N/A"} />
-                              <InfoRow label="Count" value={container.number_of_containers || "N/A"} />
-                              <InfoRow
-                                label="Weight"
-                                value={
-                                  container.container_total_weight
-                                    ? `${container.container_total_weight.toLocaleString()} kg`
-                                    : "N/A"
-                                }
-                              />
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Seals & License */}
-                        <div className="space-y-3">
-                          <h7 className="font-semibold text-gray-700 text-sm">Documentation</h7>
-                          <div className="space-y-1 text-sm">
-                            <InfoRow label="License No." value={container.license_number || "N/A"} />
-                            <InfoRow label="License Expiry" value={formatDate(container.license_expiry)} />
-                            {container.seal1 && <InfoRow label="Seal 1" value={container.seal1} />}
-                            {container.seal2 && <InfoRow label="Seal 2" value={container.seal2} />}
-                            {container.line && <InfoRow label="Line" value={container.line} />}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Charges Breakdown */}
-                      <div className="mt-6 pt-6 border-t border-gray-100">
-                        <h7 className="font-semibold text-gray-700 text-sm mb-4 block">Charges Breakdown</h7>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                          <div className="bg-white p-4 rounded-xl text-center shadow-sm">
-                            <div className="text-xs text-gray-400 mb-1">Base Charge</div>
-                            <div className="font-bold text-indigo-600">₹{container.base_charge?.toLocaleString() || 0}</div>
-                          </div>
-                          <div className="bg-white p-4 rounded-xl text-center shadow-sm">
-                            <div className="text-xs text-gray-400 mb-1">Additional</div>
-                            <div className="font-bold text-orange-600">
-                              ₹{container.additional_charges?.toLocaleString() || 0}
-                            </div>
-                          </div>
-                          <div className="bg-white p-4 rounded-xl text-center shadow-sm">
-                            <div className="text-xs text-gray-400 mb-1">Service Charges</div>
-                            <div className="font-bold text-purple-600">
-                              ₹{Object.values(parseServicePrices(container.service_charges || "{}"))
-                                .reduce((sum, charge) => sum + parseFloat(charge || 0), 0)
-                                .toLocaleString()}
-                            </div>
-                          </div>
-                          <div className="bg-white p-4 rounded-xl text-center shadow-sm">
-                            <div className="text-xs text-gray-400 mb-1">Total</div>
-                            <div className="font-bold text-green-600">₹{container.total_charge?.toLocaleString() || 0}</div>
-                          </div>
-                        </div>
-
-                        {/* Add payment button */}
-                        <div className="mt-6 flex justify-end">
-                          <button
-                            onClick={() => {
-                              setSelectedVehicle(container);
-                              setShowPaymentModal(true);
-                            }}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors text-sm font-semibold shadow-sm"
-                          >
-                            <span>💰</span>
-                            Add Payment
-                          </button>
-                        </div>
-
-                        {/* Service Charges Detail */}
-                        {container.service_charges && (
-                          <div className="mt-4">
-                            <div className="text-xs text-gray-400 mb-2">Service Charges Detail:</div>
-                            <div className="flex flex-wrap gap-2">
-                              {Object.entries(parseServicePrices(container.service_charges)).map(([service, charge]) => (
-                                <span
-                                  key={service}
-                                  className="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full font-medium"
-                                >
-                                  {service.trim()}: ₹{charge}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+            {/* Container Details */}
+            {containerDetails && containerDetails.length > 0 && containerDetails.some(container => container.container_no) && (
+              <InfoCard iconText="📦" title="Container Details" className="md:col-span-2 xl:col-span-3">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Container No.</th>
+                        <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
+                        <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                        <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Count</th>
+                        <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Weight</th>
+                        <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Seal 1</th>
+                        <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Seal 2</th>
+                        <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Line</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {containerDetails.filter(container => container.container_no).map((container, index) => (
+                        <tr key={`container-${container.id}`} className="hover:bg-gray-50">
+                          <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{container.container_no || "N/A"}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{container.container_size ? `${container.container_size}ft` : "N/A"}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{container.container_type || "N/A"}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{container.number_of_containers || "N/A"}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
+                            {container.container_total_weight ? `${container.container_total_weight.toLocaleString()} kg` : "N/A"}
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{container.seal1 || "N/A"}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{container.seal2 || "N/A"}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{container.line || "N/A"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </InfoCard>
             )}

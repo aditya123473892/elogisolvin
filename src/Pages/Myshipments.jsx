@@ -89,7 +89,7 @@ const ShipmentsPage = () => {
         const details = Array.isArray(response.data)
           ? response.data
           : [response.data];
-          
+
         // Map the API response to match the expected format for the modal
         const mappedContainerDetails = details.map((detail, index) => ({
           id: detail.id,
@@ -116,8 +116,8 @@ const ShipmentsPage = () => {
         // Filter unique vehicles based on vehicle_number
         const uniqueVehicles = [];
         const vehicleMap = new Map();
-        
-        mappedContainerDetails.forEach(detail => {
+
+        mappedContainerDetails.forEach((detail) => {
           if (detail.vehicle_number && !vehicleMap.has(detail.vehicle_number)) {
             vehicleMap.set(detail.vehicle_number, detail);
             uniqueVehicles.push(detail);
@@ -205,15 +205,19 @@ const ShipmentsPage = () => {
                 // Filter unique vehicles based on vehicle_number
                 const uniqueVehicles = [];
                 const vehicleMap = new Map();
-                
-                details.forEach(detail => {
-                  if (detail.vehicle_number && !vehicleMap.has(detail.vehicle_number)) {
+
+                details.forEach((detail) => {
+                  if (
+                    detail.vehicle_number &&
+                    !vehicleMap.has(detail.vehicle_number)
+                  ) {
                     vehicleMap.set(detail.vehicle_number, detail);
                     uniqueVehicles.push(detail);
                   }
                 });
 
-                const calculatedTotal = calculateRequestTotalAmount(uniqueVehicles);
+                const calculatedTotal =
+                  calculateRequestTotalAmount(uniqueVehicles);
 
                 return {
                   ...shipment,

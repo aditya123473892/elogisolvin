@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { transporterAPI } from "../utils/Api";
@@ -141,17 +140,17 @@ const ContainerDetailsPage = () => {
   useEffect(() => {
     const loadAllVehicleContainers = async () => {
       if (!transportRequestId || vehicleDataList.length === 0) return;
-      
+
       setIsLoading(true);
       try {
         // Create an array of promises for loading containers for each vehicle
-        const loadPromises = vehicleDataList.map(vehicle => 
+        const loadPromises = vehicleDataList.map((vehicle) =>
           loadVehicleContainers(vehicle.vehicleNumber)
         );
-        
+
         // Wait for all promises to resolve
         await Promise.all(loadPromises);
-        
+
         toast.success("All vehicle containers loaded successfully");
       } catch (error) {
         console.error("Error loading vehicle containers:", error);
@@ -160,7 +159,7 @@ const ContainerDetailsPage = () => {
         setIsLoading(false);
       }
     };
-    
+
     loadAllVehicleContainers();
   }, [vehicleDataList, transportRequestId]);
 
@@ -215,13 +214,15 @@ const ContainerDetailsPage = () => {
   const removeContainer = async (index) => {
     if (containers.length > 1) {
       const containerToRemove = containers[index];
-      
+
       // If the container has an ID, it exists in the database and needs to be deleted
       if (containerToRemove.id) {
         try {
           setIsLoading(true);
-          const response = await transporterAPI.deleteContainer(containerToRemove.id);
-          
+          const response = await transporterAPI.deleteContainer(
+            containerToRemove.id
+          );
+
           if (response.success) {
             toast.success("Container deleted successfully");
           } else {
@@ -238,7 +239,7 @@ const ContainerDetailsPage = () => {
           setIsLoading(false);
         }
       }
-      
+
       // Remove from local state
       const updatedContainers = containers.filter((_, i) => i !== index);
       // Update vehicle indices after removal
@@ -247,9 +248,12 @@ const ContainerDetailsPage = () => {
         vehicleIndex: i + 1,
       }));
       setContainers(reindexedContainers);
-      
+
       // Update sessionStorage
-      sessionStorage.setItem("containerData", JSON.stringify(reindexedContainers));
+      sessionStorage.setItem(
+        "containerData",
+        JSON.stringify(reindexedContainers)
+      );
       toast.success("Container deleted successfully");
     } else {
       toast.warning("At least one container entry is required");
@@ -262,16 +266,16 @@ const ContainerDetailsPage = () => {
     if (field === "containerNo") {
       // Convert to uppercase
       value = value.toUpperCase();
-      
+
       // If the value is longer than 11 characters, truncate it
       if (value.length > 11) {
         value = value.substring(0, 11);
       }
-      
+
       // For the first 4 characters, only allow letters
       if (value.length <= 4) {
         value = value.replace(/[^A-Z]/g, "");
-      } 
+      }
       // For characters after position 4, only allow digits
       else {
         const letters = value.substring(0, 4).replace(/[^A-Z]/g, "");
@@ -279,12 +283,12 @@ const ContainerDetailsPage = () => {
         value = letters + digits;
       }
     }
-    
+
     const updatedContainers = containers.map((container, i) =>
       i === index ? { ...container, [field]: value } : container
     );
     setContainers(updatedContainers);
-    
+
     // Update sessionStorage with the latest data
     sessionStorage.setItem("containerData", JSON.stringify(updatedContainers));
   };
@@ -306,10 +310,14 @@ const ContainerDetailsPage = () => {
         // Check container number format: 4 letters followed by 7 digits
         const containerNoRegex = /^[A-Z]{4}[0-9]{7}$/;
         if (!containerNoRegex.test(container.containerNo)) {
-          errors.push(`Container ${index + 1}: Container number must be 4 letters followed by 7 digits (e.g., ABCD1234567)`);
+          errors.push(
+            `Container ${
+              index + 1
+            }: Container number must be 4 letters followed by 7 digits (e.g., ABCD1234567)`
+          );
         }
       }
-     
+
       if (!container.vehicleNumber) {
         errors.push(`Container ${index + 1}: Vehicle number is required`);
       }
@@ -389,7 +397,8 @@ const ContainerDetailsPage = () => {
           number_of_containers: parseInt(container.numberOfContainers) || 0,
           seal1: container.seal1,
           seal2: container.seal2,
-          container_total_weight: parseFloat(container.containerTotalWeight) || 0,
+          container_total_weight:
+            parseFloat(container.containerTotalWeight) || 0,
           cargo_total_weight: parseFloat(container.cargoTotalWeight) || 0,
           container_type: container.containerType,
           container_size: container.containerSize,
@@ -543,7 +552,7 @@ const ContainerDetailsPage = () => {
         }, 100);
 
         toast.dismiss(vehicleLoadingToastId);
-      
+
         return vehicleContainers;
       } else {
         toast.dismiss(vehicleLoadingToastId);
@@ -769,7 +778,6 @@ const ContainerDetailsPage = () => {
                 Container Information ({containers.length} Container
                 {containers.length > 1 ? "s" : ""})
               </h2>
-             
             </div>
           </div>
 
@@ -905,7 +913,6 @@ const ContainerDetailsPage = () => {
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                       {/* Vehicle Number */}
-                               
 
                                       {/* Container Number */}
                                       <div>
@@ -933,7 +940,6 @@ const ContainerDetailsPage = () => {
                                       </div>
 
                                       {/* Number of Containers */}
-                                
 
                                       {/* Container Type */}
                                       <div>
@@ -1058,7 +1064,7 @@ const ContainerDetailsPage = () => {
                                       {/* Container Weight */}
                                       <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                                         Tier Weight (kg)
+                                          Tier Weight (kg)
                                         </label>
                                         <input
                                           type="number"
@@ -1103,6 +1109,26 @@ const ContainerDetailsPage = () => {
                                               "cargoTotalWeight",
                                               e.target.value
                                             )
+                                          }
+                                          placeholder="Cargo Weight"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                          Total Weight (kg)
+                                        </label>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                          value={
+                                            (parseFloat(
+                                              container.cargoTotalWeight
+                                            ) || 0) +
+                                            (parseFloat(
+                                              container.containerTotalWeight
+                                            ) || 0)
                                           }
                                           placeholder="Cargo Weight"
                                         />

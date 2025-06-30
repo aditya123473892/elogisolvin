@@ -1,13 +1,13 @@
 import React from "react";
 
-const ContainerCard = ({ 
-  container, 
-  containerIndex, 
-  vehicleNumber, 
-  containers, 
-  onUpdateContainer, 
-  onRemoveContainer, 
-  canRemove 
+const ContainerCard = ({
+  container,
+  containerIndex,
+  vehicleNumber,
+  containers,
+  onUpdateContainer,
+  onRemoveContainer,
+  canRemove,
 }) => {
   const handleInputChange = (field, value) => {
     const containerGlobalIndex = containers.findIndex(
@@ -67,13 +67,16 @@ const ContainerCard = ({
             type="text"
             required
             className={`w-full h-10 text-sm border rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-              container.containerNo && !/^[A-Z]{4}[0-9]{7}$/.test(container.containerNo) 
-                ? 'border-red-300 bg-red-50' 
-                : 'border-gray-300'
+              container.containerNo &&
+              !/^[A-Z]{4}[0-9]{7}$/.test(container.containerNo)
+                ? "border-red-300 bg-red-50"
+                : "border-gray-300"
             }`}
             value={container.containerNo}
             onChange={(e) => {
-              const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+              const value = e.target.value
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, "");
               if (value.length <= 11) {
                 handleInputChange("containerNo", value);
               }
@@ -81,9 +84,12 @@ const ContainerCard = ({
             placeholder="ABCD1234567"
             maxLength="11"
           />
-          {container.containerNo && !/^[A-Z]{4}[0-9]{7}$/.test(container.containerNo) && (
-            <p className="text-xs text-red-600 mt-1">Format: 4 letters + 7 numbers</p>
-          )}
+          {container.containerNo &&
+            !/^[A-Z]{4}[0-9]{7}$/.test(container.containerNo) && (
+              <p className="text-xs text-red-600 mt-1">
+                Format: 4 letters + 7 numbers
+              </p>
+            )}
         </div>
 
         {/* Container Type */}
@@ -137,7 +143,9 @@ const ContainerCard = ({
             type="text"
             className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             value={container.seal1}
-            onChange={(e) => handleInputChange("seal1", e.target.value.toUpperCase())}
+            onChange={(e) =>
+              handleInputChange("seal1", e.target.value.toUpperCase())
+            }
             placeholder="Seal 1"
           />
         </div>
@@ -151,7 +159,9 @@ const ContainerCard = ({
             type="text"
             className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             value={container.seal2}
-            onChange={(e) => handleInputChange("seal2", e.target.value.toUpperCase())}
+            onChange={(e) =>
+              handleInputChange("seal2", e.target.value.toUpperCase())
+            }
             placeholder="Seal 2"
           />
         </div>
@@ -167,7 +177,9 @@ const ContainerCard = ({
             step="0.01"
             className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             value={container.containerTotalWeight}
-            onChange={(e) => handleInputChange("containerTotalWeight", e.target.value)}
+            onChange={(e) =>
+              handleInputChange("containerTotalWeight", e.target.value)
+            }
             placeholder="Container Weight"
           />
         </div>
@@ -183,8 +195,23 @@ const ContainerCard = ({
             step="0.01"
             className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             value={container.cargoTotalWeight}
-            onChange={(e) => handleInputChange("cargoTotalWeight", e.target.value)}
+            onChange={(e) =>
+              handleInputChange("cargoTotalWeight", e.target.value)
+            }
             placeholder="Cargo Weight"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Total Weight (kg)
+          </label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            value={container.cargoTotalWeight + container.containerTotalWeight}
+            placeholder="Total Weight"
           />
         </div>
       </div>

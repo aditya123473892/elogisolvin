@@ -37,7 +37,9 @@ const ServiceRequestForm = ({
     service_prices: {},
     requested_price: 0,
     expected_pickup_date: "",
+    expected_pickup_time: "",
     expected_delivery_date: "",
+    expected_delivery_time: "",
     transporterDetails: [],
     ...requestData,
   };
@@ -471,7 +473,7 @@ const ServiceRequestForm = ({
             onServiceAdded={handleServiceAdded}
           />
 
-          {/* Dates */}
+          {/* Dates and Times */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium mb-2">
@@ -489,6 +491,22 @@ const ServiceRequestForm = ({
                   }))
                 }
                 min={new Date().toISOString().split("T")[0]}
+                required
+              />
+              <label className="block text-sm font-medium mt-2 mb-2">
+                Expected Pickup Time
+              </label>
+              <input
+                type="time"
+                name="expected_pickup_time"
+                className="w-full border rounded-md p-2"
+                value={safeRequestData.expected_pickup_time || ""}
+                onChange={(e) =>
+                  setRequestData((prev) => ({
+                    ...prev,
+                    expected_pickup_time: e.target.value,
+                  }))
+                }
                 required
               />
             </div>
@@ -509,6 +527,22 @@ const ServiceRequestForm = ({
                 min={
                   safeRequestData.expected_pickup_date ||
                   new Date().toISOString().split("T")[0]
+                }
+                required
+              />
+              <label className="block text-sm font-medium mt-2 mb-2">
+                Expected Delivery Time
+              </label>
+              <input
+                type="time"
+                name="expected_delivery_time"
+                className="w-full border rounded-md p-2"
+                value={safeRequestData.expected_delivery_time || ""}
+                onChange={(e) =>
+                  setRequestData({
+                    ...safeRequestData,
+                    expected_delivery_time: e.target.value,
+                  })
                 }
                 required
               />

@@ -317,6 +317,7 @@ const ShipmentDetailsModal = ({
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     Expected: {formatDate(shipment.expected_pickup_date)}
+                    {shipment.expected_pickup_time && ` at ${shipment.expected_pickup_time}`}
                   </p>
                 </div>
                 <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
@@ -329,6 +330,7 @@ const ShipmentDetailsModal = ({
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     Expected: {formatDate(shipment.expected_delivery_date)}
+                    {shipment.expected_delivery_time && ` at ${shipment.expected_delivery_time}`}
                   </p>
                 </div>
               </div>

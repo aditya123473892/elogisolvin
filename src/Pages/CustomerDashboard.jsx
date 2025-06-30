@@ -61,7 +61,9 @@ export default function CustomerDashboard({
     service_type: [],
     service_prices: {},
     expected_pickup_date: "",
+    expected_pickup_time: "",
     expected_delivery_date: "",
+    expected_delivery_time: "",
     requested_price: "",
     status: "Pending",
     admin_comment: "",
@@ -106,6 +108,7 @@ export default function CustomerDashboard({
     try {
       const response = await api.get("/transport-requests/my-requests");
       if (response.data?.success) {
+        console.log("response", response.data.requests);
         setAllRequests(response.data.requests);
         updateDisplayedRequests(response.data.requests, 1);
       } else {
@@ -131,19 +134,84 @@ export default function CustomerDashboard({
     return Math.ceil(allRequests.length / requestsPerPage);
   };
 
-  // Handle form submission - CLEANED UP POST REQUEST
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
+      // Validate required fields before submission
+      if (
+        !requestData.expected_pickup_date ||
+        !requestData.expected_pickup_time
+      ) {
+        toast.error("Expected pickup date and time are required");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (
+        !requestData.expected_delivery_date ||
+        !requestData.expected_delivery_time
+      ) {
+        toast.error("Expected delivery date and time are required");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Validate time format (HH:MM)
+      const isValidTime = (timeString) => {
+        if (!timeString) return false;
+        return /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(timeString.trim());
+      };
+
+      if (!isValidTime(requestData.expected_pickup_time)) {
+        toast.error(
+          "Invalid pickup time format. Please use HH:MM format (e.g., 14:30)"
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (!isValidTime(requestData.expected_delivery_time)) {
+        toast.error(
+          "Invalid delivery time format. Please use HH:MM format (e.g., 14:30)"
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Validate date format
+      const isValidDate = (dateString) => {
+        const date = new Date(dateString);
+        return !isNaN(date.getTime());
+      };
+
+      if (!isValidDate(requestData.expected_pickup_date)) {
+        toast.error("Invalid pickup date");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (!isValidDate(requestData.expected_delivery_date)) {
+        toast.error("Invalid delivery date");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Format time for time(7) compatibility (append :00 for seconds)
+      const formatTimeForDatabase = (timeString) => {
+        if (!timeString) return null;
+        // Ensure HH:MM:SS format by appending :00
+        return `${timeString.trim()}:00`;
+      };
+
       // Clean form data preparation
       const formData = {
         consignee: requestData.consignee.trim(),
         consigner: requestData.consigner.trim(),
         vehicle_type: requestData.vehicle_type,
         vehicle_size: requestData.vehicle_size,
-        no_of_vehicles: requestData.no_of_vehicles,
+        no_of_vehicles: parseInt(requestData.no_of_vehicles) || 1,
         pickup_location: requestData.pickup_location.trim(),
         stuffing_location: requestData.stuffing_location.trim(),
         delivery_location: requestData.delivery_location.trim(),
@@ -156,10 +224,18 @@ export default function CustomerDashboard({
         containers_40ft: parseInt(requestData.containers_40ft) || 0,
         total_containers: parseInt(requestData.total_containers) || 0,
         expected_pickup_date: requestData.expected_pickup_date,
+        expected_pickup_time: formatTimeForDatabase(
+          requestData.expected_pickup_time
+        ), // Format as HH:MM:SS
         expected_delivery_date: requestData.expected_delivery_date,
+        expected_delivery_time: formatTimeForDatabase(
+          requestData.expected_delivery_time
+        ), // Format as HH:MM:SS
         requested_price: parseFloat(requestData.requested_price) || 0,
         status: "Pending",
       };
+
+      console.log("Form data being sent:", formData); // Debug log
 
       // Determine if it's create or update
       const isUpdate = Boolean(requestData.id);
@@ -177,18 +253,55 @@ export default function CustomerDashboard({
             ? "Request updated successfully!"
             : "Request created successfully!"
         );
+        console.log("Response:", response.data);
         handleCancelEdit();
         fetchRequests(); // Refresh all requests
+      } else {
+        toast.error(response.data.message || "Failed to submit request");
       }
     } catch (error) {
       console.error("Submit error:", error);
-      toast.error(error.response?.data?.message || "Failed to submit request");
+
+      // Enhanced error handling
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else if (error.message.includes("time")) {
+        toast.error(
+          "Invalid time format. Please use HH:MM format (e.g., 14:30)"
+        );
+      } else if (error.message.includes("date")) {
+        toast.error("Invalid date format. Please select a valid date");
+      } else {
+        toast.error(
+          "Failed to submit request. Please check all fields and try again."
+        );
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
+  // 2. Add a helper function to format time from database for HTML input
+  const formatTimeForInput = (timeString) => {
+    if (!timeString) return "";
+
+    // Handle different time formats from database
+    if (typeof timeString === "string") {
+      // If it's in HH:MM:SS format, extract HH:MM
+      if (timeString.includes(":")) {
+        const parts = timeString.split(":");
+        if (parts.length >= 2) {
+          return `${parts[0].padStart(2, "0")}:${parts[1].padStart(2, "0")}`;
+        }
+      }
+    }
+
+    return timeString;
+  };
+
+  // 3. Update the handleRequestClick function
 
   // Reset form to initial state
+  // Fixed handleCancelEdit function
   const handleCancelEdit = () => {
     setRequestData({
       id: null,
@@ -209,7 +322,9 @@ export default function CustomerDashboard({
       service_type: [],
       service_prices: {},
       expected_pickup_date: "",
+      expected_pickup_time: "", // ADDED: This was missing
       expected_delivery_date: "",
+      expected_delivery_time: "", // FIXED: You had expected_delivery_date duplicated
       requested_price: "",
       status: "Pending",
       admin_comment: "",
@@ -222,7 +337,6 @@ export default function CustomerDashboard({
     return normalizedStatus !== "completed";
   };
 
-  // Handle clicking on a request for editing
   const handleRequestClick = (request) => {
     if (canEditRequest(request.status)) {
       setRequestData({
@@ -255,6 +369,11 @@ export default function CustomerDashboard({
           ? request.expected_delivery_date.split("T")[0]
           : "",
         requested_price: parseFloat(request.requested_price) || 0,
+        // Use the helper function to format times properly
+        expected_pickup_time: formatTimeForInput(request.expected_pickup_time),
+        expected_delivery_time: formatTimeForInput(
+          request.expected_delivery_time
+        ),
         status: request.status || "Pending",
         admin_comment: request.admin_comment || "",
       });
@@ -293,9 +412,21 @@ export default function CustomerDashboard({
   // Compact status badge component
   const getStatusBadge = (status) => {
     const statusConfig = {
-      Completed: { bg: "bg-green-100", text: "text-green-700", dot: "bg-green-500" },
-      "In Progress": { bg: "bg-blue-100", text: "text-blue-700", dot: "bg-blue-500" },
-      Pending: { bg: "bg-yellow-100", text: "text-yellow-700", dot: "bg-yellow-500" },
+      Completed: {
+        bg: "bg-green-100",
+        text: "text-green-700",
+        dot: "bg-green-500",
+      },
+      "In Progress": {
+        bg: "bg-blue-100",
+        text: "text-blue-700",
+        dot: "bg-blue-500",
+      },
+      Pending: {
+        bg: "bg-yellow-100",
+        text: "text-yellow-700",
+        dot: "bg-yellow-500",
+      },
     };
 
     const config = statusConfig[status] || {
@@ -305,7 +436,9 @@ export default function CustomerDashboard({
     };
 
     return (
-      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
+      <span
+        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}
+      >
         <span className={`w-2 h-2 rounded-full mr-1 ${config.dot}`}></span>
         {status}
       </span>
@@ -354,7 +487,6 @@ export default function CustomerDashboard({
           >
             <Menu className="h-6 w-6" />
           </button>
-       
         </div>
 
         <div className="flex items-center space-x-4">
@@ -494,7 +626,9 @@ export default function CustomerDashboard({
                                 Request #{request.id}
                               </p>
                               <p className="text-xs text-gray-500">
-                                {new Date(request.created_at).toLocaleDateString()}
+                                {new Date(
+                                  request.created_at
+                                ).toLocaleDateString()}
                               </p>
                             </div>
                             <div className="flex items-center space-x-1 ml-2">
@@ -521,22 +655,28 @@ export default function CustomerDashboard({
                                 {request.vehicle_type}
                               </span>
                             </div>
-                          
+
                             <div className="text-xs">
                               <span className="text-gray-500">Services:</span>
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {(() => {
                                   try {
-                                    const services = JSON.parse(request.service_type || "[]");
-                                    const serviceArray = Array.isArray(services) ? services : [String(services)];
-                                    return serviceArray.slice(0, 2).map((service, idx) => (
-                                      <span
-                                        key={idx}
-                                        className="inline-block px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-700"
-                                      >
-                                        {service}
-                                      </span>
-                                    ));
+                                    const services = JSON.parse(
+                                      request.service_type || "[]"
+                                    );
+                                    const serviceArray = Array.isArray(services)
+                                      ? services
+                                      : [String(services)];
+                                    return serviceArray
+                                      .slice(0, 2)
+                                      .map((service, idx) => (
+                                        <span
+                                          key={idx}
+                                          className="inline-block px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-700"
+                                        >
+                                          {service}
+                                        </span>
+                                      ));
                                   } catch (error) {
                                     return (
                                       <span className="inline-block px-1.5 py-0.5 rounded text-xs bg-gray-50 text-gray-700">
@@ -551,8 +691,12 @@ export default function CustomerDashboard({
 
                           {request.admin_comment && (
                             <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
-                              <p className="text-gray-600 font-medium">Admin:</p>
-                              <p className="text-gray-700 truncate">{request.admin_comment}</p>
+                              <p className="text-gray-600 font-medium">
+                                Admin:
+                              </p>
+                              <p className="text-gray-700 truncate">
+                                {request.admin_comment}
+                              </p>
                             </div>
                           )}
                         </div>
@@ -572,11 +716,11 @@ export default function CustomerDashboard({
                       <ChevronLeft className="w-3 h-3 mr-1" />
                       Prev
                     </button>
-                    
+
                     <span className="text-xs text-gray-500">
                       {currentPage} of {getTotalPages()}
                     </span>
-                    
+
                     <button
                       onClick={handleNextPage}
                       disabled={currentPage === getTotalPages()}

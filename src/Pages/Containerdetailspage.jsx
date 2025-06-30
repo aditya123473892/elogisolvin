@@ -1064,7 +1064,7 @@ const ContainerDetailsPage = () => {
                                       {/* Container Weight */}
                                       <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                                          Tier Weight (kg)
+                                          Tare Weight (kg)
                                         </label>
                                         <input
                                           type="number"
@@ -1115,7 +1115,7 @@ const ContainerDetailsPage = () => {
                                       </div>
                                       <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                                          Total Weight (kg)
+                                          Gross Weight (kg)
                                         </label>
                                         <input
                                           type="number"

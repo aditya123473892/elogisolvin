@@ -67,50 +67,49 @@ export default function Login() {
       if (isLogin && !showOtpStep) {
         // Step 1: Request OTP after password verification
         const { email, password } = formData;
-        
+
         console.log("Requesting OTP for:", { email }); // Debug log
-        
+
         const response = await authAPI.requestOtp({ email, password });
-        
+
         console.log("OTP Request Response:", response); // Debug log
-        
+
         // Store any session data returned from OTP request
         if (response.sessionToken || response.sessionId) {
           setOtpSession({
             sessionToken: response.sessionToken,
             sessionId: response.sessionId,
-            email: email
+            email: email,
           });
-          toast.success("OTP request successful",response);
+          toast.success("OTP request successful", response);
         }
-        
+
         toast.success("OTP sent successfully! Please check your email/phone.");
         setShowOtpStep(true);
         setOtpTimer(60); // 60 seconds countdown
-        
       } else if (isLogin && showOtpStep) {
         // Step 2: Verify OTP and complete login
         const { email, otp } = formData;
-        
+
         // Validate OTP format
         if (!otp || otp.length !== 6) {
           throw new Error("Please enter a valid 6-digit OTP");
         }
-        
+
         // Prepare OTP verification data - only email and otp as your backend expects
         const otpVerificationData = {
           email: email.trim().toLowerCase(), // Ensure consistent email format
-          otp: otp.trim() // Remove any whitespace
+          otp: otp.trim(), // Remove any whitespace
         };
-        
+
         console.log("Verifying OTP with data:", otpVerificationData); // Debug log
-        
+
         toast.info("Verifying OTP...", { autoClose: 2000 });
-        
+
         const response = await authAPI.verifyOtpAndLogin(otpVerificationData);
-        
+
         console.log("OTP Verification Response:", response); // Debug log
-        
+
         // Handle successful login
         // After successful OTP verification
         if (response && (response.token || response.success)) {
@@ -118,19 +117,20 @@ export default function Login() {
           if (!response.token && !response.accessToken && !response.authToken) {
             throw new Error("No authentication token received from server");
           }
-          
+
           if (!response.user && !response.userData) {
             throw new Error("No user information received from server");
           }
-          
+
           // Handle different response formats
-          const token = response.token || response.accessToken || response.authToken;
+          const token =
+            response.token || response.accessToken || response.authToken;
           const user = response.user || response.userData;
-          
+
           // Log the token and user for debugging
           console.log("Setting auth token:", token);
           console.log("Setting user data:", user);
-          
+
           // Add debug logging
           console.log("Authentication successful", {
             token: token,
@@ -138,37 +138,37 @@ export default function Login() {
             user: user,
             localStorage: {
               token: localStorage.getItem("token"),
-              user: localStorage.getItem("user")
-            }
+              user: localStorage.getItem("user"),
+            },
           });
-          
+
           // Set auth token and user data
           setAuthToken(token);
           localStorage.setItem("user", JSON.stringify(user));
           localStorage.setItem("token", token);
-          
+
           // Add a small delay to ensure localStorage is updated
-          await new Promise(resolve => setTimeout(resolve, 300));
-          
+          await new Promise((resolve) => setTimeout(resolve, 300));
+
           // Verify the token was properly set
           const storedToken = localStorage.getItem("token");
           console.log("Stored token verification:", {
             tokenReceived: token,
             tokenStored: storedToken,
-            match: storedToken === token
+            match: storedToken === token,
           });
-          
-          toast.success(`Welcome back, ${user.name || user.email}!`, { 
+
+          toast.success(`Welcome back, ${user.name || user.email}!`, {
             autoClose: 3000,
-            position: "top-right"
+            position: "top-right",
           });
-          
+
           // Small delay to show success message
           setTimeout(() => {
             // Navigate based on user role
             const userRole = user?.role;
             console.log("Navigating based on role:", userRole);
-            
+
             // Force a page reload to ensure fresh state
             if (userRole === "Admin") {
               window.location.href = "/admin-dashboard";
@@ -188,7 +188,6 @@ export default function Login() {
           console.error("Invalid response format:", response);
           throw new Error("Invalid response from server. Please try again.");
         }
-        
       } else {
         // Handle Signup using the auth context
         const response = await signup(formData);
@@ -210,10 +209,10 @@ export default function Login() {
       }
     } catch (err) {
       console.error("Authentication error:", err);
-      
+
       // Enhanced error handling with better user feedback
       let errorMessage = "Authentication failed. Please try again.";
-      
+
       if (typeof err === "string") {
         errorMessage = err;
       } else if (err.response?.data?.message) {
@@ -227,25 +226,30 @@ export default function Login() {
       }
 
       setError(errorMessage);
-      
+
       // Show different toast messages based on the step
       if (showOtpStep) {
         toast.error(`OTP Verification Failed: ${errorMessage}`, {
           position: "top-right",
           autoClose: 5000,
         });
-        
+
         // Clear OTP field for retry
         setFormData((prev) => ({ ...prev, otp: "" }));
-        
+
         // If OTP is invalid/expired, show additional guidance
-        if (errorMessage.toLowerCase().includes('otp') || 
-            errorMessage.toLowerCase().includes('invalid') ||
-            errorMessage.toLowerCase().includes('expired')) {
-          toast.info("Please request a new OTP if the current one has expired", {
-            position: "top-right",
-            autoClose: 4000,
-          });
+        if (
+          errorMessage.toLowerCase().includes("otp") ||
+          errorMessage.toLowerCase().includes("invalid") ||
+          errorMessage.toLowerCase().includes("expired")
+        ) {
+          toast.info(
+            "Please request a new OTP if the current one has expired",
+            {
+              position: "top-right",
+              autoClose: 4000,
+            }
+          );
         }
       } else {
         toast.error(`Login Failed: ${errorMessage}`, {
@@ -260,37 +264,40 @@ export default function Login() {
 
   const handleResendOtp = async () => {
     if (otpTimer > 0) return;
-    
+
     setLoading(true);
     setError("");
 
     try {
       const { email, password } = formData;
-      
+
       console.log("Resending OTP for:", { email }); // Debug log
-      
+
       toast.info("Sending new OTP...", { autoClose: 2000 });
-      
+
       const response = await authAPI.requestOtp({ email, password });
-      
+
       // Update session data if provided
       if (response.sessionToken || response.sessionId) {
         setOtpSession({
           sessionToken: response.sessionToken,
           sessionId: response.sessionId,
-          email: email
+          email: email,
         });
       }
-      
-      toast.success("New OTP sent successfully! Please check your email/phone.", {
-        position: "top-right",
-        autoClose: 4000,
-      });
+
+      toast.success(
+        "New OTP sent successfully! Please check your email/phone.",
+        {
+          position: "top-right",
+          autoClose: 4000,
+        }
+      );
       setOtpTimer(60); // Reset timer
       setFormData((prev) => ({ ...prev, otp: "" })); // Clear previous OTP
     } catch (err) {
       console.error("Resend OTP error:", err);
-      
+
       let errorMessage = "Failed to resend OTP.";
       if (typeof err === "string") {
         errorMessage = err;
@@ -299,7 +306,7 @@ export default function Login() {
       } else if (err.message) {
         errorMessage = err.message;
       }
-      
+
       setError(errorMessage);
       toast.error(`Resend Failed: ${errorMessage}`, {
         position: "top-right",
@@ -417,8 +424,7 @@ export default function Login() {
                 Back to login
               </button>
             )}
-            
-            
+
             {error && (
               <div className="mb-4 p-3 text-sm text-red-500 bg-red-50 rounded-lg">
                 {error}
@@ -462,7 +468,8 @@ export default function Login() {
                       onClick={handleResendOtp}
                       disabled={otpTimer > 0 || loading}
                       className={`text-blue-600 hover:text-blue-500 ${
-                        (otpTimer > 0 || loading) && "opacity-50 cursor-not-allowed"
+                        (otpTimer > 0 || loading) &&
+                        "opacity-50 cursor-not-allowed"
                       }`}
                     >
                       {otpTimer > 0 ? `Resend in ${otpTimer}s` : "Resend OTP"}
@@ -542,7 +549,10 @@ export default function Login() {
                           onChange={(e) => {
                             const value = e.target.value;
                             if (/^\d*$/.test(value)) {
-                              setFormData((prev) => ({ ...prev, phone: value }));
+                              setFormData((prev) => ({
+                                ...prev,
+                                phone: value,
+                              }));
                             }
                           }}
                           className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
@@ -632,7 +642,9 @@ export default function Login() {
                           type="button"
                           className="font-medium text-blue-600 hover:text-blue-500"
                           onClick={() =>
-                            toast.info("Password reset functionality coming soon!")
+                            toast.info(
+                              "Password reset functionality coming soon!"
+                            )
                           }
                         >
                           Forgot password?
@@ -646,9 +658,12 @@ export default function Login() {
               <div>
                 <button
                   type="submit"
-                  disabled={loading || (showOtpStep && formData.otp.length !== 6)}
+                  disabled={
+                    loading || (showOtpStep && formData.otp.length !== 6)
+                  }
                   className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-                    (loading || (showOtpStep && formData.otp.length !== 6)) && "opacity-75 cursor-not-allowed"
+                    (loading || (showOtpStep && formData.otp.length !== 6)) &&
+                    "opacity-75 cursor-not-allowed"
                   }`}
                 >
                   {loading
@@ -692,7 +707,9 @@ export default function Login() {
         <div className="flex items-center justify-center w-full h-full p-12">
           <div className="text-white max-w-md">
             <h2 className="text-3xl font-bold mb-6">
-              {showOtpStep ? "Secure OTP Verification" : "Manage Your Fleet with Confidence"}
+              {showOtpStep
+                ? "Secure OTP Verification"
+                : "Manage Your Fleet with Confidence"}
             </h2>
             <p className="text-blue-100 mb-6">
               {showOtpStep
@@ -712,7 +729,7 @@ export default function Login() {
                 <CheckCircle className="w-6 h-6 mr-3 text-blue-200 flex-shrink-0" />
                 <p className="text-blue-100">
                   {showOtpStep
-                    ? "OTP expires in 10 minutes for your protection"
+                    ? "OTP expires in 1 minutes for your protection"
                     : "Comprehensive maintenance scheduling"}
                 </p>
               </div>
@@ -731,5 +748,3 @@ export default function Login() {
     </div>
   );
 }
-
-

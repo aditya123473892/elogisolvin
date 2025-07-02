@@ -46,7 +46,7 @@ const TransporterSearchInput = ({ value, onChange, placeholder }) => {
     <div className="relative">
       <input
         type="text"
-        className="w-full min-w-[160px] border border-gray-300 rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        className="w-full min-w-[160px] border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         value={searchTerm}
         onChange={(e) => {
           setSearchTerm(e.target.value);
@@ -134,12 +134,14 @@ const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
   const handleInputChange = (index, field, value) => {
     // Update the data
     updateVehicleData(index, field, value);
-    
+
     // Validate and update errors
     const isValid = validateVehicleData(field, value);
-    setValidationErrors(prev => ({
+    setValidationErrors((prev) => ({
       ...prev,
-      [`${index}-${field}`]: isValid ? null : `Invalid ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}`
+      [`${index}-${field}`]: isValid
+        ? null
+        : `Invalid ${field.replace(/([A-Z])/g, " $1").toLowerCase()}`,
     }));
   };
 
@@ -181,7 +183,7 @@ const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
           <tbody className="bg-white divide-y divide-gray-200">
             {vehicleDataList.map((vehicle, index) => (
               <tr key={`vehicle-${index}`} className="hover:bg-gray-50">
-                <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
+                <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
                   <div className="flex items-center justify-center">
                     <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-semibold">
                       {vehicle.vehicleIndex}
@@ -201,7 +203,11 @@ const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
                   <div>
                     <input
                       type="text"
-                      className={`w-full min-w-[140px] border ${validationErrors[`${index}-vehicleNumber`] ? 'border-red-500' : 'border-gray-300'} rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
+                      className={`w-full min-w-[140px] border ${
+                        validationErrors[`${index}-vehicleNumber`]
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
                       value={vehicle.vehicleNumber}
                       onChange={(e) =>
                         handleInputChange(
@@ -216,7 +222,9 @@ const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
                       required
                     />
                     {validationErrors[`${index}-vehicleNumber`] && (
-                      <p className="text-red-500 text-xs mt-1">{validationErrors[`${index}-vehicleNumber`]}</p>
+                      <p className="text-red-500 text-xs mt-1">
+                        {validationErrors[`${index}-vehicleNumber`]}
+                      </p>
                     )}
                   </div>
                 </td>
@@ -224,7 +232,11 @@ const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
                   <div>
                     <input
                       type="text"
-                      className={`w-full min-w-[140px] border ${validationErrors[`${index}-driverName`] ? 'border-red-500' : 'border-gray-300'} rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
+                      className={`w-full min-w-[140px] border ${
+                        validationErrors[`${index}-driverName`]
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
                       value={vehicle.driverName}
                       onChange={(e) =>
                         handleInputChange(index, "driverName", e.target.value)
@@ -235,7 +247,9 @@ const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
                       required
                     />
                     {validationErrors[`${index}-driverName`] && (
-                      <p className="text-red-500 text-xs mt-1">{validationErrors[`${index}-driverName`]}</p>
+                      <p className="text-red-500 text-xs mt-1">
+                        {validationErrors[`${index}-driverName`]}
+                      </p>
                     )}
                   </div>
                 </td>
@@ -243,7 +257,11 @@ const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
                   <div>
                     <input
                       type="tel"
-                      className={`w-full min-w-[160px] border ${validationErrors[`${index}-driverContact`] ? 'border-red-500' : 'border-gray-300'} rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
+                      className={`w-full min-w-[160px] border ${
+                        validationErrors[`${index}-driverContact`]
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
                       value={vehicle.driverContact}
                       onChange={(e) =>
                         handleInputChange(
@@ -259,7 +277,9 @@ const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
                       required
                     />
                     {validationErrors[`${index}-driverContact`] && (
-                      <p className="text-red-500 text-xs mt-1">{validationErrors[`${index}-driverContact`]}</p>
+                      <p className="text-red-500 text-xs mt-1">
+                        {validationErrors[`${index}-driverContact`]}
+                      </p>
                     )}
                   </div>
                 </td>
@@ -267,7 +287,11 @@ const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
                   <div>
                     <input
                       type="text"
-                      className={`w-full min-w-[160px] border ${validationErrors[`${index}-licenseNumber`] ? 'border-red-500' : 'border-gray-300'} rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
+                      className={`w-full min-w-[160px] border ${
+                        validationErrors[`${index}-licenseNumber`]
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
                       value={vehicle.licenseNumber}
                       onChange={(e) =>
                         handleInputChange(
@@ -282,7 +306,9 @@ const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
                       required
                     />
                     {validationErrors[`${index}-licenseNumber`] && (
-                      <p className="text-red-500 text-xs mt-1">{validationErrors[`${index}-licenseNumber`]}</p>
+                      <p className="text-red-500 text-xs mt-1">
+                        {validationErrors[`${index}-licenseNumber`]}
+                      </p>
                     )}
                   </div>
                 </td>
@@ -290,16 +316,26 @@ const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
                   <div>
                     <input
                       type="date"
-                      className={`w-full min-w-[160px] border ${validationErrors[`${index}-licenseExpiry`] ? 'border-red-500' : 'border-gray-300'} rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
+                      className={`w-full min-w-[160px] border ${
+                        validationErrors[`${index}-licenseExpiry`]
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
                       value={vehicle.licenseExpiry}
                       onChange={(e) =>
-                        handleInputChange(index, "licenseExpiry", e.target.value)
+                        handleInputChange(
+                          index,
+                          "licenseExpiry",
+                          e.target.value
+                        )
                       }
                       min={new Date().toISOString().split("T")[0]}
                       required
                     />
                     {validationErrors[`${index}-licenseExpiry`] && (
-                      <p className="text-red-500 text-xs mt-1">{validationErrors[`${index}-licenseExpiry`]}</p>
+                      <p className="text-red-500 text-xs mt-1">
+                        {validationErrors[`${index}-licenseExpiry`]}
+                      </p>
                     )}
                   </div>
                 </td>

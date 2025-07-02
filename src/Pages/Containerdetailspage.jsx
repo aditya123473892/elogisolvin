@@ -41,7 +41,6 @@ const ContainerDetailsPage = () => {
             });
           }
         });
-
         setVehicleDataList(uniqueVehicles);
 
         // Then map to container format
@@ -97,16 +96,13 @@ const ContainerDetailsPage = () => {
       );
     });
 
-    // Log the grouped containers to verify all containers are included
     console.log("Grouped containers:", grouped);
     setGroupedContainers(grouped);
 
-    // Set the first vehicle as expanded by default if none is selected
     if (expandedVehicle === null && Object.keys(grouped).length > 0) {
       setExpandedVehicle(Object.keys(grouped)[0]);
     }
-  }, [containers]); // Remove expandedVehicle from the dependency array
-
+  }, [containers]);
   // Fetch existing transporter data
   const fetchExistingTransporterData = async () => {
     if (!transportRequestId) return;
@@ -916,7 +912,7 @@ const ContainerDetailsPage = () => {
 
                                       {/* Container Number */}
                                       <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        <label className="block text-sm font-medium text-gray-700 mb-0">
                                           Container Number *
                                         </label>
                                         <input

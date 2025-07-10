@@ -307,7 +307,7 @@ export default function AdminTransportRequests() {
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900">
-                          Request #{request.id}
+                          Booking #{request.id}
                         </div>
                         <div className="text-sm text-gray-500">
                           {new Date(request.created_at).toLocaleDateString()}

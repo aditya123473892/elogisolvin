@@ -206,11 +206,15 @@ export default function CustomerDashboard({
       };
 
       // Clean form data preparation
+      // In CustomerDashboard.js - Update the handleSubmit function
+      // Add vehicle_status to the formData object around line 200-250
+
       const formData = {
         consignee: requestData.consignee.trim(),
         consigner: requestData.consigner.trim(),
         vehicle_type: requestData.vehicle_type,
         vehicle_size: requestData.vehicle_size,
+        vehicle_status: requestData.vehicle_status, // ADD THIS LINE
         no_of_vehicles: parseInt(requestData.no_of_vehicles) || 1,
         pickup_location: requestData.pickup_location.trim(),
         stuffing_location: requestData.stuffing_location.trim(),
@@ -226,13 +230,14 @@ export default function CustomerDashboard({
         expected_pickup_date: requestData.expected_pickup_date,
         expected_pickup_time: formatTimeForDatabase(
           requestData.expected_pickup_time
-        ), // Format as HH:MM:SS
+        ),
         expected_delivery_date: requestData.expected_delivery_date,
         expected_delivery_time: formatTimeForDatabase(
           requestData.expected_delivery_time
-        ), // Format as HH:MM:SS
+        ),
         requested_price: parseFloat(requestData.requested_price) || 0,
         status: "Pending",
+        // Remove this duplicate line: vehicle_status: "Empty"
       };
 
       console.log("Form data being sent:", formData); // Debug log
@@ -301,7 +306,11 @@ export default function CustomerDashboard({
   // 3. Update the handleRequestClick function
 
   // Reset form to initial state
-  // Fixed handleCancelEdit function
+  // In CustomerDashboard.js - Update the handleCancelEdit function
+  // Add vehicle_status to the reset object around line 350-380
+  // In CustomerDashboard.js - Update the handleCancelEdit function
+  // Add vehicle_status to the reset object around line 350-380
+
   const handleCancelEdit = () => {
     setRequestData({
       id: null,
@@ -309,6 +318,7 @@ export default function CustomerDashboard({
       consigner: "",
       vehicle_type: "",
       vehicle_size: "",
+      vehicle_status: "Empty", // ADD THIS LINE
       containers_20ft: 0,
       containers_40ft: 0,
       no_of_vehicles: "",
@@ -322,9 +332,9 @@ export default function CustomerDashboard({
       service_type: [],
       service_prices: {},
       expected_pickup_date: "",
-      expected_pickup_time: "", // ADDED: This was missing
+      expected_pickup_time: "",
       expected_delivery_date: "",
-      expected_delivery_time: "", // FIXED: You had expected_delivery_date duplicated
+      expected_delivery_time: "",
       requested_price: "",
       status: "Pending",
       admin_comment: "",
@@ -337,6 +347,11 @@ export default function CustomerDashboard({
     return normalizedStatus !== "completed";
   };
 
+  // In CustomerDashboard.js - Update the handleRequestClick function
+  // Add vehicle_status to the request data mapping around line 400-450
+  // In CustomerDashboard.js - Update the handleRequestClick function
+  // Add vehicle_status to the request data mapping around line 400-450
+
   const handleRequestClick = (request) => {
     if (canEditRequest(request.status)) {
       setRequestData({
@@ -345,6 +360,7 @@ export default function CustomerDashboard({
         consigner: request.consigner || "",
         vehicle_type: request.vehicle_type || "",
         vehicle_size: request.vehicle_size || "",
+        vehicle_status: request.vehicle_status || "Empty", // ADD THIS LINE
         no_of_vehicles: request.no_of_vehicles || "1",
         pickup_location: request.pickup_location || "",
         stuffing_location: request.stuffing_location || "",
@@ -369,7 +385,6 @@ export default function CustomerDashboard({
           ? request.expected_delivery_date.split("T")[0]
           : "",
         requested_price: parseFloat(request.requested_price) || 0,
-        // Use the helper function to format times properly
         expected_pickup_time: formatTimeForInput(request.expected_pickup_time),
         expected_delivery_time: formatTimeForInput(
           request.expected_delivery_time
@@ -386,7 +401,6 @@ export default function CustomerDashboard({
       toast.info("Completed requests cannot be edited");
     }
   };
-
   // Download invoice handler
   const handleDownloadInvoice = (request) => {
     try {
@@ -623,7 +637,7 @@ export default function CustomerDashboard({
                           <div className="flex justify-between items-start mb-2">
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-900 truncate">
-                                Request #{request.id}
+                                Booking #{request.id}
                               </p>
                               <p className="text-xs text-gray-500">
                                 {new Date(

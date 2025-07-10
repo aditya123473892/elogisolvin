@@ -128,10 +128,11 @@ export const generateInvoice = (request, transporterDetails) => {
     const baseAmount = serviceTotal + transportTotal;
     const cgstAmount = (baseAmount * 9) / 100;
     const sgstAmount = (baseAmount * 9) / 100;
-    const totalGst = cgstAmount + sgstAmount;
+    const igstAmount = (baseAmount * 18) / 100;
+    const totalGst = cgstAmount + sgstAmount + igstAmount;
     const grandTotal = baseAmount + totalGst;
 
-    // Charges table
+    // Charges table with IGST column
     const chargesData = [
       [
         "Sr",
@@ -142,6 +143,7 @@ export const generateInvoice = (request, transporterDetails) => {
         "Amount",
         "CGST\n9%",
         "SGST\n9%",
+        "IGST\n18%",
         "Total\nAmount",
       ],
       [
@@ -153,6 +155,7 @@ export const generateInvoice = (request, transporterDetails) => {
         baseAmount.toFixed(0),
         cgstAmount.toFixed(0),
         sgstAmount.toFixed(0),
+        igstAmount.toFixed(0),
         grandTotal.toFixed(0),
       ],
     ];
@@ -176,15 +179,16 @@ export const generateInvoice = (request, transporterDetails) => {
         overflow: "linebreak",
       },
       columnStyles: {
-        0: { cellWidth: 15 },
-        1: { cellWidth: 25 },
-        2: { cellWidth: 20 },
-        3: { cellWidth: 15 },
-        4: { cellWidth: 20 },
-        5: { cellWidth: 20 },
-        6: { cellWidth: 20 },
-        7: { cellWidth: 20 },
-        8: { cellWidth: 25 },
+        0: { cellWidth: 12 },
+        1: { cellWidth: 22 },
+        2: { cellWidth: 18 },
+        3: { cellWidth: 12 },
+        4: { cellWidth: 18 },
+        5: { cellWidth: 18 },
+        6: { cellWidth: 18 },
+        7: { cellWidth: 18 },
+        8: { cellWidth: 18 },
+        9: { cellWidth: 22 },
       },
       margin: { left: 10, right: 10 },
     });
@@ -203,6 +207,7 @@ export const generateInvoice = (request, transporterDetails) => {
           baseAmount.toFixed(0),
           cgstAmount.toFixed(0),
           sgstAmount.toFixed(0),
+          igstAmount.toFixed(0),
           grandTotal.toFixed(0),
         ],
       ],
@@ -214,15 +219,16 @@ export const generateInvoice = (request, transporterDetails) => {
         fontStyle: "bold",
       },
       columnStyles: {
-        0: { cellWidth: 15 },
-        1: { cellWidth: 25 },
-        2: { cellWidth: 20 },
-        3: { cellWidth: 15 },
-        4: { cellWidth: 20 },
-        5: { cellWidth: 20 },
-        6: { cellWidth: 20 },
-        7: { cellWidth: 20 },
-        8: { cellWidth: 25 },
+        0: { cellWidth: 12 },
+        1: { cellWidth: 22 },
+        2: { cellWidth: 18 },
+        3: { cellWidth: 12 },
+        4: { cellWidth: 18 },
+        5: { cellWidth: 18 },
+        6: { cellWidth: 18 },
+        7: { cellWidth: 18 },
+        8: { cellWidth: 18 },
+        9: { cellWidth: 22 },
       },
       margin: { left: 10, right: 10 },
     });

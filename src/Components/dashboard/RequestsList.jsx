@@ -33,7 +33,7 @@ const RequestsList = ({
                       {new Date(request.created_at).toLocaleDateString()}
                     </h4>
                     <p className="text-sm text-gray-500 mt-1">
-                      Request ID: {request.id}
+                      Request ID: {request.formatted_request_id}
                     </p>
                   </div>
                   <div className="mt-2 md:mt-0">

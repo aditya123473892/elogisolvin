@@ -14,6 +14,11 @@ const ServiceRequestForm = ({
   const submitButtonText = requestData.id ? "Update Request" : "Submit Request";
   const loadingButtonText = requestData.id ? "Updating..." : "Submitting...";
 
+  // Get current date and time for default values
+  const now = new Date();
+  const today = now.toISOString().split("T")[0];
+  const currentTime = now.toTimeString().slice(0, 5);
+
   // Initialize default values if requestData is empty
   const safeRequestData = {
     id: "",
@@ -36,11 +41,13 @@ const ServiceRequestForm = ({
     service_type: [],
     service_prices: {},
     requested_price: 0,
-    expected_pickup_date: "",
-    expected_pickup_time: "",
+    expected_pickup_date: today,
+    expected_pickup_time: currentTime,
     expected_delivery_date: "",
     expected_delivery_time: "",
     transporterDetails: [],
+
+    vehicle_status: "Empty",
     ...requestData,
   };
 
@@ -105,6 +112,16 @@ const ServiceRequestForm = ({
       ...safeRequestData,
       service_type: updatedServices,
       service_prices: updatedPrices,
+    });
+  };
+
+  const handleServicePriceChange = (serviceName, price) => {
+    setRequestData({
+      ...safeRequestData,
+      service_prices: {
+        ...safeRequestData.service_prices,
+        [serviceName]: price,
+      },
     });
   };
 
@@ -179,8 +196,42 @@ const ServiceRequestForm = ({
                 required
               >
                 <option value="">Select Vehicle Type</option>
-                <option value="Trailer">Trailer</option>
+                <option value="Trailer">Container</option>
                 <option value="Truck">Truck</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Vehicle Status
+              </label>
+              <select
+                name="vehicle_status"
+                className="w-full border rounded-md p-2"
+                value={safeRequestData.vehicle_status}
+                onChange={(e) =>
+                  setRequestData((prev) => ({
+                    ...prev,
+                    vehicle_status: e.target.value,
+                    stuffing_location:
+                      e.target.value === "Empty" ? "" : prev.stuffing_location,
+                    containers_20ft:
+                      e.target.value === "Empty" ? 0 : prev.containers_20ft,
+                    containers_40ft:
+                      e.target.value === "Empty" ? 0 : prev.containers_40ft,
+                    total_containers:
+                      e.target.value === "Empty" ? 0 : prev.total_containers,
+                    commodity: e.target.value === "Empty" ? "" : prev.commodity,
+                    cargo_type:
+                      e.target.value === "Empty" ? "" : prev.cargo_type,
+                    cargo_weight:
+                      e.target.value === "Empty" ? 0 : prev.cargo_weight,
+                  }))
+                }
+                required
+              >
+                <option value="Empty">Empty</option>
+                <option value="Loaded">Loaded</option>
               </select>
             </div>
 
@@ -274,85 +325,87 @@ const ServiceRequestForm = ({
             </div>
           </div>
 
-          {/* Container Selection */}
-          <div className="space-y-4">
-            <label className="block text-sm font-medium mb-2">
-              Container Details
-            </label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 border rounded-lg">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium block">
-                    20' Containers
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    className="w-full border rounded-md p-2"
-                    placeholder="Enter number of 20ft containers"
-                    value={safeRequestData.containers_20ft}
-                    onChange={(e) =>
-                      setRequestData((prev) => ({
-                        ...prev,
-                        containers_20ft: Number(e.target.value) || 0,
-                        total_containers:
-                          (Number(e.target.value) || 0) +
-                          (Number(prev.containers_40ft) || 0),
-                      }))
-                    }
-                  />
+          {/* Container Selection (only when Loaded) */}
+          {safeRequestData.vehicle_status === "Loaded" && (
+            <div className="space-y-4">
+              <label className="block text-sm font-medium mb-2">
+                Container Details
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 border rounded-lg">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium block">
+                      20' Containers
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      className="w-full border rounded-md p-2"
+                      placeholder="Enter number of 20ft containers"
+                      value={safeRequestData.containers_20ft}
+                      onChange={(e) =>
+                        setRequestData((prev) => ({
+                          ...prev,
+                          containers_20ft: Number(e.target.value) || 0,
+                          total_containers:
+                            (Number(e.target.value) || 0) +
+                            (Number(prev.containers_40ft) || 0),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="p-4 border rounded-lg">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium block">
+                      40' Containers
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      className="w-full border rounded-md p-2"
+                      placeholder="Enter number of 40ft containers"
+                      value={safeRequestData.containers_40ft}
+                      onChange={(e) =>
+                        setRequestData((prev) => ({
+                          ...prev,
+                          containers_40ft: Number(e.target.value) || 0,
+                          total_containers:
+                            (Number(prev.containers_20ft) || 0) +
+                            (Number(e.target.value) || 0),
+                        }))
+                      }
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="p-4 border rounded-lg">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium block">
-                    40' Containers
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    className="w-full border rounded-md p-2"
-                    placeholder="Enter number of 40ft containers"
-                    value={safeRequestData.containers_40ft}
-                    onChange={(e) =>
-                      setRequestData((prev) => ({
-                        ...prev,
-                        containers_40ft: Number(e.target.value) || 0,
-                        total_containers:
-                          (Number(prev.containers_20ft) || 0) +
-                          (Number(e.target.value) || 0),
-                      }))
-                    }
-                  />
-                </div>
+              <div className="mt-2 text-sm text-gray-600">
+                Total Containers: {safeRequestData.total_containers}
+                {(safeRequestData.containers_20ft > 0 ||
+                  safeRequestData.containers_40ft > 0) && (
+                  <span className="ml-2">
+                    (
+                    {safeRequestData.containers_20ft > 0
+                      ? `${safeRequestData.containers_20ft} × 20ft`
+                      : ""}
+                    {safeRequestData.containers_20ft > 0 &&
+                    safeRequestData.containers_40ft > 0
+                      ? ", "
+                      : ""}
+                    {safeRequestData.containers_40ft > 0
+                      ? `${safeRequestData.containers_40ft} × 40ft`
+                      : ""}
+                    )
+                  </span>
+                )}
               </div>
             </div>
-
-            <div className="mt-2 text-sm text-gray-600">
-              Total Containers: {safeRequestData.total_containers}
-              {(safeRequestData.containers_20ft > 0 ||
-                safeRequestData.containers_40ft > 0) && (
-                <span className="ml-2">
-                  (
-                  {safeRequestData.containers_20ft > 0
-                    ? `${safeRequestData.containers_20ft} × 20ft`
-                    : ""}
-                  {safeRequestData.containers_20ft > 0 &&
-                  safeRequestData.containers_40ft > 0
-                    ? ", "
-                    : ""}
-                  {safeRequestData.containers_40ft > 0
-                    ? `${safeRequestData.containers_40ft} × 40ft`
-                    : ""}
-                  )
-                </span>
-              )}
-            </div>
-          </div>
+          )}
 
           {/* Locations */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium mb-2">
                 Pickup Location
@@ -368,21 +421,23 @@ const ServiceRequestForm = ({
                 placeholder="Enter pickup location"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Stuffing Location
-              </label>
-              <LocationSearchInput
-                value={safeRequestData.stuffing_location}
-                onChange={(value) =>
-                  setRequestData((prev) => ({
-                    ...prev,
-                    stuffing_location: value,
-                  }))
-                }
-                placeholder="Enter stuffing location"
-              />
-            </div>
+            {safeRequestData.vehicle_status === "Loaded" && (
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Stuffing Location
+                </label>
+                <LocationSearchInput
+                  value={safeRequestData.stuffing_location}
+                  onChange={(value) =>
+                    setRequestData((prev) => ({
+                      ...prev,
+                      stuffing_location: value,
+                    }))
+                  }
+                  placeholder="Enter stuffing location"
+                />
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium mb-2">
                 Delivery Location
@@ -400,78 +455,83 @@ const ServiceRequestForm = ({
             </div>
           </div>
 
-          {/* Cargo Details */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Commodity/Cargo
-              </label>
-              <input
-                type="text"
-                className="w-full border rounded-md p-2"
-                value={safeRequestData.commodity}
-                onChange={(e) =>
-                  setRequestData({
-                    ...safeRequestData,
-                    commodity: e.target.value,
-                  })
-                }
-                required
-              />
+          {/* Cargo Details (only when Loaded) */}
+          {safeRequestData.vehicle_status === "Loaded" && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Commodity/Cargo
+                </label>
+                <input
+                  type="text"
+                  className="w-full border rounded-md p-2"
+                  value={safeRequestData.commodity}
+                  onChange={(e) =>
+                    setRequestData({
+                      ...safeRequestData,
+                      commodity: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Cargo Type
+                </label>
+                <select
+                  className="w-full border rounded-md p-2"
+                  value={safeRequestData.cargo_type}
+                  onChange={(e) =>
+                    setRequestData({
+                      ...safeRequestData,
+                      cargo_type: e.target.value,
+                    })
+                  }
+                  required
+                >
+                  <option value="">Select Type</option>
+                  <option value="General">General</option>
+                  <option value="Hazardous">Hazardous</option>
+                  <option value="Perishable">Perishable</option>
+                  <option value="Fragile">Fragile</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Total Weight (KG)
+                </label>
+                <input
+                  type="number"
+                  name="cargo_weight"
+                  className="w-full border rounded-md p-2"
+                  value={safeRequestData.cargo_weight}
+                  onChange={(e) =>
+                    setRequestData((prev) => ({
+                      ...prev,
+                      cargo_weight: Number(e.target.value),
+                    }))
+                  }
+                  required
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Cargo Type
-              </label>
-              <select
-                className="w-full border rounded-md p-2"
-                value={safeRequestData.cargo_type}
-                onChange={(e) =>
-                  setRequestData({
-                    ...safeRequestData,
-                    cargo_type: e.target.value,
-                  })
-                }
-                required
-              >
-                <option value="">Select Type</option>
-                <option value="General">General</option>
-                <option value="Hazardous">Hazardous</option>
-                <option value="Perishable">Perishable</option>
-                <option value="Fragile">Fragile</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Total Weight (KG)
-              </label>
-              <input
-                type="number"
-                name="cargo_weight"
-                className="w-full border rounded-md p-2"
-                value={safeRequestData.cargo_weight}
-                onChange={(e) =>
-                  setRequestData((prev) => ({
-                    ...prev,
-                    cargo_weight: Number(e.target.value)
-                  }))
-                }
-                required
-              />
-            </div>
-          </div>
+          )}
 
-          {/* Services Required */}
-          <ServicesSelection
-            services={services}
-            loadingServices={loadingServices}
-            selectedServices={safeRequestData.service_type}
-            servicePrices={safeRequestData.service_prices}
-            onServiceToggle={handleServiceToggle}
-            isNewServiceModalOpen={isNewServiceModalOpen}
-            setIsNewServiceModalOpen={setIsNewServiceModalOpen}
-            onServiceAdded={handleServiceAdded}
-          />
+          {/* Services Required with Price Inputs */}
+          <div className="space-y-4">
+            <ServicesSelection
+              services={services}
+              loadingServices={loadingServices}
+              selectedServices={safeRequestData.service_type}
+              servicePrices={safeRequestData.service_prices}
+              onServiceToggle={handleServiceToggle}
+              onServicePriceChange={handleServicePriceChange}
+              isNewServiceModalOpen={isNewServiceModalOpen}
+              setIsNewServiceModalOpen={setIsNewServiceModalOpen}
+              onServiceAdded={handleServiceAdded}
+            />
+          </div>
 
           {/* Dates and Times */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -490,7 +550,7 @@ const ServiceRequestForm = ({
                     expected_pickup_date: e.target.value,
                   }))
                 }
-                min={new Date().toISOString().split("T")[0]}
+                min={today}
                 required
               />
               <label className="block text-sm font-medium mt-2 mb-2">
@@ -500,7 +560,7 @@ const ServiceRequestForm = ({
                 type="time"
                 name="expected_pickup_time"
                 className="w-full border rounded-md p-2"
-                value={safeRequestData.expected_pickup_time || ""}
+                value={safeRequestData.expected_pickup_time}
                 onChange={(e) =>
                   setRequestData((prev) => ({
                     ...prev,
@@ -524,10 +584,7 @@ const ServiceRequestForm = ({
                     expected_delivery_date: e.target.value,
                   })
                 }
-                min={
-                  safeRequestData.expected_pickup_date ||
-                  new Date().toISOString().split("T")[0]
-                }
+                min={safeRequestData.expected_pickup_date || today}
                 required
               />
               <label className="block text-sm font-medium mt-2 mb-2">

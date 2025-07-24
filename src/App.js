@@ -18,10 +18,14 @@ import EditRequestModal from "./Components/EditRequestModal"; // Import the new 
 import AdminLayout from "./Pages/AdminLayout";
 import ShipmentsPage from "./Pages/Myshipments";
 import ContainerDetailsPage from "./Pages/Containerdetailspage";
+import VendorDetails from "./Pages/VendorDetails";
 // Add these imports
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-
+// Add this import at the top with other imports
+import DriverDetails from "./Pages/DriverDetails";
+import FleetEquipmentDetails from "./Pages/FleetEquipmentDetails";
+import Vindetails from "./Pages/VinDetailsPage";
 
 const DashboardLayout = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
@@ -56,9 +60,7 @@ const DashboardLayout = ({ children }) => {
           collapsed ? "md:ml-16" : "md:ml-64"
         } md:min-w-0`}
       >
-        <div className="p-6">
-          {React.cloneElement(children, sidebarProps)}
-        </div>
+        <div className="p-6">{React.cloneElement(children, sidebarProps)}</div>
       </main>
     </div>
   );
@@ -85,7 +87,7 @@ const RoleRedirect = () => {
 function App() {
   return (
     <AuthProvider>
-         <ToastContainer 
+      <ToastContainer
         position="top-right"
         autoClose={5000}
         hideProgressBar={false}
@@ -153,7 +155,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-           <Route
+          <Route
             path="/customer/container-page" // Changed from "/my-shipments"
             element={
               <ProtectedRoute allowedRoles={["Customer"]}>
@@ -173,7 +175,48 @@ function App() {
               </ProtectedRoute>
             }
           />
-         
+          <Route
+            path="/customer/vendors"
+            element={
+              <ProtectedRoute allowedRoles={["Customer"]}>
+                <DashboardLayout>
+                  <VendorDetails />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/drivers"
+            element={
+              <ProtectedRoute allowedRoles={["Customer"]}>
+                <DashboardLayout>
+                  <DriverDetails />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+   <Route
+            path="/customer/vinpage"
+            element={
+              <ProtectedRoute allowedRoles={["Customer"]}>
+                <DashboardLayout>
+                 <Vindetails></Vindetails>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+<Route
+  path="/customer/fleet-equipment"
+  element={
+    <ProtectedRoute allowedRoles={["Customer"]}>
+      <DashboardLayout>
+        <FleetEquipmentDetails />
+      </DashboardLayout>
+    </ProtectedRoute>
+  }
+/>
+          
+
           {/* Driver route */}
           <Route
             path="/driver-dashboard"
@@ -193,7 +236,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Router>
-        <ToastContainer 
+      <ToastContainer
         position="top-right"
         autoClose={5000}
         hideProgressBar={false}
@@ -209,3 +252,6 @@ function App() {
 }
 
 export default App;
+
+// Add this route inside the Routes component, before the closing </Routes> tag
+

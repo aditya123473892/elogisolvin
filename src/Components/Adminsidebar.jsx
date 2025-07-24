@@ -14,6 +14,7 @@ import {
   LogOut,
   Shield,
   Activity,
+
 } from "lucide-react";
 
 export function AdminSidebar({
@@ -52,6 +53,12 @@ export function AdminSidebar({
       icon: Shield,
       path: "drivers",
       description: "Driver Management",
+    },
+    {
+      name: "Fleet Equipment",
+   
+      path: "fleet-equipment",
+      description: "Equipment Management",
     },
     {
       name: "Maintenance",

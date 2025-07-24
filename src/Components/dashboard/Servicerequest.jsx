@@ -14,12 +14,10 @@ const ServiceRequestForm = ({
   const submitButtonText = requestData.id ? "Update Request" : "Submit Request";
   const loadingButtonText = requestData.id ? "Updating..." : "Submitting...";
 
-  // Get current date and time for default values
   const now = new Date();
   const today = now.toISOString().split("T")[0];
   const currentTime = now.toTimeString().slice(0, 5);
 
-  // Initialize default values if requestData is empty
   const safeRequestData = {
     id: "",
     consignee: "",
@@ -46,12 +44,50 @@ const ServiceRequestForm = ({
     expected_delivery_date: "",
     expected_delivery_time: "",
     transporterDetails: [],
-
     vehicle_status: "Empty",
     ...requestData,
   };
 
   const currentNoOfVehicles = parseInt(safeRequestData.no_of_vehicles) || 1;
+
+  // Helper function to determine if vehicle status should be forced to loaded
+  const shouldForceLoadedStatus = (vehicleType) => {
+    const alwaysLoadedTypes = [ "Tr-4", "Tr-5", "Tr-8", "Tr-9", "Single Car Carrier"];
+    return alwaysLoadedTypes.includes(vehicleType);
+  };
+
+  // Helper function to determine if container details should be shown
+  const shouldShowContainerDetails = (vehicleType) => {
+    return vehicleType === "Trailer";
+  };
+
+  // Helper function to determine if 40ft container option should be available
+  const shouldShow40ftOption = (vehicleType) => {
+    return vehicleType !== "Ven";
+  };
+
+  // Calculate total charge from service prices
+  const calculateTotalCharge = () => {
+    const servicePrices = safeRequestData.service_prices || {};
+    const totalServiceCharge = Object.values(servicePrices).reduce(
+      (sum, price) => sum + (parseFloat(price) || 0),
+      0
+    );
+    return totalServiceCharge * currentNoOfVehicles;
+  };
+
+  const totalCharge = calculateTotalCharge();
+
+  // Update requested_price whenever service prices or number of vehicles change
+  useEffect(() => {
+    const newRequestedPrice = calculateTotalCharge();
+    if (newRequestedPrice !== safeRequestData.requested_price) {
+      setRequestData((prev) => ({
+        ...prev,
+        requested_price: newRequestedPrice,
+      }));
+    }
+  }, [safeRequestData.service_prices, currentNoOfVehicles]);
 
   // Helper function to create transporter details array based on number of vehicles
   const createTransporterDetailsArray = (numVehicles, existingDetails = []) => {
@@ -79,6 +115,11 @@ const ServiceRequestForm = ({
   const [services, setServices] = useState([]);
   const [loadingServices, setLoadingServices] = useState(false);
   const [isNewServiceModalOpen, setIsNewServiceModalOpen] = useState(false);
+  const [useOpenStreetMap, setUseOpenStreetMap] = useState(false);
+
+  const handleCheckboxChange = (e) => {
+    setUseOpenStreetMap(e.target.checked);
+  };
 
   const fetchServices = async () => {
     setLoadingServices(true);
@@ -129,6 +170,11 @@ const ServiceRequestForm = ({
     fetchServices();
   }, []);
 
+  // Get the current vehicle status (forced to "Loaded" for certain vehicle types)
+  const currentVehicleStatus = shouldForceLoadedStatus(safeRequestData.vehicle_type) 
+    ? "Loaded" 
+    : safeRequestData.vehicle_status;
+
   return (
     <div className="lg:col-span-2 bg-white rounded-lg shadow">
       <div className="px-6 py-4 border-b border-gray-200">
@@ -178,26 +224,47 @@ const ServiceRequestForm = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium mb-2">
-                Vehicle Type
+               Trip Type
               </label>
               <select
                 name="vehicle_type"
                 className="w-full border rounded-md p-2"
                 value={safeRequestData.vehicle_type}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const newVehicleType = e.target.value;
+                  const newVehicleStatus = shouldForceLoadedStatus(newVehicleType) ? "Loaded" : "Empty";
+                  
                   setRequestData((prev) => ({
                     ...prev,
-                    vehicle_type: e.target.value,
+                    vehicle_type: newVehicleType,
                     vehicle_size: "",
                     trailerSize: "",
                     truckSize: "",
-                  }))
-                }
+                    vehicle_status: newVehicleStatus,
+                    // Clear container data if not a trailer
+                    containers_20ft: shouldShowContainerDetails(newVehicleType) ? prev.containers_20ft : 0,
+                    containers_40ft: shouldShowContainerDetails(newVehicleType) ? prev.containers_40ft : 0,
+                    total_containers: shouldShowContainerDetails(newVehicleType) ? prev.total_containers : 0,
+                    // Clear stuffing location if not loaded
+                    stuffing_location: newVehicleStatus === "Loaded" ? prev.stuffing_location : "",
+                    // Clear cargo details if empty
+                    commodity: newVehicleStatus === "Loaded" ? prev.commodity : "",
+                    cargo_type: newVehicleStatus === "Loaded" ? prev.cargo_type : "",
+                    cargo_weight: newVehicleStatus === "Loaded" ? prev.cargo_weight : 0,
+                  }));
+                }}
                 required
               >
-                <option value="">Select Vehicle Type</option>
+                <option value="">Select Trip Type</option>
                 <option value="Trailer">Container</option>
                 <option value="Truck">Truck</option>
+                <option value="Ven">Vin</option>
+              
+                <option value="Tr-5">Tr-5</option>
+                <option value="Tr-8">Tr-8</option>
+                <option value="Tr-9">Tr-9</option>
+                <option value="Single Car Carrier">Single Car Carrier</option>
+                <option value="Driveaway">Driveaway</option>
               </select>
             </div>
 
@@ -205,34 +272,48 @@ const ServiceRequestForm = ({
               <label className="block text-sm font-medium mb-2">
                 Vehicle Status
               </label>
-              <select
-                name="vehicle_status"
-                className="w-full border rounded-md p-2"
-                value={safeRequestData.vehicle_status}
-                onChange={(e) =>
-                  setRequestData((prev) => ({
-                    ...prev,
-                    vehicle_status: e.target.value,
-                    stuffing_location:
-                      e.target.value === "Empty" ? "" : prev.stuffing_location,
-                    containers_20ft:
-                      e.target.value === "Empty" ? 0 : prev.containers_20ft,
-                    containers_40ft:
-                      e.target.value === "Empty" ? 0 : prev.containers_40ft,
-                    total_containers:
-                      e.target.value === "Empty" ? 0 : prev.total_containers,
-                    commodity: e.target.value === "Empty" ? "" : prev.commodity,
-                    cargo_type:
-                      e.target.value === "Empty" ? "" : prev.cargo_type,
-                    cargo_weight:
-                      e.target.value === "Empty" ? 0 : prev.cargo_weight,
-                  }))
-                }
-                required
-              >
-                <option value="Empty">Empty</option>
-                <option value="Loaded">Loaded</option>
-              </select>
+              {shouldForceLoadedStatus(safeRequestData.vehicle_type) ? (
+                <div>
+                  <input
+                    type="text"
+                    className="w-full border rounded-md p-2 bg-gray-100"
+                    value="Loaded"
+                    disabled
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    This vehicle type is always loaded
+                  </p>
+                </div>
+              ) : (
+                <select
+                  name="vehicle_status"
+                  className="w-full border rounded-md p-2"
+                  value={safeRequestData.vehicle_status}
+                  onChange={(e) =>
+                    setRequestData((prev) => ({
+                      ...prev,
+                      vehicle_status: e.target.value,
+                      stuffing_location:
+                        e.target.value === "Empty" ? "" : prev.stuffing_location,
+                      containers_20ft:
+                        e.target.value === "Empty" ? 0 : prev.containers_20ft,
+                      containers_40ft:
+                        e.target.value === "Empty" ? 0 : prev.containers_40ft,
+                      total_containers:
+                        e.target.value === "Empty" ? 0 : prev.total_containers,
+                      commodity: e.target.value === "Empty" ? "" : prev.commodity,
+                      cargo_type:
+                        e.target.value === "Empty" ? "" : prev.cargo_type,
+                      cargo_weight:
+                        e.target.value === "Empty" ? 0 : prev.cargo_weight,
+                    }))
+                  }
+                  required
+                >
+                  <option value="Empty">Empty</option>
+                  <option value="Loaded">Loaded</option>
+                </select>
+              )}
             </div>
 
             {safeRequestData.vehicle_type === "Trailer" && (
@@ -325,8 +406,8 @@ const ServiceRequestForm = ({
             </div>
           </div>
 
-          {/* Container Selection (only when Loaded) */}
-          {safeRequestData.vehicle_status === "Loaded" && (
+          {/* Container Selection (only for Trailer when Loaded) */}
+          {shouldShowContainerDetails(safeRequestData.vehicle_type) && currentVehicleStatus === "Loaded" && (
             <div className="space-y-4">
               <label className="block text-sm font-medium mb-2">
                 Container Details
@@ -356,29 +437,31 @@ const ServiceRequestForm = ({
                   </div>
                 </div>
 
-                <div className="p-4 border rounded-lg">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium block">
-                      40' Containers
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      className="w-full border rounded-md p-2"
-                      placeholder="Enter number of 40ft containers"
-                      value={safeRequestData.containers_40ft}
-                      onChange={(e) =>
-                        setRequestData((prev) => ({
-                          ...prev,
-                          containers_40ft: Number(e.target.value) || 0,
-                          total_containers:
-                            (Number(prev.containers_20ft) || 0) +
-                            (Number(e.target.value) || 0),
-                        }))
-                      }
-                    />
+                {shouldShow40ftOption(safeRequestData.vehicle_type) && (
+                  <div className="p-4 border rounded-lg">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium block">
+                        40' Containers
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        className="w-full border rounded-md p-2"
+                        placeholder="Enter number of 40ft containers"
+                        value={safeRequestData.containers_40ft}
+                        onChange={(e) =>
+                          setRequestData((prev) => ({
+                            ...prev,
+                            containers_40ft: Number(e.target.value) || 0,
+                            total_containers:
+                              (Number(prev.containers_20ft) || 0) +
+                              (Number(e.target.value) || 0),
+                          }))
+                        }
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               <div className="mt-2 text-sm text-gray-600">
@@ -405,6 +488,17 @@ const ServiceRequestForm = ({
           )}
 
           {/* Locations */}
+          <div className="mb-4">
+            <label className="flex items-center text-sm text-gray-600">
+              <input
+                type="checkbox"
+                checked={useOpenStreetMap}
+                onChange={handleCheckboxChange}
+                className="mr-2"
+              />
+              Use Google Map
+            </label>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium mb-2">
@@ -419,9 +513,10 @@ const ServiceRequestForm = ({
                   }))
                 }
                 placeholder="Enter pickup location"
+                useOpenStreetMap={useOpenStreetMap}
               />
             </div>
-            {safeRequestData.vehicle_status === "Loaded" && (
+            {currentVehicleStatus === "Loaded" && (
               <div>
                 <label className="block text-sm font-medium mb-2">
                   Stuffing Location
@@ -435,6 +530,7 @@ const ServiceRequestForm = ({
                     }))
                   }
                   placeholder="Enter stuffing location"
+                  useOpenStreetMap={useOpenStreetMap}
                 />
               </div>
             )}
@@ -451,12 +547,13 @@ const ServiceRequestForm = ({
                   }))
                 }
                 placeholder="Enter delivery location"
+                useOpenStreetMap={useOpenStreetMap}
               />
             </div>
           </div>
 
           {/* Cargo Details (only when Loaded) */}
-          {safeRequestData.vehicle_status === "Loaded" && (
+          {currentVehicleStatus === "Loaded" && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <label className="block text-sm font-medium mb-2">
@@ -532,6 +629,45 @@ const ServiceRequestForm = ({
               onServiceAdded={handleServiceAdded}
             />
           </div>
+
+          {/* Total Charge Display */}
+          {safeRequestData.service_type.length > 0 && (
+            <div className="bg-gray-50 p-4 rounded-lg border">
+              <div className="space-y-2">
+                <h4 className="font-medium text-gray-900">Pricing Summary</h4>
+                <div className="space-y-1 text-sm">
+                  {Object.entries(safeRequestData.service_prices).map(
+                    ([service, price]) => (
+                      <div key={service} className="flex justify-between">
+                        <span>{service}:</span>
+                        <span>₹{parseFloat(price) || 0}</span>
+                      </div>
+                    )
+                  )}
+                  <div className="border-t pt-1 mt-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Subtotal per vehicle:</span>
+                      <span>
+                        ₹
+                        {Object.values(safeRequestData.service_prices).reduce(
+                          (sum, price) => sum + (parseFloat(price) || 0),
+                          0
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Number of vehicles:</span>
+                      <span>{currentNoOfVehicles}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-lg border-t pt-1 mt-1">
+                      <span>Total Charge:</span>
+                      <span>₹{totalCharge.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Dates and Times */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

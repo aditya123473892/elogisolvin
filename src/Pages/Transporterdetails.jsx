@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
-import { transporterAPI, transporterListAPI } from "../utils/Api"; // Import the specific API methods
+import { transporterAPI, transporterListAPI } from "../utils/Api"; 
 import VehicleBasicDetailsTable from "../Components/dashboard/Vehiclebasicdetailstable";
 import VehicleChargesTable from "../Components/dashboard/VehicleChargetable";
 import ContainerDetailsTable from "../Components/dashboard/Containerdetailstable";
@@ -356,7 +356,6 @@ export const TransporterDetails = ({
     );
   };
 
-  // Validate individual vehicle data
   const validateVehicleData = (vehicle, index) => {
     const errors = [];
 
@@ -640,6 +639,7 @@ export const TransporterDetails = ({
   vehicleDataList={vehicleDataList}
   updateVehicleData={updateVehicleData}
   transportRequestId={transportRequestId}
+  tripType={vehicleDataList.length > 0 && vehicleDataList[0].vehicleType ? vehicleDataList[0].vehicleType : ""}
 />
         </form>
       </div>

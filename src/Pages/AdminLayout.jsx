@@ -6,6 +6,7 @@ import FleetManagementAdminDashboard from "./Admindashboard";
 import AdminUsers from "./AdminUsers";
 import AdminTransportRequests from "./AdminTransportRequests";
 import { AdminSidebar } from "../Components/Adminsidebar";
+import FleetEquipmentDetails from "./FleetEquipmentDetails";
 
 const AdminLayout = () => {
   // Sidebar states
@@ -110,10 +111,12 @@ const AdminLayout = () => {
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-6">
+          // Add this route inside the Routes component in the main section
           <Routes>
             <Route path="/" element={<FleetManagementAdminDashboard />} />
             <Route path="/users" element={<AdminUsers />} />
             <Route path="/transport-requests" element={<AdminTransportRequests />} />
+            <Route path="/fleet-equipment" element={<FleetEquipmentDetails />} />
           </Routes>
         </main>
       </div>

@@ -38,7 +38,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401 || error.response?.status === 403) {
       console.log("Auth error occurred, but not redirecting or clearing data");
     }
-    
+
     // Simply return the error without any redirection
     return Promise.reject(error);
   }
@@ -79,7 +79,7 @@ export const clearAuthData = () => {
 
 export const authAPI = {
   // UPDATED: Two-step OTP authentication system
-  
+
   // Step 1: Send OTP after password verification
   requestOtp: async (credentials) => {
     try {
@@ -95,62 +95,63 @@ export const authAPI = {
     try {
       console.log("Sending OTP verification request:", {
         url: `${API_BASE_URL}/auth/verify-otp`,
-        data: otpData
+        data: otpData,
       });
-      
+
       const response = await api.post("/auth/verify-otp", otpData);
       console.log("OTP verification response:", response.data);
-      
+
       // Validate response format
       if (!response.data) {
         console.error("Empty response data");
         throw new Error("Invalid server response");
       }
-      
+
       // Check for token and user data
       if (!response.data.token) {
         console.error("No token in response:", response.data);
         throw new Error("Authentication token not received");
       }
-      
+
       if (!response.data.user) {
         console.error("No user data in response:", response.data);
         throw new Error("User information not received");
       }
-      
+
       // Set the token in the API headers immediately
       setAuthToken(response.data.token);
-      
+
       // Store user data and token in localStorage
       localStorage.setItem("user", JSON.stringify(response.data.user));
       localStorage.setItem("token", response.data.token);
-      
+
       // Add a small delay to ensure localStorage is updated
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       // Verify the token was properly set
       const storedToken = localStorage.getItem("token");
       console.log("Stored token verification:", {
         tokenReceived: response.data.token,
         tokenStored: storedToken,
-        match: storedToken === response.data.token
+        match: storedToken === response.data.token,
       });
-      
+
       return response.data;
     } catch (error) {
       console.error("OTP verification error:", error);
       console.error("Error details:", {
         message: error.message,
         response: error.response?.data,
-        status: error.response?.status
+        status: error.response?.status,
       });
-      
+
       // Enhanced error reporting
-      const errorMessage = error.response?.data?.message || 
-                           error.response?.data?.error || 
-                           error.message || 
-                           "Unknown error during OTP verification";
-      
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        "Unknown error during OTP verification";
+
       console.error("Formatted error message:", errorMessage);
       throw errorMessage;
     }
@@ -202,19 +203,21 @@ export const authAPI = {
   // Check if current session is valid
   checkSession: async () => {
     const token = localStorage.getItem("token");
-  
+
     // Check if token exists and has valid format
     if (!token || !isValidTokenFormat(token)) {
-      console.log("Token missing or invalid format, but not clearing auth data");
+      console.log(
+        "Token missing or invalid format, but not clearing auth data"
+      );
       return false;
     }
-  
+
     // Check if token is expired
     if (isTokenExpired(token)) {
       console.log("Token expired, but not clearing auth data");
       return false;
     }
-  
+
     try {
       // Validate with server
       await authAPI.validateToken();
@@ -341,7 +344,7 @@ export const transporterAPI = {
       throw error.response?.data || error.message;
     }
   },
-  
+
   // Get containers by transport request ID
   getContainersByRequestId: async (requestId) => {
     try {
@@ -469,14 +472,20 @@ export const setAuthToken = (token) => {
     try {
       // Store token in localStorage
       localStorage.setItem("token", token);
-      
+
       // Set token in axios headers
       api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-      
+
       console.log("Auth token set in headers:", token);
-      console.log("Verification - localStorage token:", localStorage.getItem("token"));
-      console.log("Verification - axios headers:", api.defaults.headers.common["Authorization"]);
-      
+      console.log(
+        "Verification - localStorage token:",
+        localStorage.getItem("token")
+      );
+      console.log(
+        "Verification - axios headers:",
+        api.defaults.headers.common["Authorization"]
+      );
+
       return true;
     } catch (error) {
       console.error("Error setting auth token:", error);
@@ -499,6 +508,17 @@ export { api };
 
 export default api;
 
+export const locationAPI = {
+  // Get all locations
+  getAllLocations: async () => {
+    try {
+      const response = await api.get("/api/locations");
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+};
 export const transporterListAPI = {
   getAllTransporters: async () => {
     try {
@@ -530,6 +550,192 @@ export const servicesAPI = {
     } catch (error) {
       console.error("Error creating service:", error);
       throw error;
+    }
+  },
+};
+
+export const vendorAPI = {
+  // Get all vendors
+  getAllVendors: async () => {
+    try {
+      const response = await api.get("/vendors");
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching vendors:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Get vendor by ID
+  getVendorById: async (vendorId) => {
+    try {
+      const response = await api.get(`/vendors/${vendorId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching vendor details:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Create new vendor
+  createVendor: async (vendorData) => {
+    try {
+      const response = await api.post("/vendors", vendorData);
+      return response.data;
+    } catch (error) {
+      console.error("Error creating vendor:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Update vendor
+  updateVendor: async (vendorId, vendorData) => {
+    try {
+      const response = await api.put(`/vendors/${vendorId}`, vendorData);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating vendor:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Delete vendor
+  deleteVendor: async (vendorId) => {
+    try {
+      const response = await api.delete(`/vendors/${vendorId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting vendor:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+};
+
+// Add this at the end of the file
+export const fleetEquipmentAPI = {
+  // Get all fleet equipment
+  getAllFleetEquipment: async () => {
+    try {
+      const response = await api.get("/fleet-equipment");
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching fleet equipment:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Get fleet equipment by ID
+  getFleetEquipmentById: async (equipmentId) => {
+    try {
+      const response = await api.get(`/fleet-equipment/${equipmentId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching fleet equipment details:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Create new fleet equipment
+  createFleetEquipment: async (equipmentData) => {
+    try {
+      const response = await api.post("/fleet-equipment", equipmentData);
+      return response.data;
+    } catch (error) {
+      console.error("Error creating fleet equipment:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Update fleet equipment
+  updateFleetEquipment: async (equipmentId, equipmentData) => {
+    try {
+      const response = await api.put(
+        `/fleet-equipment/${equipmentId}`,
+        equipmentData
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error updating fleet equipment:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Delete fleet equipment
+  deleteFleetEquipment: async (equipmentId) => {
+    try {
+      const response = await api.delete(`/fleet-equipment/${equipmentId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting fleet equipment:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+};
+
+export const driverAPI = {
+  // Get all drivers
+  getAllDrivers: async () => {
+    try {
+      const response = await api.get("/drivers");
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching drivers:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Get driver by ID
+  getDriverById: async (driverId) => {
+    try {
+      const response = await api.get(`/drivers/${driverId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching driver details:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Create new driver
+  createDriver: async (driverData) => {
+    try {
+      const response = await api.post("/drivers", driverData);
+      return response.data;
+    } catch (error) {
+      console.error("Error creating driver:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Update driver
+  updateDriver: async (driverId, driverData) => {
+    try {
+      const response = await api.put(`/drivers/${driverId}`, driverData);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating driver:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Delete driver
+  deleteDriver: async (driverId) => {
+    try {
+      const response = await api.delete(`/drivers/${driverId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting driver:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Get drivers by vendor ID
+  getDriversByVendorId: async (vendorId) => {
+    try {
+      const response = await api.get(`/vendor/${vendorId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching drivers by vendor ID:", error);
+      throw error.response?.data || error.message;
     }
   },
 };

@@ -3,7 +3,7 @@ import api from "../../utils/Api";
 
 const TransactionHistory = ({ transactions, totalAmount }) => {
   const [paymentDetails, setPaymentDetails] = useState({});
-  const [loading, setLoading] = useState({});
+  const [loading, setLoading] = useState({}); 
 
   // Calculate total paid amount from all transactions
   const totalPaid = transactions.reduce(

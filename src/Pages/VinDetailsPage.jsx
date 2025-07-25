@@ -82,7 +82,12 @@ const VinDetailsPage = () => {
         setExistingTransporterData(response.data);
         
         // Extract vehicle numbers for dropdown
-     // Return vehicles for use in other functions
+        const vehicles = response.data.map((item) => ({
+          vehicleNumber: item.vehicle_number,
+          transporterName: item.transporter_name,
+        }));
+        setVehicleDataList(vehicles);
+        return vehicles; // Return vehicles for use in other functions
       }
       return [];
     } catch (error) {
@@ -184,7 +189,7 @@ const VinDetailsPage = () => {
       updateGroupedContainers(finalContainers);
       
       if (allLoadedContainers.length > 0) {
-        toast.success(`Loaded ${allLoadedContainers.length} existing containers`);
+        toast.success(`Loaded  existing containers`);
         console.log("Container data loaded and state updated successfully");
       } else {
         toast.info("No existing VIN entries found. Created new entries.");
@@ -663,7 +668,30 @@ const VinDetailsPage = () => {
                                 Format: 4 letters + 7 digits
                               </p>
                             </div>
-                       
+                            <div className="w-full md:w-5/12 mb-2 md:mb-0">
+                              <select
+                                value={container.vehicleNumber}
+                                onChange={(e) =>
+                                  updateContainerData(
+                                    containerIndex,
+                                    "vehicleNumber",
+                                    e.target.value
+                                  )
+                                }
+                                className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="">Select Vehicle</option>
+                                {vehicleDataList.map((vehicle, idx) => (
+                                  <option
+                                    key={idx}
+                                    value={vehicle.vehicleNumber}
+                                  >
+                                    {vehicle.vehicleNumber} (
+                                    {vehicle.transporterName})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
                         );
                       })}

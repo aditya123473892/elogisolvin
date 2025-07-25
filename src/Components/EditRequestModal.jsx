@@ -5,6 +5,23 @@ import { toast } from "react-toastify";
 export default function EditRequestModal({ request, onClose, onUpdate }) {
   const services = ["Transport", "Freight Forwarding", "Customer Clearance"];
 
+  // Helper function to get current date in YYYY-MM-DD format
+  const getCurrentDate = () => {
+    const now = new Date();
+    return now.toISOString().split('T')[0];
+  };
+
+  // Helper function to get current datetime in YYYY-MM-DDTHH:MM format
+  const getCurrentDateTime = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
   const [formData, setFormData] = useState({
     consignee: "",
     consigner: "",
@@ -17,8 +34,8 @@ export default function EditRequestModal({ request, onClose, onUpdate }) {
     commodity: "",
     cargoType: "",
     cargoWeight: "",
-    expectedPickupDate: "",
-    expectedDeliveryDate: "",
+    expectedPickupDate: getCurrentDate(), // Default to current date
+    expectedDeliveryDate: getCurrentDate(), // Default to current date
     serviceType: [],
     servicePrices: {},
     saleAmount: 0,
@@ -64,11 +81,11 @@ export default function EditRequestModal({ request, onClose, onUpdate }) {
         expectedPickupDate:
           request.expectedPickupDate ||
           request.expected_pickup_date?.split("T")[0] ||
-          "",
+          getCurrentDate(), // Always show current date if no existing value
         expectedDeliveryDate:
           request.expectedDeliveryDate ||
           request.expected_delivery_date?.split("T")[0] ||
-          "",
+          getCurrentDate(), // Always show current date if no existing value
         serviceType: safeJSONParse(request.service_type, []),
         servicePrices: safeJSONParse(request.service_prices, {}),
         saleAmount: request.saleAmount || request.requested_price || 0,
@@ -511,7 +528,7 @@ export default function EditRequestModal({ request, onClose, onUpdate }) {
 
           {/* Total Amount */}
           <div>
-            <label className="block text-sm font-medium mb-2"></label>
+            <label className="block text-sm font-medium mb-2">Total Amount</label>
             <div className="relative">
               <input
                 type="number"

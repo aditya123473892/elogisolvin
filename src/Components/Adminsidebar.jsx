@@ -56,7 +56,7 @@ export function AdminSidebar({
     },
     {
       name: "Fleet Equipment",
-   
+      icon: Activity, // Add this line to fix the error
       path: "fleet-equipment",
       description: "Equipment Management",
     },

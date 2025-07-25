@@ -111,6 +111,7 @@ export const TransporterDetails = ({
   selectedServices = [],
   transporterData,
   setTransporterData,
+  vehicleType, // Add this prop
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -157,6 +158,7 @@ export const TransporterDetails = ({
       cargoTotalWeight: "", // Add this
       containerType: "", // Add this
       containerSize: "", // Add this
+      vehicleType: transporterData?.vehicle_type || "", // Add this line to get vehicle_type from transporterData
     };
 
     // Initialize serviceCharges with zero values for each selected service
@@ -261,12 +263,13 @@ export const TransporterDetails = ({
               line: existingDetail.line || "",
               sealNo: existingDetail.seal_no || "",
               numberOfContainers: existingDetail.number_of_containers || "",
-              seal1: existingDetail.seal1 || "", // Add this
-              seal2: existingDetail.seal2 || "", // Add this
-              containerTotalWeight: existingDetail.container_total_weight || "", // Add this
-              cargoTotalWeight: existingDetail.cargo_total_weight || "", // Add this
-              containerType: existingDetail.container_type || "", // Add this
-              containerSize: existingDetail.container_size || "", // Add this
+              seal1: existingDetail.seal1 || "", 
+              seal2: existingDetail.seal2 || "", 
+              containerTotalWeight: existingDetail.container_total_weight || "", 
+              cargoTotalWeight: existingDetail.cargo_total_weight || "", 
+              containerType: existingDetail.container_type || "", 
+              containerSize: existingDetail.container_size || "",
+              vehicleType: transporterData?.vehicle_type || "", // Add this line to get vehicle_type from transporterData
             });
           } else {
             // Create empty vehicle data for vehicles without existing data
@@ -639,7 +642,7 @@ export const TransporterDetails = ({
   vehicleDataList={vehicleDataList}
   updateVehicleData={updateVehicleData}
   transportRequestId={transportRequestId}
-  tripType={vehicleDataList.length > 0 && vehicleDataList[0].vehicleType ? vehicleDataList[0].vehicleType : ""}
+  tripType={vehicleType || (vehicleDataList.length > 0 && vehicleDataList[0].vehicleType ? vehicleDataList[0].vehicleType : "")}
 />
         </form>
       </div>

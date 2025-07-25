@@ -18,127 +18,33 @@ const VinDetailsPage = () => {
   const [vehicleType, setVehicleType] = useState("");
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
-  // Function to initialize data - called when component mounts
-  const initializeData = async () => {
-    setIsLoading(true);
-    try {
-      // Get data from sessionStorage
-      const storedRequestId = sessionStorage.getItem("transportRequestId");
-      const storedVehicleType = sessionStorage.getItem("vehicleType");
-      
-      if (!storedRequestId) {
-        toast.error("No transport request ID found");
-        navigate(-1);
-        return;
-      }
-      
-      setTransportRequestId(storedRequestId);
-      setVehicleType(storedVehicleType || "");
-      
-      // Fetch transporter data for this request
-      await fetchTransporterData(storedRequestId);
-      
-      // Determine number of VIN entries based on vehicle type
-      let vinCount = 0;
-      if (storedVehicleType && storedVehicleType.startsWith("Tr-")) {
-        // Extract number from Tr-X format
-        const match = storedVehicleType.match(/Tr-(\d+)/);
-        if (match && match[1]) {
-          vinCount = parseInt(match[1], 10);
-        }
-      } else if (storedVehicleType === 'Ven') {
-        vinCount = 4; // Ven is equivalent to Tr-4
-      }
-      
-      // Initialize containers based on VIN count
-      if (vinCount > 0) {
-        initializeContainers(vinCount);
-      } else {
-        // If not a TR type, navigate back
-        toast.error("Invalid vehicle type for VIN details");
-        navigate(-1);
-        return;
-      }
-      
-      // Update grouped containers
-      updateGroupedContainers();
-      
-      setIsDataLoaded(true);
-    } catch (error) {
-      console.error("Error initializing data:", error);
-      toast.error("Failed to initialize data: " + (error.message || "Unknown error"));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch transporter data for a request
-  const fetchTransporterData = async (requestId) => {
-    try {
-      const response = await transporterAPI.getTransporterByRequestId(requestId);
-
-      if (response.success) {
-        const transporterData = Array.isArray(response.data)
-          ? response.data
-          : [response.data];
-        setExistingTransporterData(transporterData);
-        
-        // Extract vehicle data for dropdown
-        const uniqueVehicles = [];
-        const vehicleMap = {};
-        
-        transporterData.forEach((item) => {
-          if (item.vehicle_number && !vehicleMap[item.vehicle_number]) {
-            vehicleMap[item.vehicle_number] = true;
-            uniqueVehicles.push({
-              vehicleNumber: item.vehicle_number,
-              transporterName: item.transporter_name || "",
-            });
-          }
-        });
-        
-        setVehicleDataList(uniqueVehicles);
-        return transporterData;
-      } else {
-        throw new Error(response.message || "Failed to fetch transporter data");
-      }
-    } catch (error) {
-      console.error("Error fetching transporter data:", error);
-      throw error;
-    }
-  };
-
-  // Initialize containers based on count - EXACTLY the number specified by TR type
-  const initializeContainers = (count) => {
-    // First check if we have existing containers from API
-    const existingContainers = [];
+  // Helper function to get VIN count from vehicle type
+  const getVinCountFromVehicleType = (vType) => {
+    if (!vType) return 0;
     
-    // If we don't have existing containers or need more, create new ones
-    const newContainers = [];
-    for (let i = 0; i < count; i++) {
-      if (i < existingContainers.length) {
-        newContainers.push(existingContainers[i]);
-      } else {
-        const newContainer = createEmptyContainer();
-        newContainer.vehicleIndex = i + 1;
-        
-        // Assign vehicle number if available
-        if (vehicleDataList.length > 0) {
-          newContainer.vehicleNumber = vehicleDataList[0].vehicleNumber;
-        }
-        
-        newContainers.push(newContainer);
+    if (vType.startsWith("Tr-")) {
+      const match = vType.match(/Tr-(\d+)/);
+      if (match && match[1]) {
+        return parseInt(match[1], 10);
       }
+    } else if (vType === 'Ven') {
+      return 4;
     }
-    
-    // Set containers to exactly the count specified - no more, no less
-    setContainers(newContainers);
+    return 0;
   };
+
+  // Create empty container object
+  const createEmptyContainer = (index, vehicleNumber = "") => ({
+    id: null,
+    containerNo: "",
+    vehicleNumber: vehicleNumber,
+    vehicleIndex: index,
+  });
 
   // Update grouped containers
-  const updateGroupedContainers = () => {
+  const updateGroupedContainers = (containerList = containers) => {
     const grouped = {};
-    containers.forEach((container) => {
+    containerList.forEach((container) => {
       const vehicleNumber = container.vehicleNumber || "unassigned";
       if (!grouped[vehicleNumber]) {
         grouped[vehicleNumber] = [];
@@ -153,6 +59,184 @@ const VinDetailsPage = () => {
     }
   };
 
+  // Function to initialize containers with empty values
+  const initializeContainers = (count, vehicles = []) => {
+    const newContainers = [];
+    const defaultVehicleNumber = vehicles.length > 0 ? vehicles[0].vehicleNumber : "";
+    
+    for (let i = 0; i < count; i++) {
+      const newContainer = createEmptyContainer(i + 1, defaultVehicleNumber);
+      newContainers.push(newContainer);
+    }
+    
+    console.log("Initializing containers:", newContainers);
+    setContainers(newContainers);
+    updateGroupedContainers(newContainers);
+  };
+
+  // Function to fetch transporter data
+  const fetchTransporterData = async (requestId) => {
+    try {
+      const response = await transporterAPI.getTransporterByRequestId(requestId);
+      if (response.success && response.data) {
+        setExistingTransporterData(response.data);
+        
+        // Extract vehicle numbers for dropdown
+     // Return vehicles for use in other functions
+      }
+      return [];
+    } catch (error) {
+      console.error("Error fetching transporter data:", error);
+      toast.error("Failed to load transporter data");
+      return [];
+    }
+  };
+
+  // Function to load container data from API
+  const loadContainerData = async (requestId, vType, vehicles = []) => {
+    if (!requestId) {
+      toast.error("Transport request ID is missing");
+      return;
+    }
+
+    const vinCount = getVinCountFromVehicleType(vType);
+    console.log("VIN Count calculated:", vinCount, "for vehicle type:", vType);
+    
+    if (vinCount === 0) {
+      console.log("No VIN count available, skipping container initialization");
+      return;
+    }
+
+    if (vehicles.length === 0) {
+      console.log("No vehicles available, initializing empty containers");
+      initializeContainers(vinCount, vehicles);
+      return;
+    }
+  
+    try {
+      // Since containers are organized by vehicle, fetch containers for each vehicle
+      const allLoadedContainers = [];
+      
+      for (const vehicle of vehicles) {
+        try {
+          console.log(`Fetching containers for vehicle: ${vehicle.vehicleNumber}`);
+          const vehicleContainersResponse = await transporterAPI.getContainersByVehicleNumber(
+            requestId, 
+            vehicle.vehicleNumber
+          );
+          
+          console.log(`API Response for vehicle ${vehicle.vehicleNumber}:`, vehicleContainersResponse);
+          
+          if (
+            vehicleContainersResponse.success &&
+            vehicleContainersResponse.data &&
+            Array.isArray(vehicleContainersResponse.data) &&
+            vehicleContainersResponse.data.length > 0
+          ) {
+            // Map the API response to our container format
+            const vehicleContainers = vehicleContainersResponse.data.map(
+              (container, index) => ({
+                id: container.id || container.container_id,
+                containerNo: container.container_no || container.containerNo || "",
+                vehicleNumber: vehicle.vehicleNumber, // Ensure vehicle number is set
+                vehicleIndex: allLoadedContainers.length + index + 1,
+              })
+            );
+            
+            allLoadedContainers.push(...vehicleContainers);
+            console.log(`Loaded  containers for vehicle ${vehicle.vehicleNumber}`);
+          } else {
+            console.log(`No containers found for vehicle ${vehicle.vehicleNumber}`);
+          }
+        } catch (vehicleError) {
+          console.error(`Error fetching containers for vehicle ${vehicle.vehicleNumber}:`, vehicleError);
+          // Continue with other vehicles even if one fails
+        }
+      }
+
+      console.log("All loaded containers:", allLoadedContainers);
+
+      // Ensure we have exactly the right number of containers
+      const finalContainers = [...allLoadedContainers];
+      
+      // If we have fewer containers than needed, add empty ones
+      const defaultVehicleNumber = vehicles.length > 0 ? vehicles[0].vehicleNumber : "";
+      while (finalContainers.length < vinCount) {
+        const newContainer = createEmptyContainer(
+          finalContainers.length + 1, 
+          defaultVehicleNumber
+        );
+        finalContainers.push(newContainer);
+      }
+      
+      // If we have more containers than needed, trim the array
+      if (finalContainers.length > vinCount) {
+        finalContainers.splice(vinCount);
+      }
+      
+      // Update vehicle indices to be sequential
+      finalContainers.forEach((container, index) => {
+        container.vehicleIndex = index + 1;
+      });
+      
+      console.log("Final containers after processing:", finalContainers);
+      setContainers(finalContainers);
+      updateGroupedContainers(finalContainers);
+      
+      if (allLoadedContainers.length > 0) {
+        toast.success(`Loaded ${allLoadedContainers.length} existing containers`);
+        console.log("Container data loaded and state updated successfully");
+      } else {
+        toast.info("No existing VIN entries found. Created new entries.");
+        console.log("No existing containers found, initialized empty containers");
+      }
+      
+    } catch (error) {
+      console.error("Error loading container data:", error);
+      console.error("Error details:", error.response || error.message);
+      toast.error("Failed to load existing container data");
+      
+      // Fall back to initializing empty containers
+      console.log("Falling back to empty container initialization");
+      initializeContainers(vinCount, vehicles);
+    }
+  };
+
+  // Function to initialize data - called when component mounts
+  const initializeData = async () => {
+    setIsLoading(true);
+    try {
+      // Get data from sessionStorage
+      const storedRequestId = sessionStorage.getItem("transportRequestId");
+      const storedVehicleType = sessionStorage.getItem("vehicleType");
+      
+      console.log("Stored data:", { storedRequestId, storedVehicleType });
+      
+      if (!storedRequestId) {
+        toast.error("No transport request ID found");
+        navigate(-1);
+        return;
+      }
+      
+      setTransportRequestId(storedRequestId);
+      setVehicleType(storedVehicleType || "");
+      
+      // Fetch transporter data first and wait for it to complete
+      const vehicles = await fetchTransporterData(storedRequestId);
+      
+      // Then load container data with the vehicle type and vehicles
+      await loadContainerData(storedRequestId, storedVehicleType, vehicles);
+      
+      setIsDataLoaded(true);
+    } catch (error) {
+      console.error("Error initializing data:", error);
+      toast.error("Failed to initialize data");
+      setIsDataLoaded(true); // Set to true even on error to prevent infinite loops
+    } finally {
+      setIsLoading(false);
+    } 
+  };
+
   // Call initializeData when component mounts
   useEffect(() => {
     if (!isDataLoaded) {
@@ -160,31 +244,38 @@ const VinDetailsPage = () => {
     }
   }, [isDataLoaded]);
 
-  // Create empty container object
-  const createEmptyContainer = () => ({
-    id: null,
-    containerNo: "",
-    vehicleNumber: "",
-    vehicleIndex: containers.length + 1,
-  });
+  // Debug effect to log state changes
+  useEffect(() => {
+    console.log("Containers state updated:", containers);
+  }, [containers]);
+
+  useEffect(() => {
+    console.log("Vehicle type updated:", vehicleType);
+  }, [vehicleType]);
 
   const onBack = () => {
     navigate(-1);
   };
 
-  // We don't allow adding containers beyond the TR number
-  // This function is modified to not allow adding more containers than the TR number
-  const addContainer = (vehicleNumber = "") => {
-    // Get the TR number from vehicle type
-    let maxContainers = 0;
-    if (vehicleType && vehicleType.startsWith("Tr-")) {
-      const match = vehicleType.match(/Tr-(\d+)/);
-      if (match && match[1]) {
-        maxContainers = parseInt(match[1], 10);
-      }
-    } else if (vehicleType === 'Ven') {
-      maxContainers = 4;
+  // Add a manual refresh function for debugging
+  const handleRefresh = async () => {
+    console.log("Manual refresh triggered");
+    setIsLoading(true);
+    try {
+      const vehicles = await fetchTransporterData(transportRequestId);
+      await loadContainerData(transportRequestId, vehicleType, vehicles);
+      toast.success("Data refreshed successfully");
+    } catch (error) {
+      console.error("Error during manual refresh:", error);
+      toast.error("Failed to refresh data");
+    } finally {
+      setIsLoading(false);
     }
+  };
+  
+  // We don't allow adding containers beyond the TR number
+  const addContainer = (vehicleNumber = "") => {
+    const maxContainers = getVinCountFromVehicleType(vehicleType);
     
     // Check if we've reached the maximum number of containers
     if (containers.length >= maxContainers) {
@@ -192,26 +283,15 @@ const VinDetailsPage = () => {
       return;
     }
     
-    const newContainer = createEmptyContainer();
-    newContainer.vehicleIndex = containers.length + 1;
-    newContainer.vehicleNumber = vehicleNumber;
+    const newContainer = createEmptyContainer(containers.length + 1, vehicleNumber);
     const updatedContainers = [...containers, newContainer];
     setContainers(updatedContainers);
-    updateGroupedContainers();
+    updateGroupedContainers(updatedContainers);
   };
-
+  
   // Remove container - modified to not allow fewer than the TR number
   const removeContainer = async (index) => {
-    // Get the TR number from vehicle type
-    let minContainers = 0;
-    if (vehicleType && vehicleType.startsWith("Tr-")) {
-      const match = vehicleType.match(/Tr-(\d+)/);
-      if (match && match[1]) {
-        minContainers = parseInt(match[1], 10);
-      }
-    } else if (vehicleType === 'Ven') {
-      minContainers = 4;
-    }
+    const minContainers = getVinCountFromVehicleType(vehicleType);
     
     // Check if we've reached the minimum number of containers
     if (containers.length <= minContainers) {
@@ -221,7 +301,7 @@ const VinDetailsPage = () => {
     
     // Rest of the removal logic
     const containerToRemove = containers[index];
-
+  
     // If the container has an ID, it exists in the database and needs to be deleted
     if (containerToRemove.id) {
       try {
@@ -229,7 +309,7 @@ const VinDetailsPage = () => {
         const response = await transporterAPI.deleteContainer(
           containerToRemove.id
         );
-
+  
         if (response.success) {
           toast.success("Container deleted successfully");
         } else {
@@ -246,7 +326,7 @@ const VinDetailsPage = () => {
         setIsLoading(false);
       }
     }
-
+  
     // Remove from local state
     const updatedContainers = containers.filter((_, i) => i !== index);
     // Update vehicle indices after removal
@@ -255,23 +335,23 @@ const VinDetailsPage = () => {
       vehicleIndex: i + 1,
     }));
     setContainers(reindexedContainers);
-    updateGroupedContainers();
-
+    updateGroupedContainers(reindexedContainers);
+  
     toast.success("Container deleted successfully");
   };
-
+  
   // Update container data
   const updateContainerData = (index, field, value) => {
     // For containerNo field, enforce the 4 letters + 7 digits format
     if (field === "containerNo") {
       // Convert to uppercase
       value = value.toUpperCase();
-
+  
       // If the value is longer than 11 characters, truncate it
       if (value.length > 11) {
         value = value.substring(0, 11);
       }
-
+  
       // For the first 4 characters, only allow letters
       if (value.length <= 4) {
         value = value.replace(/[^A-Z]/g, "");
@@ -283,21 +363,21 @@ const VinDetailsPage = () => {
         value = letters + digits;
       }
     }
-
+  
     const updatedContainers = containers.map((container, i) =>
       i === index ? { ...container, [field]: value } : container
     );
     setContainers(updatedContainers);
-    updateGroupedContainers();
+    updateGroupedContainers(updatedContainers);
   };
-
+  
   // Toggle vehicle expansion
   const toggleVehicleExpansion = (vehicleNumber) => {
     setExpandedVehicle(
       expandedVehicle === vehicleNumber ? null : vehicleNumber
     );
   };
-
+  
   // Validate container data
   const validateContainers = () => {
     const errors = [];
@@ -313,43 +393,43 @@ const VinDetailsPage = () => {
           );
         }
       }
-
+  
       if (!container.vehicleNumber) {
         errors.push(`Container ${index + 1}: Vehicle number is required`);
       }
     });
     return errors;
   };
-
+  
   // Get existing transporter data for a specific container/vehicle
   const getExistingTransporterData = (vehicleNumber) => {
     if (existingTransporterData.length === 0) {
       return null;
     }
-
+  
     // Find by vehicle number
     let matchingData = existingTransporterData.find(
       (data) => data.vehicle_number === vehicleNumber
     );
-
+  
     // If not found and we have any transporter data, use the first one as fallback
     if (!matchingData && existingTransporterData.length > 0) {
       matchingData = existingTransporterData[0];
     }
-
+  
     return matchingData;
   };
-
+  
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+  
     const errors = validateContainers();
     if (errors.length > 0) {
       toast.error(`Please fix the following errors:\n${errors.join("\n")}`);
       return;
     }
-
+  
     setIsSubmitting(true);
     try {
       // Group containers by vehicle number for processing
@@ -360,23 +440,23 @@ const VinDetailsPage = () => {
         }
         containersByVehicle[container.vehicleNumber].push(container);
       });
-
+  
       const updatePromises = [];
-
+  
       // Process each vehicle's containers
       for (const [vehicleNumber, vehicleContainers] of Object.entries(
         containersByVehicle
       )) {
         // Get existing transporter data for this vehicle
         const existingData = getExistingTransporterData(vehicleNumber);
-
+  
         // If no existing transporter data, show error
         if (!existingData) {
           throw new Error(
             `No transporter data found for vehicle ${vehicleNumber}. Please add transporter details first.`
           );
         }
-
+  
         // Separate existing containers (with ID) from new ones (without ID)
         const existingContainers = vehicleContainers.filter(
           (container) => container.id
@@ -384,13 +464,22 @@ const VinDetailsPage = () => {
         const newContainers = vehicleContainers.filter(
           (container) => !container.id
         );
-
+  
         // Format containers for API (only container number and vehicle number)
         const formatContainer = (container) => ({
           container_no: container.containerNo,
           vehicle_number: container.vehicleNumber,
+          // Add these fields to match the expected format
+          seal_no: "",
+          seal1: "",
+          seal2: "",
+          container_total_weight: 0,
+          cargo_total_weight: 0,
+          container_type: "",
+          container_size: "",
+          remarks: ""
         });
-
+  
         // Update existing containers individually
         for (const container of existingContainers) {
           updatePromises.push(
@@ -411,7 +500,7 @@ const VinDetailsPage = () => {
               })
           );
         }
-
+  
         // Add new containers using addContainersToVehicle only if there are new containers
         if (newContainers.length > 0) {
           const formattedNewContainers = newContainers.map(formatContainer);
@@ -438,30 +527,41 @@ const VinDetailsPage = () => {
           );
         }
       }
-
+  
       const results = await Promise.all(updatePromises);
-
+  
       // Check results and show appropriate messages
       const successResults = results.filter((r) => r.success);
       const failedResults = results.filter((r) => !r.success);
-
+  
       if (failedResults.length > 0) {
         // Show errors for failed operations
         failedResults.forEach((result) => {
           toast.error(result.message);
         });
       }
-
+  
       if (successResults.length > 0) {
         // Show success message
         toast.success(
           `Successfully updated ${successResults.length} container entries`
         );
 
-        // Navigate back to previous page
+        // Refresh data after successful save
+        console.log("Refreshing data after successful save...");
+        try {
+          const vehicles = await fetchTransporterData(transportRequestId);
+          await loadContainerData(transportRequestId, vehicleType, vehicles);
+          console.log("Data refreshed successfully");
+        } catch (refreshError) {
+          console.error("Error refreshing data:", refreshError);
+          toast.warning("Data saved but failed to refresh. Please reload the page.");
+        }
+
+        // Navigate back to previous page after a delay
         setTimeout(() => {
           navigate(-1);
-        }, 2000);
+        }, 3000); // Increased delay to 3 seconds to allow data refresh
       }
     } catch (error) {
       console.error("Submit error:", error);
@@ -470,120 +570,115 @@ const VinDetailsPage = () => {
       setIsSubmitting(false);
     }
   };
-
+  
   return (
     <div className="container mx-auto px-4 py-8">
       <ToastContainer position="top-right" autoClose={5000} />
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">VIN Details</h1>
-        <button
-          onClick={onBack}
-          className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
-        >
-          Back
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleRefresh}
+            disabled={isLoading}
+            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors disabled:opacity-50"
+          >
+            {isLoading ? "Refreshing..." : "Refresh"}
+          </button>
+          <button
+            onClick={onBack}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+          >
+            Back
+          </button>
+        </div>
       </div>
-
+  
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
         </div>
       ) : (
         <form onSubmit={handleSubmit}>
+          {/* Debug info - remove in production */}
+     
+
           {/* Container for all VIN entries */}
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <h2 className="text-xl font-semibold mb-4">VIN Entries for {vehicleType}</h2>
             <p className="text-sm text-gray-600 mb-4">
-              Please enter exactly {containers.length} VIN entries for this {vehicleType} request.
+              Please enter exactly {getVinCountFromVehicleType(vehicleType)} VIN entries for this {vehicleType} request.
             </p>
             
-            {/* Display containers grouped by vehicle */}
-            {Object.entries(groupedContainers).map(([vehicleNumber, vehicleContainers]) => (
-              <div key={vehicleNumber} className="mb-6 border rounded-lg overflow-hidden">
-                <div
-                  className="flex justify-between items-center p-4 bg-gray-50 cursor-pointer"
-                  onClick={() => toggleVehicleExpansion(vehicleNumber)}
-                >
-                  <h3 className="font-medium">
-                    Vehicle: {vehicleNumber || "Unassigned"}
-                    <span className="text-sm text-gray-500 ml-2">
-                      ({vehicleContainers.length} VINs)
-                    </span>
-                  </h3>
-                </div>
-
-                {expandedVehicle === vehicleNumber && (
-                  <div className="p-4">
-                    {vehicleContainers.map((container, index) => {
-                      const containerIndex = containers.findIndex(
-                        (c) => c === container
-                      );
-                      return (
-                        <div
-                          key={index}
-                          className="flex flex-wrap items-center mb-4 pb-4 border-b last:border-b-0 last:pb-0 last:mb-0"
-                        >
-                          <div className="w-full md:w-1/12 mb-2 md:mb-0">
-                            <span className="font-medium text-gray-700">
-                              #{container.vehicleIndex}
-                            </span>
-                          </div>
-                          <div className="w-full md:w-5/12 mb-2 md:mb-0">
-                            <input
-                              type="text"
-                              value={container.containerNo}
-                              onChange={(e) =>
-                                updateContainerData(
-                                  containerIndex,
-                                  "containerNo",
-                                  e.target.value
-                                )
-                              }
-                              placeholder="VIN (e.g., ABCD1234567)"
-                              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">
-                              Format: 4 letters + 7 digits
-                            </p>
-                          </div>
-                          <div className="w-full md:w-5/12 mb-2 md:mb-0">
-                            <select
-                              value={container.vehicleNumber}
-                              onChange={(e) =>
-                                updateContainerData(
-                                  containerIndex,
-                                  "vehicleNumber",
-                                  e.target.value
-                                )
-                              }
-                              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                              <option value="">Select Vehicle</option>
-                              {vehicleDataList.map((vehicle, idx) => (
-                                <option
-                                  key={idx}
-                                  value={vehicle.vehicleNumber}
-                                >
-                                  {vehicle.vehicleNumber} (
-                                  {vehicle.transporterName})
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+            {containers.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No VIN entries available. Please check if vehicle type is properly set.</p>
               </div>
-            ))}
+            ) : (
+              /* Display containers grouped by vehicle */
+              Object.entries(groupedContainers).map(([vehicleNumber, vehicleContainers]) => (
+                <div key={vehicleNumber} className="mb-6 border rounded-lg overflow-hidden">
+                  <div
+                    className="flex justify-between items-center p-4 bg-gray-50 cursor-pointer"
+                    onClick={() => toggleVehicleExpansion(vehicleNumber)}
+                  >
+                    <h3 className="font-medium">
+                      Vehicle: {vehicleNumber || "Unassigned"}
+                      <span className="text-sm text-gray-500 ml-2">
+                        ({vehicleContainers.length} VINs)
+                      </span>
+                    </h3>
+                  </div>
+            
+                  {expandedVehicle === vehicleNumber && (
+                    <div className="p-4">
+                      {vehicleContainers.map((container, index) => {
+                        const containerIndex = containers.findIndex(
+                          (c) => c === container
+                        );
+                        return (
+                          <div
+                            key={index}
+                            className="flex flex-wrap items-center mb-4 pb-4 border-b last:border-b-0 last:pb-0 last:mb-0"
+                          >
+                            <div className="w-full md:w-1/12 mb-2 md:mb-0">
+                              <span className="font-medium text-gray-700">
+                                #{container.vehicleIndex}
+                              </span>
+                            </div>
+                            <div className="w-full md:w-5/12 mb-2 md:mb-0">
+                              <input
+                                type="text"
+                                value={container.containerNo}
+                                onChange={(e) =>
+                                  updateContainerData(
+                                    containerIndex,
+                                    "containerNo",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="VIN (e.g., ABCD1234567)"
+                                className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">
+                                Format: 4 letters + 7 digits
+                              </p>
+                            </div>
+                       
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
-
+  
           {/* Submit button */}
           <div className="flex justify-end">
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || containers.length === 0}
               className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? "Saving..." : "Save VIN Details"}

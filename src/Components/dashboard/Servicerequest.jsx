@@ -56,6 +56,12 @@ const ServiceRequestForm = ({
     return alwaysLoadedTypes.includes(vehicleType);
   };
 
+  // Helper function to determine if vehicle type should be restricted to single vehicle
+  const shouldRestrictToSingleVehicle = (vehicleType) => {
+    const singleVehicleTypes = ["Ven", "Tr-4", "Tr-5", "Tr-8", "Tr-9", "Single Car Carrier"];
+    return singleVehicleTypes.includes(vehicleType);
+  };
+
   // Helper function to determine if container details should be shown
   const shouldShowContainerDetails = (vehicleType) => {
     return vehicleType === "Trailer";
@@ -175,6 +181,9 @@ const ServiceRequestForm = ({
     ? "Loaded" 
     : safeRequestData.vehicle_status;
 
+  // Check if current vehicle type is restricted to single vehicle
+  const isRestrictedToSingleVehicle = shouldRestrictToSingleVehicle(safeRequestData.vehicle_type);
+
   return (
     <div className="lg:col-span-2 bg-white rounded-lg shadow">
       <div className="px-6 py-4 border-b border-gray-200">
@@ -233,6 +242,7 @@ const ServiceRequestForm = ({
                 onChange={(e) => {
                   const newVehicleType = e.target.value;
                   const newVehicleStatus = shouldForceLoadedStatus(newVehicleType) ? "Loaded" : "Empty";
+                  const newNoOfVehicles = shouldRestrictToSingleVehicle(newVehicleType) ? 1 : safeRequestData.no_of_vehicles;
                   
                   setRequestData((prev) => ({
                     ...prev,
@@ -241,6 +251,11 @@ const ServiceRequestForm = ({
                     trailerSize: "",
                     truckSize: "",
                     vehicle_status: newVehicleStatus,
+                    no_of_vehicles: newNoOfVehicles,
+                    transporterDetails: createTransporterDetailsArray(
+                      newNoOfVehicles,
+                      prev.transporterDetails || []
+                    ),
                     // Clear container data if not a trailer
                     containers_20ft: shouldShowContainerDetails(newVehicleType) ? prev.containers_20ft : 0,
                     containers_40ft: shouldShowContainerDetails(newVehicleType) ? prev.containers_40ft : 0,
@@ -258,7 +273,7 @@ const ServiceRequestForm = ({
                 <option value="">Select Trip Type</option>
                 <option value="Trailer">Container</option>
                 <option value="Truck">Truck</option>
-                <option value="Ven">Vin</option>
+                <option value="Ven">Tr-4</option>
               
                 <option value="Tr-5">Tr-5</option>
                 <option value="Tr-8">Tr-8</option>
@@ -367,30 +382,44 @@ const ServiceRequestForm = ({
               <label className="block text-sm font-medium mb-2">
                 Number of Vehicles *
               </label>
-              <input
-                type="number"
-                min="1"
-                max="50"
-                className="w-full border rounded-md p-2"
-                value={currentNoOfVehicles}
-                onChange={(e) => {
-                  const newValue = parseInt(e.target.value) || 1;
-                  const validValue = Math.max(1, Math.min(50, newValue));
+              {isRestrictedToSingleVehicle ? (
+                <div>
+                  <input
+                    type="number"
+                    className="w-full border rounded-md p-2 bg-gray-100"
+                    value={1}
+                    disabled
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    This trip type only allows single vehicle transport
+                  </p>
+                </div>
+              ) : (
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  className="w-full border rounded-md p-2"
+                  value={currentNoOfVehicles}
+                  onChange={(e) => {
+                    const newValue = parseInt(e.target.value) || 1;
+                    const validValue = Math.max(1, Math.min(50, newValue));
 
-                  setRequestData((prev) => {
-                    const updatedData = {
-                      ...prev,
-                      no_of_vehicles: validValue,
-                      transporterDetails: createTransporterDetailsArray(
-                        validValue,
-                        prev.transporterDetails || []
-                      ),
-                    };
-                    return updatedData;
-                  });
-                }}
-                required
-              />
+                    setRequestData((prev) => {
+                      const updatedData = {
+                        ...prev,
+                        no_of_vehicles: validValue,
+                        transporterDetails: createTransporterDetailsArray(
+                          validValue,
+                          prev.transporterDetails || []
+                        ),
+                      };
+                      return updatedData;
+                    });
+                  }}
+                  required
+                />
+              )}
             </div>
             <div className="flex items-center">
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
@@ -402,6 +431,11 @@ const ServiceRequestForm = ({
                     ? "Single vehicle transport"
                     : `Multi-vehicle transport (${currentNoOfVehicles} vehicles)`}
                 </div>
+                {isRestrictedToSingleVehicle && (
+                  <div className="text-xs text-orange-600 mt-1 font-medium">
+                    Restricted to single vehicle only
+                  </div>
+                )}
               </div>
             </div>
           </div>

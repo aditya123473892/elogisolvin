@@ -606,6 +606,7 @@ export default function CustomerDashboard({
                   setTransporterData={setTransporterData}
                   isEditMode={Boolean(requestData.id)}
                   selectedServices={requestData.service_type}
+                  vehicleType={requestData.vehicle_type} // Add this line
                 />
               </div>
             </div>

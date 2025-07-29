@@ -89,29 +89,29 @@ export const generateInvoice = (request, transporterDetails) => {
       15,
       127
     );
-    doc.text("BL No: HLCUSOL2503ARXJ1", 15, 132);
+    doc.text("BL No: " + (transporterDetails[0]?.bl_no || "N/A"), 15, 132);
 
     // Right section - Invoice details
     doc.setFontSize(8);
     doc.text("Invoice:", pageWidth - 80, 85);
     doc.text(`ECAB/${request.id}/00${request.id}`, pageWidth - 35, 85);
     doc.text("Dated:", pageWidth - 80, 92);
-    doc.text(new Date().toLocaleDateString("en-GB"), pageWidth - 35, 92);
+    doc.text(new Date(request.created_at).toLocaleDateString("en-GB"), pageWidth - 35, 92);
     doc.text("Place of Supply:", pageWidth - 80, 99);
     doc.text("07", pageWidth - 35, 99);
     doc.text("Size/Type:", pageWidth - 80, 106);
-    doc.text(request.vehicle_type || "40/RF", pageWidth - 35, 106);
+    doc.text(request.vehicle_type || "N/A", pageWidth - 35, 106);
     doc.text("Line:", pageWidth - 80, 113);
-    doc.text(transporterDetails[0]?.line || "HAPAG LLOYD", pageWidth - 35, 113);
+    doc.text(transporterDetails[0]?.line || "N/A", pageWidth - 35, 113);
     doc.text("POL:", pageWidth - 80, 120);
-    doc.text("JNPT", pageWidth - 35, 120);
+    doc.text(request.pickup_location ? request.pickup_location.split(',')[0] : "N/A", pageWidth - 35, 120);
     doc.text("POD:", pageWidth - 80, 127);
-    doc.text("LUANDA", pageWidth - 35, 127);
+    doc.text(request.delivery_location ? request.delivery_location.split(',')[0] : "N/A", pageWidth - 35, 127);
 
-    // Location details
-    doc.text("Empty Pickup: JNPT", 15, 142);
-    doc.text("Factory Location: VASHI", 100, 142);
-    doc.text("Handover ICD: JNPT", pageWidth - 50, 142);
+    // Location details - from API data
+    doc.text(`Empty Pickup: ${request.pickup_location ? request.pickup_location.split(',')[0] : "N/A"}`, 15, 142);
+    doc.text(`Factory Location: ${request.stuffing_location || request.pickup_location || "N/A"}`, 100, 142);
+    doc.text(`Handover ICD: ${request.delivery_location ? request.delivery_location.split(',')[0] : "N/A"}`, pageWidth - 50, 142);
 
     // Summary of Charges header
     doc.setFontSize(11);
@@ -119,13 +119,8 @@ export const generateInvoice = (request, transporterDetails) => {
     doc.text("SUMMARY OF CHARGES", pageWidth / 2, 155, { align: "center" });
     doc.line(80, 157, pageWidth - 80, 157);
 
-    // Calculate totals
-    const serviceTotal = parseFloat(request.requested_price) || 0;
-    const transportTotal = transporterDetails.reduce(
-      (sum, trans) => sum + (parseFloat(trans.total_charge) || 0),
-      0
-    );
-    const baseAmount = serviceTotal + transportTotal;
+    // Calculate totals - FIXED: Use only requested_price as base amount
+    const baseAmount = parseFloat(request.requested_price) || 0;
     const cgstAmount = (baseAmount * 9) / 100;
     const sgstAmount = (baseAmount * 9) / 100;
     const igstAmount = (baseAmount * 18) / 100;
@@ -150,8 +145,8 @@ export const generateInvoice = (request, transporterDetails) => {
         "1",
         "Transportation\nCharges",
         "9965",
-        request.no_of_vehicles,
-        (baseAmount / request.no_of_vehicles).toFixed(0),
+        request.no_of_vehicles || 1,
+        (baseAmount / (request.no_of_vehicles || 1)).toFixed(0),
         baseAmount.toFixed(0),
         cgstAmount.toFixed(0),
         sgstAmount.toFixed(0),
@@ -242,16 +237,15 @@ export const generateInvoice = (request, transporterDetails) => {
     });
     doc.line(70, vehicleY + 2, pageWidth - 70, vehicleY + 2);
 
-    // Vehicle and Container table
+    // Vehicle and Container table - removed amount column
     const vehicleData = transporterDetails.map((trans, index) => [
       index + 1,
-      trans.vehicle_number,
-      trans.driver_name,
-      trans.container_no,
-      trans.container_size,
-      trans.container_type,
-      trans.seal_no,
-      trans.total_charge,
+      trans.vehicle_number || "N/A",
+      trans.driver_name || "N/A",
+      trans.container_no || "N/A",
+      trans.container_size || "N/A",
+      trans.container_type || "N/A",
+      trans.seal_no || "N/A",
     ]);
 
     autoTable(doc, {
@@ -265,7 +259,6 @@ export const generateInvoice = (request, transporterDetails) => {
           "Size",
           "Type",
           "Seal No",
-          "Amount",
         ],
       ],
       body: vehicleData,
@@ -283,14 +276,13 @@ export const generateInvoice = (request, transporterDetails) => {
         overflow: "linebreak",
       },
       columnStyles: {
-        0: { cellWidth: 10 },
-        1: { cellWidth: 25 },
-        2: { cellWidth: 25 },
-        3: { cellWidth: 25 },
-        4: { cellWidth: 20 },
-        5: { cellWidth: 20 },
-        6: { cellWidth: 20 },
-        7: { cellWidth: 25 },
+        0: { cellWidth: 15 },
+        1: { cellWidth: 30 },
+        2: { cellWidth: 30 },
+        3: { cellWidth: 30 },
+        4: { cellWidth: 25 },
+        5: { cellWidth: 25 },
+        6: { cellWidth: 25 },
       },
       margin: { left: 10, right: 10 },
     });

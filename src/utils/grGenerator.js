@@ -10,6 +10,33 @@ export const generateGR = (request, transporterDetails = null) => {
     format: "a4",
   });
 
+  // Helper function to get the first transporter/vehicle details
+  const getFirstTransporter = () => {
+    if (!transporterDetails || transporterDetails.length === 0) return null;
+    return transporterDetails[0];
+  };
+
+  // Helper function to get container details
+  const getContainerDetails = () => {
+    const firstTransporter = getFirstTransporter();
+    if (!firstTransporter) return null;
+    
+    // If containers array exists, get first container
+    if (firstTransporter.containers && firstTransporter.containers.length > 0) {
+      return firstTransporter.containers[0];
+    }
+    
+    // Fallback to direct properties
+    return {
+      container_no: firstTransporter.container_no,
+      line: firstTransporter.line,
+      seal_no: firstTransporter.seal_no
+    };
+  };
+
+  const firstTransporter = getFirstTransporter();
+  const containerDetails = getContainerDetails();
+
   copies.forEach((copyType, index) => {
     if (index > 0) doc.addPage();
 
@@ -29,7 +56,7 @@ export const generateGR = (request, transporterDetails = null) => {
       doc.text("LOGO", 29, 37, { align: "center" });
     }
 
-    // Main Company Header
+    // Main Company Header (keeping this part as requested)
     doc.setFontSize(14);
     doc.setTextColor(0, 0, 255);
     doc.text("TEAM ELOGISOL", doc.internal.pageSize.width / 2, 28, {
@@ -45,7 +72,7 @@ export const generateGR = (request, transporterDetails = null) => {
       { align: "center" }
     );
 
-    // Updated Company Address and Details
+    // Updated Company Address and Details (keeping this part as requested)
     doc.setFontSize(7);
     const addressLines = [
       "Regd. Office: E-6, 3rd Floor, Office No-3, Kalkaji, New Delhi 110019",
@@ -60,10 +87,10 @@ export const generateGR = (request, transporterDetails = null) => {
       });
     });
 
-    // Use nullish coalescing for transporter details
-    const vehicleNumber = transporterDetails?.vehicle_number ?? "Not Assigned";
-    const driverName = transporterDetails?.driver_name ?? "Not Assigned";
-    const driverContact = transporterDetails?.driver_contact ?? "Not Available";
+    // Use API data for transporter details with fallbacks
+    const vehicleNumber = firstTransporter?.vehicle_number || "Not Assigned";
+    const driverName = firstTransporter?.driver_name || "Not Assigned";
+    const driverContact = firstTransporter?.driver_contact || "Not Available";
 
     // Enhanced function to detect and handle Hindi text
     const isHindiText = (text) => {
@@ -256,31 +283,32 @@ export const generateGR = (request, transporterDetails = null) => {
       return truncateText(locationStr, 2, containsHindi ? 35 : 50);
     };
 
-    // Process main details with enhanced text handling
+    // Process main details with API data
     const consignerLines = truncateText(
       request.consigner || "TEAM ELOGISOL .",
       2,
       50
     );
     const consigneeLines = truncateText(
-      request.consignee || "APEX FREIGHT (INDIA) PVT LTD (UP)",
+      request.consignee || "Not Specified",
       2,
       50
     );
     const addressLines2 = truncateText(
-      request.delivery_location ||
-        "Village Ahamad Nagar Palsali, Tehsil Sadri Rampur Uttar Pradesh-244901 Contact no: 09412345678",
+      request.delivery_location || "Not Specified",
       3,
       50
     );
 
-    const originLocation = formatLocation(request.pickup_location || "ALIGARH");
-    const toLocation = formatLocation(
-      request.delivery_location || "DADRI-ALIGARH"
-    );
-    const handoverLocation = formatLocation(
-      request.delivery_location || "DADRI-ALIGARH"
-    );
+    const originLocation = formatLocation(request.pickup_location || "Not Specified");
+    const toLocation = formatLocation(request.delivery_location || "Not Specified");
+    const handoverLocation = formatLocation(request.delivery_location || "Not Specified");
+
+    // Format date from API data
+    const formatDate = (dateString) => {
+      if (!dateString) return new Date().toLocaleDateString("en-GB");
+      return new Date(dateString).toLocaleDateString("en-GB");
+    };
 
     const tableData = [
       [
@@ -293,7 +321,7 @@ export const generateGR = (request, transporterDetails = null) => {
           content: "GR No",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: request.id || "14350" },
+        { content: request.formatted_request_id || request.id?.toString() || "Not Available" },
       ],
       [
         {
@@ -305,7 +333,7 @@ export const generateGR = (request, transporterDetails = null) => {
           content: "Date",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: new Date().toLocaleDateString("en-GB") },
+        { content: formatDate(request.created_at) },
       ],
       [
         {
@@ -317,7 +345,7 @@ export const generateGR = (request, transporterDetails = null) => {
           content: "Party GSTIN",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: request.gstin || "09AAACF3799A1ZN" },
+        { content: request.party_gstin || request.gstin || "Not Available" },
       ],
       [
         {
@@ -361,7 +389,7 @@ export const generateGR = (request, transporterDetails = null) => {
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
         {
-          content: request.description || "MISCELLANEOUS GOODS WEIGHT",
+          content: request.commodity || request.description || "MISCELLANEOUS GOODS",
           styles: { colSpan: 3 },
         },
         "",
@@ -411,14 +439,33 @@ export const generateGR = (request, transporterDetails = null) => {
       },
     });
 
-    // Second section with container details
+    // Second section with container details using API data
+    const getVehicleSize = () => {
+      // Try to get from request first
+      if (request.vehicle_size) {
+        // Extract numeric value from vehicle size (e.g., "20ft" -> "20", "40ft" -> "40")
+        const match = request.vehicle_size.match(/(\d+)/);
+        return match ? match[1] : "40";
+      }
+      
+      // Try to determine from container counts
+      if (request.containers_40ft && parseInt(request.containers_40ft) > 0) {
+        return "40";
+      }
+      if (request.containers_20ft && parseInt(request.containers_20ft) > 0) {
+        return "20";
+      }
+      
+      return "40"; // Default
+    };
+
     const containerData = [
       [
         {
           content: "Jo No",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: request.id || "71892" },
+        { content: request.job_number || request.formatted_request_id || request.id?.toString() || "Not Available" },
         {
           content: "(TO BE FILLED BY PARTY)",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230], colSpan: 2 },
@@ -430,79 +477,79 @@ export const generateGR = (request, transporterDetails = null) => {
           content: "Container No",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: request.container_number || "MNBU42971T" },
+        { content: containerDetails?.container_no || request.container_number || "Not Available" },
         {
           content: "Party Ref No.",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: "-" },
+        { content: request.party_ref_no || request.reference_number || "-" },
       ],
       [
         {
           content: "Size",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: "40" },
+        { content: getVehicleSize() },
         {
           content: "Party Advance",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: "-" },
+        { content: request.advance_amount || "-" },
       ],
       [
         {
           content: "Type",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: request.cargo_type || "HC" },
+        { content: request.cargo_type || request.vehicle_type || "HC" },
         {
           content: "Seal No",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: "-" },
+        { content: containerDetails?.seal_no || request.seal_number || "Not Available" },
       ],
       [
         {
           content: "Line",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: request.shipping_line || "MAERSK GROUP" },
+        { content: containerDetails?.line || request.shipping_line || "Not Available" },
         {
           content: "Factory Site Reporting",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: "-" },
+        { content: request.factory_reporting_date ? formatDate(request.factory_reporting_date) : "-" },
       ],
       [
         {
           content: "Seal No",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: request.seal_number || "2257850" },
+        { content: containerDetails?.seal_no || request.seal_number || "Not Available" },
         {
           content: "Factory Site Release",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: "-" },
+        { content: request.factory_release_date ? formatDate(request.factory_release_date) : "-" },
       ],
       [
         {
           content: "Pay Load",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: `${request.cargo_weight || "29600"}` },
+        { content: `${request.cargo_weight || "Not Specified"} ${request.cargo_weight ? 'kg' : ''}` },
         {
           content: "VIA",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: "-" },
+        { content: request.route_via || "-" },
       ],
       [
         {
           content: "Oil Slip No",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: "00" },
+        { content: request.oil_slip_no || "00" },
         { content: "", styles: { colSpan: 2 } },
         "",
       ],
@@ -512,7 +559,7 @@ export const generateGR = (request, transporterDetails = null) => {
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
         {
-          content: request.port || "RIYADH SAUDI ARABIA",
+          content: request.port || request.origin_port || request.destination_port || "Not Specified",
           styles: { colSpan: 3 },
         },
         "",
@@ -576,11 +623,12 @@ export const generateGR = (request, transporterDetails = null) => {
       doc.text(`${i + 1}. ${text}`, 16, declarationY + 20 + i * 3.5);
     });
 
-    // Footer with URL
+    // Footer with dynamic URL using API data
     doc.setFontSize(6);
     doc.setTextColor(0, 0, 255);
+    const grNumber = request.formatted_request_id || request.id?.toString() || "default";
     doc.text(
-      "https://www.elogfreight.com/GR.PH?uen6PRNT&Pthm-num-IDNO=sp=14350",
+      `https://www.elogfreight.com/GR.PH?uen6PRNT&Pthm-num-IDNO=sp=${grNumber}`,
       14,
       285
     );

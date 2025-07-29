@@ -253,5 +253,5 @@ function App() {
 
 export default App;
 
-// Add this route inside the Routes component, before the closing </Routes> tag
+
 

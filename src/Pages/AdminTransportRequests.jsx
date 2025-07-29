@@ -12,18 +12,32 @@ import {
 } from "lucide-react";
 import { generateInvoice } from "../utils/pdfGenerator";
 import { generateGR } from "../utils/grGenerator";
-import RequestModal from "../Components/Requestmodal"; // Import your extracted modal component
+import RequestModal from "../Components/Requestmodal";
 
 const parseServiceType = (serviceType) => {
   if (!serviceType) return [];
   try {
-    return typeof serviceType === "string"
-      ? JSON.parse(serviceType)
-      : serviceType;
+    const parsed = typeof serviceType === "string" ? JSON.parse(serviceType) : serviceType;
+    return Array.isArray(parsed) ? parsed : [];
   } catch (e) {
     console.error("Error parsing service type:", e);
     return [];
   }
+};
+
+const parseServicePrices = (servicePrices) => {
+  if (!servicePrices) return {};
+  try {
+    return typeof servicePrices === "string" ? JSON.parse(servicePrices) : servicePrices;
+  } catch (e) {
+    console.error("Error parsing service prices:", e);
+    return {};
+  }
+};
+
+const formatCurrency = (amount) => {
+  if (!amount || amount === 0) return "Not specified";
+  return `₹${Number(amount).toLocaleString('en-IN')}`;
 };
 
 export default function AdminTransportRequests() {
@@ -40,7 +54,7 @@ export default function AdminTransportRequests() {
     try {
       const response = await api.get("/transport-requests/all");
       setRequests(response.data.requests);
-      console.log("dahta", response);
+      console.log("data", response);
     } catch (error) {
       toast.error("Failed to fetch transport requests");
     } finally {
@@ -54,7 +68,7 @@ export default function AdminTransportRequests() {
         `/transport-requests/${requestId}/transporter`
       );
       if (response.data.success) {
-        console.log("data", response.data);
+        console.log("transporter data", response.data);
         setTransporterDetails(
           Array.isArray(response.data.data)
             ? response.data.data
@@ -287,7 +301,7 @@ export default function AdminTransportRequests() {
                   Locations
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Pricing
+                  Pricing & Details
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
@@ -298,134 +312,182 @@ export default function AdminTransportRequests() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredRequests.map((request) => (
-                <tr key={request.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <Package className="h-5 w-5 text-blue-600" />
+              {filteredRequests.map((request) => {
+                const serviceTypes = parseServiceType(request.service_type);
+                const servicePrices = parseServicePrices(request.service_prices);
+                
+                return (
+                  <tr key={request.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <Package className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">
+                            {request.formatted_request_id || `Booking #${request.id}`}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {new Date(request.created_at).toLocaleDateString()}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            Vehicles: {request.no_of_vehicles || 1}
+                          </div>
+                        </div>
                       </div>
-                      <div className="ml-4">
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
                         <div className="text-sm font-medium text-gray-900">
-                          Booking #{request.id}
+                          {request.customer_name}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {new Date(request.created_at).toLocaleDateString()}
+                          {request.customer_email}
+                        </div>
+                        <div className="text-xs text-gray-400 mt-1">
+                          Consignee: {request.consignee || "Not specified"}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          Consigner: {request.consigner || "Not specified"}
                         </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {request.customer_name}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {request.customer_email}
-                      </div>
-                      <div className="text-xs text-gray-400 mt-1">
-                        Consignee: {request.consignee}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900 flex items-center">
-                        <Truck className="h-4 w-4 mr-1" />
-                        {request.vehicle_type} ({request.vehicle_size})
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {request.commodity}
-                      </div>
-                      <div className="mt-1">
-                        {parseServiceType(request.service_type).map(
-                          (service, idx) => (
-                            <span
-                              key={idx}
-                              className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mr-1 mb-1"
-                            >
-                              {service}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900 flex items-center">
+                          <Truck className="h-4 w-4 mr-1" />
+                          {request.vehicle_type} 
+                          {request.vehicle_size && ` (${request.vehicle_size})`}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {request.commodity || "Not specified"}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          Type: {request.cargo_type || "Not specified"}
+                        </div>
+                        {request.vehicle_status && (
+                          <div className="text-xs text-blue-600 font-medium">
+                            Status: {request.vehicle_status}
+                          </div>
+                        )}
+                        <div className="mt-1">
+                          {serviceTypes.length > 0 ? (
+                            serviceTypes.map((service, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mr-1 mb-1"
+                              >
+                                {service}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full">
+                              No services specified
                             </span>
-                          )
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900">
+                        <div className="flex items-center mb-1">
+                          <MapPin className="h-3 w-3 mr-1 text-green-600" />
+                          <span className="font-medium">Pickup:</span>
+                        </div>
+                        <div className="text-xs text-gray-600 mb-2 ml-4 truncate max-w-xs">
+                          {request.pickup_location || "Not specified"}
+                        </div>
+                        {request.stuffing_location && (
+                          <>
+                            <div className="flex items-center mb-1">
+                              <MapPin className="h-3 w-3 mr-1 text-blue-600" />
+                              <span className="font-medium text-xs">Stuffing:</span>
+                            </div>
+                            <div className="text-xs text-gray-600 mb-2 ml-4 truncate max-w-xs">
+                              {request.stuffing_location}
+                            </div>
+                          </>
+                        )}
+                        <div className="flex items-center mb-1">
+                          <MapPin className="h-3 w-3 mr-1 text-red-600" />
+                          <span className="font-medium">Delivery:</span>
+                        </div>
+                        <div className="text-xs text-gray-600 ml-4 truncate max-w-xs">
+                          {request.delivery_location || "Not specified"}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm">
+                        <div className="text-sm font-medium text-gray-900">
+                          {formatCurrency(request.requested_price)}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Weight: {request.cargo_weight ? `${request.cargo_weight}kg` : "Not specified"}
+                        </div>
+                        {(request.containers_20ft > 0 || request.containers_40ft > 0) && (
+                          <div className="text-xs text-gray-500">
+                            Containers: {request.containers_20ft}×20ft, {request.containers_40ft}×40ft
+                          </div>
+                        )}
+                        {request.expected_pickup_date && (
+                          <div className="text-xs text-gray-500">
+                            Pickup: {new Date(request.expected_pickup_date).toLocaleDateString()}
+                            {request.expected_pickup_time && ` ${request.expected_pickup_time}`}
+                          </div>
+                        )}
+                        {request.expected_delivery_date && (
+                          <div className="text-xs text-gray-500">
+                            Delivery: {new Date(request.expected_delivery_date).toLocaleDateString()}
+                            {request.expected_delivery_time && ` ${request.expected_delivery_time}`}
+                          </div>
                         )}
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900">
-                      <div className="flex items-center mb-1">
-                        <MapPin className="h-3 w-3 mr-1 text-green-600" />
-                        <span className="font-medium">From:</span>
-                      </div>
-                      <div className="text-xs text-gray-600 mb-2 ml-4">
-                        {request.pickup_location}
-                      </div>
-                      <div className="flex items-center mb-1">
-                        <MapPin className="h-3 w-3 mr-1 text-red-600" />
-                        <span className="font-medium">To:</span>
-                      </div>
-                      <div className="text-xs text-gray-600 ml-4">
-                        {request.delivery_location}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm">
-                      <div className="text-xs text-gray-500 mt-1">
-                        Weight: {request.cargo_weight}kg
-                      </div>
-                      {(request.containers_20ft > 0 ||
-                        request.containers_40ft > 0) && (
-                        <div className="text-xs text-gray-500">
-                          Containers: {request.containers_20ft}×20ft,{" "}
-                          {request.containers_40ft}×40ft
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
-                        request.status
-                      )}`}
-                    >
-                      {request.status || "pending"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleViewRequest(request)}
-                        className="text-blue-600 hover:text-blue-900 flex items-center"
-                        title="View Details"
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
+                          request.status
+                        )}`}
                       >
-                        <Eye className="h-4 w-4 mr-1" />
-                        View
-                      </button>
-                      {request.status === "approved" && (
-                        <>
-                          <button
-                            onClick={() => handleDownloadInvoice(request)}
-                            className="text-green-600 hover:text-green-900 flex items-center"
-                            title="Download Invoice"
-                          >
-                            <Download className="h-4 w-4 mr-1" />
-                            Invoice
-                          </button>
-                          <button
-                            onClick={() => handleDownloadGR(request)}
-                            className="text-green-600 hover:text-green-900 flex items-center ml-2"
-                            title="Download GR"
-                          >
-                            <Download className="h-4 w-4 mr-1" />
-                            GR
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        {request.status || "pending"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleViewRequest(request)}
+                          className="text-blue-600 hover:text-blue-900 flex items-center"
+                          title="View Details"
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </button>
+                        {request.status === "approved" && (
+                          <>
+                            <button
+                              onClick={() => handleDownloadInvoice(request)}
+                              className="text-green-600 hover:text-green-900 flex items-center"
+                              title="Download Invoice"
+                            >
+                              <Download className="h-4 w-4 mr-1" />
+                              Invoice
+                            </button>
+                            <button
+                              onClick={() => handleDownloadGR(request)}
+                              className="text-green-600 hover:text-green-900 flex items-center ml-2"
+                              title="Download GR"
+                            >
+                              <Download className="h-4 w-4 mr-1" />
+                              GR
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -445,7 +507,6 @@ export default function AdminTransportRequests() {
         )}
       </div>
 
-      {/* Use the extracted RequestModal component */}
       <RequestModal
         selectedRequest={selectedRequest}
         transporterDetails={transporterDetails}

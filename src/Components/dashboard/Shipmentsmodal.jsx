@@ -464,8 +464,6 @@ const ShipmentDetailsModal = ({
                 />
               )}
             </InfoCard>
-
-            {/* Admin Comment */}
             {shipment.admin_comment && (
               <InfoCard
                 iconText="👤"

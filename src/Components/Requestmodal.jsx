@@ -4,18 +4,42 @@ import {
   AlertCircle,
   Package,
   Truck,
+  Calendar,
+  Clock,
+  Weight,
+  DollarSign,
 } from "lucide-react";
 
 const parseServiceType = (serviceType) => {
   if (!serviceType) return [];
   try {
-    return typeof serviceType === "string"
-      ? JSON.parse(serviceType)
-      : serviceType;
+    const parsed = typeof serviceType === "string" ? JSON.parse(serviceType) : serviceType;
+    return Array.isArray(parsed) ? parsed : [];
   } catch (e) {
     console.error("Error parsing service type:", e);
     return [];
   }
+};
+
+const parseServicePrices = (servicePrices) => {
+  if (!servicePrices) return {};
+  try {
+    return typeof servicePrices === "string" ? JSON.parse(servicePrices) : servicePrices;
+  } catch (e) {
+    console.error("Error parsing service prices:", e);
+    return {};
+  }
+};
+
+const formatCurrency = (amount) => {
+  if (!amount || amount === 0) return "Not specified";
+  return `₹${Number(amount).toLocaleString('en-IN')}`;
+};
+
+const formatDateTime = (date, time) => {
+  if (!date) return "Not specified";
+  const formattedDate = new Date(date).toLocaleDateString('en-IN');
+  return time ? `${formattedDate} at ${time}` : formattedDate;
 };
 
 const getStatusColor = (status) => {
@@ -33,6 +57,45 @@ const getStatusColor = (status) => {
   }
 };
 
+// Function to group vehicles by unique identifier and consolidate containers
+const groupVehiclesByIdentifier = (transporterDetails) => {
+  if (!transporterDetails || transporterDetails.length === 0) return [];
+  
+  const vehicleMap = new Map();
+  
+  transporterDetails.forEach((detail) => {
+    // Create a unique key for each vehicle (vehicle_number + transporter_name for safety)
+    const vehicleKey = `${detail.vehicle_number}_${detail.transporter_name}`;
+    
+    if (vehicleMap.has(vehicleKey)) {
+      // Add container to existing vehicle
+      const existingVehicle = vehicleMap.get(vehicleKey);
+      if (detail.container_no) {
+        existingVehicle.containers.push({
+          container_no: detail.container_no,
+          line: detail.line,
+          seal_no: detail.seal_no,
+          id: detail.id
+        });
+      }
+    } else {
+      // Create new vehicle entry
+      const vehicleData = {
+        ...detail,
+        containers: detail.container_no ? [{
+          container_no: detail.container_no,
+          line: detail.line,
+          seal_no: detail.seal_no,
+          id: detail.id
+        }] : []
+      };
+      vehicleMap.set(vehicleKey, vehicleData);
+    }
+  });
+  
+  return Array.from(vehicleMap.values());
+};
+
 export default function RequestModal({
   selectedRequest,
   transporterDetails,
@@ -44,13 +107,17 @@ export default function RequestModal({
 }) {
   if (!selectedRequest) return null;
 
+  const serviceTypes = parseServiceType(selectedRequest.service_type);
+  const servicePrices = parseServicePrices(selectedRequest.service_prices);
+  const groupedTransporters = groupVehiclesByIdentifier(transporterDetails);
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-auto">
         <div className="sticky top-0 bg-white px-6 py-4 border-b border-gray-200">
           <div className="flex justify-between items-center">
             <h3 className="text-xl font-semibold text-gray-900">
-              Booking #{selectedRequest.id} - Complete Details
+              {selectedRequest.formatted_request_id || `Booking #${selectedRequest.id}`} - Complete Details
             </h3>
             <button
               onClick={onClose}
@@ -71,176 +138,264 @@ export default function RequestModal({
               </h4>
 
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Customer Name
-                    </label>
-                    <div className="text-sm text-gray-900">
-                      {selectedRequest.customer_name}
+                {/* Customer Information */}
+                <div className="bg-white p-4 rounded-lg border">
+                  <h5 className="font-medium text-gray-900 mb-3">Customer Information</h5>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Customer Name
+                      </label>
+                      <div className="text-sm text-gray-900">
+                        {selectedRequest.customer_name || "Not specified"}
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Customer Email
-                    </label>
-                    <div className="text-sm text-gray-900">
-                      {selectedRequest.customer_email}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Customer Email
+                      </label>
+                      <div className="text-sm text-gray-900">
+                        {selectedRequest.customer_email || "Not specified"}
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Consignee
-                    </label>
-                    <div className="text-sm text-gray-900">
-                      {selectedRequest.consignee}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Consignee
+                      </label>
+                      <div className="text-sm text-gray-900">
+                        {selectedRequest.consignee || "Not specified"}
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Consigner
-                    </label>
-                    <div className="text-sm text-gray-900">
-                      {selectedRequest.consigner}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Vehicle Type
-                    </label>
-                    <div className="text-sm text-gray-900">
-                      {selectedRequest.vehicle_type}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Vehicle Size
-                    </label>
-                    <div className="text-sm text-gray-900">
-                      {selectedRequest.vehicle_size}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Commodity
-                    </label>
-                    <div className="text-sm text-gray-900">
-                      {selectedRequest.commodity}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Cargo Type
-                    </label>
-                    <div className="text-sm text-gray-900">
-                      {selectedRequest.cargo_type}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Consigner
+                      </label>
+                      <div className="text-sm text-gray-900">
+                        {selectedRequest.consigner || "Not specified"}
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Cargo Weight (kg)
-                    </label>
-                    <div className="text-sm text-gray-900">
-                      {selectedRequest.cargo_weight}
+                {/* Vehicle & Cargo Information */}
+                <div className="bg-white p-4 rounded-lg border">
+                  <h5 className="font-medium text-gray-900 mb-3">Vehicle & Cargo Information</h5>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Vehicle Type
+                      </label>
+                      <div className="text-sm text-gray-900">
+                        {selectedRequest.vehicle_type || "Not specified"}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Vehicle Size
+                      </label>
+                      <div className="text-sm text-gray-900">
+                        {selectedRequest.vehicle_size || "Not specified"}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Commodity
+                      </label>
+                      <div className="text-sm text-gray-900">
+                        {selectedRequest.commodity || "Not specified"}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Cargo Type
+                      </label>
+                      <div className="text-sm text-gray-900">
+                        {selectedRequest.cargo_type || "Not specified"}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Number of Vehicles
+                      </label>
+                      <div className="text-sm text-gray-900">
+                        {selectedRequest.no_of_vehicles || 1}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Vehicle Status
+                      </label>
+                      <div className="text-sm text-gray-900">
+                        {selectedRequest.vehicle_status || "Not specified"}
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      20ft Containers
-                    </label>
-                    <div className="text-sm text-gray-900">
-                      {selectedRequest.containers_20ft}
+
+                  <div className="grid grid-cols-3 gap-4 mt-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        <Weight className="h-4 w-4 inline mr-1" />
+                        Cargo Weight (kg)
+                      </label>
+                      <div className="text-sm text-gray-900">
+                        {selectedRequest.cargo_weight || "Not specified"}
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      40ft Containers
-                    </label>
-                    <div className="text-sm text-gray-900">
-                      {selectedRequest.containers_40ft}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        20ft Containers
+                      </label>
+                      <div className="text-sm text-gray-900">
+                        {selectedRequest.containers_20ft || 0}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        40ft Containers
+                      </label>
+                      <div className="text-sm text-gray-900">
+                        {selectedRequest.containers_40ft || 0}
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Service Types
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {parseServiceType(selectedRequest.service_type).map(
-                      (service, idx) => (
-                        <span
-                          key={idx}
-                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                        >
-                          {service}
+                {/* Service Types & Pricing */}
+                <div className="bg-white p-4 rounded-lg border">
+                  <h5 className="font-medium text-gray-900 mb-3 flex items-center">
+                    <DollarSign className="h-4 w-4 mr-1" />
+                    Service Types & Pricing
+                  </h5>
+                  
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Service Types
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {serviceTypes.length > 0 ? (
+                        serviceTypes.map((service, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                          >
+                            {service}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                          No services specified
                         </span>
-                      )
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Requested Price
+                      </label>
+                      <div className="text-sm text-gray-900 font-medium">
+                        {formatCurrency(selectedRequest.requested_price)}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Service Prices
+                      </label>
+                      <div className="text-sm text-gray-900">
+                        {Object.keys(servicePrices).length > 0 ? (
+                          <div className="space-y-1">
+                            {Object.entries(servicePrices).map(([service, price]) => (
+                              <div key={service} className="flex justify-between">
+                                <span className="text-gray-600">{service}:</span>
+                                <span className="font-medium">{formatCurrency(price)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          "No service prices specified"
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Location Information */}
+                <div className="bg-white p-4 rounded-lg border">
+                  <h5 className="font-medium text-gray-900 mb-3">Location Information</h5>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Pickup Location
+                      </label>
+                      <div className="text-sm text-gray-900">
+                        {selectedRequest.pickup_location || "Not specified"}
+                      </div>
+                    </div>
+                    {selectedRequest.stuffing_location && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Stuffing Location
+                        </label>
+                        <div className="text-sm text-gray-900">
+                          {selectedRequest.stuffing_location}
+                        </div>
+                      </div>
                     )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Pickup Location
-                    </label>
-                    <div className="text-sm text-gray-900">
-                      {selectedRequest.pickup_location}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Stuffing Location
-                    </label>
-                    <div className="text-sm text-gray-900">
-                      {selectedRequest.stuffing_location}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Delivery Location
-                    </label>
-                    <div className="text-sm text-gray-900">
-                      {selectedRequest.delivery_location}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Delivery Location
+                      </label>
+                      <div className="text-sm text-gray-900">
+                        {selectedRequest.delivery_location || "Not specified"}
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Expected Pickup Date
-                    </label>
-                    <div className="text-sm text-gray-900">
-                      {selectedRequest.expected_pickup_date
-                        ? new Date(
-                            selectedRequest.expected_pickup_date
-                          ).toLocaleDateString()
-                        : "Not specified"}
+                {/* Schedule Information */}
+                <div className="bg-white p-4 rounded-lg border">
+                  <h5 className="font-medium text-gray-900 mb-3 flex items-center">
+                    <Calendar className="h-4 w-4 mr-1" />
+                    Schedule Information
+                  </h5>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 flex items-center">
+                        <Clock className="h-3 w-3 mr-1" />
+                        Expected Pickup
+                      </label>
+                      <div className="text-sm text-gray-900">
+                        {formatDateTime(selectedRequest.expected_pickup_date, selectedRequest.expected_pickup_time)}
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Expected Delivery Date
-                    </label>
-                    <div className="text-sm text-gray-900">
-                      {selectedRequest.expected_delivery_date
-                        ? new Date(
-                            selectedRequest.expected_delivery_date
-                          ).toLocaleDateString()
-                        : "Not specified"}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 flex items-center">
+                        <Clock className="h-3 w-3 mr-1" />
+                        Expected Delivery
+                      </label>
+                      <div className="text-sm text-gray-900">
+                        {formatDateTime(selectedRequest.expected_delivery_date, selectedRequest.expected_delivery_time)}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Request Created
+                      </label>
+                      <div className="text-sm text-gray-900">
+                        {new Date(selectedRequest.created_at).toLocaleString('en-IN')}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Last Updated
+                      </label>
+                      <div className="text-sm text-gray-900">
+                        {new Date(selectedRequest.updated_at).toLocaleString('en-IN')}
+                      </div>
                     </div>
                   </div>
                 </div>
-
-                <div></div>
               </div>
             </div>
 
@@ -251,11 +406,11 @@ export default function RequestModal({
                 Transporter Details
               </h4>
 
-              {transporterDetails && transporterDetails.length > 0 ? (
+              {groupedTransporters && groupedTransporters.length > 0 ? (
                 <div className="space-y-6">
-                  {transporterDetails.map((transporter, index) => (
+                  {groupedTransporters.map((transporter, index) => (
                     <div
-                      key={transporter.id || index}
+                      key={`${transporter.vehicle_number}_${index}`}
                       className="bg-white p-4 rounded-lg border mb-4"
                     >
                       <h5 className="font-medium text-gray-900 mb-3">
@@ -264,13 +419,15 @@ export default function RequestModal({
                           ? `(Sequence: ${transporter.vehicle_sequence})`
                           : ""}
                       </h5>
+                      
+                      {/* Vehicle Basic Details */}
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700">
                             Transporter Name
                           </label>
                           <div className="text-sm text-gray-900">
-                            {transporter.transporter_name}
+                            {transporter.transporter_name || "Not specified"}
                           </div>
                         </div>
                         <div>
@@ -278,7 +435,7 @@ export default function RequestModal({
                             Vehicle Number
                           </label>
                           <div className="text-sm text-gray-900">
-                            {transporter.vehicle_number}
+                            {transporter.vehicle_number || "Not specified"}
                           </div>
                         </div>
                         <div>
@@ -286,7 +443,7 @@ export default function RequestModal({
                             Driver Name
                           </label>
                           <div className="text-sm text-gray-900">
-                            {transporter.driver_name}
+                            {transporter.driver_name || "Not specified"}
                           </div>
                         </div>
                         <div>
@@ -294,7 +451,7 @@ export default function RequestModal({
                             Driver Contact
                           </label>
                           <div className="text-sm text-gray-900">
-                            {transporter.driver_contact}
+                            {transporter.driver_contact || "Not specified"}
                           </div>
                         </div>
                         <div>
@@ -302,7 +459,7 @@ export default function RequestModal({
                             License Number
                           </label>
                           <div className="text-sm text-gray-900">
-                            {transporter.license_number}
+                            {transporter.license_number || "Not specified"}
                           </div>
                         </div>
                         <div>
@@ -311,45 +468,57 @@ export default function RequestModal({
                           </label>
                           <div className="text-sm text-gray-900">
                             {transporter.license_expiry
-                              ? new Date(
-                                  transporter.license_expiry
-                                ).toLocaleDateString()
+                              ? new Date(transporter.license_expiry).toLocaleDateString('en-IN')
                               : "Not specified"}
                           </div>
                         </div>
                       </div>
 
-                      {/* Container Details */}
-                      {transporter.container_no && (
+                      {/* Container Details - Multiple containers per vehicle */}
+                      {transporter.containers && transporter.containers.length > 0 && (
                         <div className="mt-4 pt-4 border-t">
-                          <h6 className="font-medium text-gray-900 mb-2">
-                            Container Details
+                          <h6 className="font-medium text-gray-900 mb-3">
+                            Container Details ({transporter.containers.length} container{transporter.containers.length > 1 ? 's' : ''})
                           </h6>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700">
-                                Container Number
-                              </label>
-                              <div className="text-sm text-gray-900">
-                                {transporter.container_no}
+                          <div className="space-y-3">
+                            {transporter.containers.map((container, containerIndex) => (
+                              <div
+                                key={container.id || containerIndex}
+                                className="bg-gray-50 p-3 rounded-lg"
+                              >
+                                <div className="flex justify-between items-center mb-2">
+                                  <span className="text-sm font-medium text-gray-700">
+                                    Container {containerIndex + 1}
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-3 gap-3">
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-600">
+                                      Container Number
+                                    </label>
+                                    <div className="text-sm text-gray-900">
+                                      {container.container_no || "Not specified"}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-600">
+                                      Line
+                                    </label>
+                                    <div className="text-sm text-gray-900">
+                                      {container.line || "Not specified"}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-600">
+                                      Seal Number
+                                    </label>
+                                    <div className="text-sm text-gray-900">
+                                      {container.seal_no || "Not specified"}
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700">
-                                Line
-                              </label>
-                              <div className="text-sm text-gray-900">
-                                {transporter.line}
-                              </div>
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700">
-                                Seal Number
-                              </label>
-                              <div className="text-sm text-gray-900">
-                                {transporter.seal_no}
-                              </div>
-                            </div>
+                            ))}
                           </div>
                         </div>
                       )}
@@ -360,7 +529,7 @@ export default function RequestModal({
                         </h6>
                         <div className="text-sm text-gray-900">
                           <div className="font-semibold text-gray-900">
-                            Total Charge: ₹{transporter.total_charge}
+                            Total Charge: {formatCurrency(transporter.total_charge)}
                           </div>
                         </div>
                       </div>
@@ -434,7 +603,7 @@ export default function RequestModal({
               </button>
               <button
                 onClick={() => onStatusUpdate(selectedRequest.id, "rejected")}
-                disabled={updating}
+                disabled={updating || !adminComment.trim()}
                 className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-red-400 focus:ring-2 focus:ring-red-500 flex items-center"
               >
                 {updating ? (
@@ -446,7 +615,7 @@ export default function RequestModal({
               </button>
               <button
                 onClick={() => onStatusUpdate(selectedRequest.id, "approved")}
-                disabled={updating}
+                disabled={updating || !adminComment.trim()}
                 className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-green-400 focus:ring-2 focus:ring-green-500 flex items-center"
               >
                 {updating ? (
@@ -460,7 +629,7 @@ export default function RequestModal({
                 onClick={() =>
                   onStatusUpdate(selectedRequest.id, "in progress")
                 }
-                disabled={updating}
+                disabled={updating || !adminComment.trim()}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 focus:ring-2 focus:ring-blue-500 flex items-center"
               >
                 {updating ? (
@@ -472,7 +641,7 @@ export default function RequestModal({
               </button>
               <button
                 onClick={() => onStatusUpdate(selectedRequest.id, "completed")}
-                disabled={updating}
+                disabled={updating || !adminComment.trim()}
                 className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-purple-400 focus:ring-2 focus:ring-purple-500 flex items-center"
               >
                 {updating ? (

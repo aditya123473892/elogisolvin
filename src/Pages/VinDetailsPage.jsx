@@ -249,20 +249,15 @@ const VinDetailsPage = () => {
     }
   };
   
-  // Update container data - simplified without vehicle selection
+  // Update container data with VIN validation
   const updateContainerData = (index, field, value) => {
     if (field === "containerNo") {
       value = value.toUpperCase();
-      if (value.length > 11) {
-        value = value.substring(0, 11);
+      if (value.length > 17) {
+        value = value.substring(0, 17);
       }
-      if (value.length <= 4) {
-        value = value.replace(/[^A-Z]/g, "");
-      } else {
-        const letters = value.substring(0, 4).replace(/[^A-Z]/g, "");
-        const digits = value.substring(4).replace(/[^0-9]/g, "");
-        value = letters + digits;
-      }
+      // Allow only alphanumeric characters for VIN
+      value = value.replace(/[^A-Z0-9]/g, "");
     }
   
     const updatedContainers = containers.map((container, i) =>
@@ -271,25 +266,24 @@ const VinDetailsPage = () => {
     setContainers(updatedContainers);
   };
   
-// Validate VIN data
-const validateContainers = () => {
-  const errors = [];
-  const vinRegex = /^[A-HJ-NPR-Z0-9]{17}$/; // VIN: 17 characters, excludes I, O, Q
 
-  containers.forEach((container, index) => {
-    const vin = container.containerNo.trim();
-
-    if (!vin) {
-      errors.push(`VIN ${index + 1}: VIN is required`);
-    } else if (!vinRegex.test(vin)) {
-      errors.push(
-        `VIN ${index + 1}: Invalid VIN. It must be exactly 17 characters (letters A-H, J-N, P, R-Z and digits 0-9, excluding I, O, Q)`
-      );
-    }
-  });
-
-  return errors;
-};
+  // Validate container data for VIN
+  const validateContainers = () => {
+    const errors = [];
+    containers.forEach((container, index) => {
+      if (!container.containerNo.trim()) {
+        errors.push(`VIN ${index + 1}: VIN number is required`);
+      } else {
+        const vinRegex = /^[A-Z0-9]{17}$/;
+        if (!vinRegex.test(container.containerNo)) {
+          errors.push(
+            `VIN ${index + 1}: VIN must be exactly 17 alphanumeric characters (e.g., 1HGCM82633A004352)`
+          );
+        }
+      }
+    });
+    return errors;
+  };
 
   
   // Get existing transporter data for a specific container/vehicle
@@ -507,15 +501,15 @@ const validateContainers = () => {
                         onChange={(e) =>
                           updateContainerData(index, "containerNo", e.target.value)
                         }
-                        placeholder="Enter VIN (e.g., ABCD1234567)"
+                        placeholder="Enter VIN (e.g., 1HGCM82633A004352)"
                         className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
                       />
                       <p className="text-xs text-gray-500 mt-1 ml-1">
-                        Format: 4 letters + 7 digits
+                        Format: 17 alphanumeric characters
                       </p>
                     </div>
                     <div className="ml-4 text-sm text-gray-500">
-                      {container.containerNo.length}/11
+                      {container.containerNo.length}/17
                     </div>
                   </div>
                 ))}

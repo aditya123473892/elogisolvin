@@ -94,7 +94,7 @@ const PricingScheduleSection = ({
             type="date"
             name="expected_pickup_date"
             className="w-full border rounded-md p-2"
-            value={safeRequestData.expected_pickup_date}
+            value={safeRequestData.expected_pickup_date || today}
             onChange={(e) =>
               setRequestData((prev) => ({
                 ...prev,
@@ -111,7 +111,7 @@ const PricingScheduleSection = ({
             type="time"
             name="expected_pickup_time"
             className="w-full border rounded-md p-2"
-            value={safeRequestData.expected_pickup_time}
+            value={safeRequestData.expected_pickup_time || currentTime}
             onChange={(e) =>
               setRequestData((prev) => ({
                 ...prev,
@@ -128,7 +128,7 @@ const PricingScheduleSection = ({
           <input
             type="date"
             className="w-full border rounded-md p-2"
-            value={safeRequestData.expected_delivery_date}
+            value={safeRequestData.expected_delivery_date || today}
             onChange={(e) =>
               setRequestData({
                 ...safeRequestData,
@@ -145,7 +145,7 @@ const PricingScheduleSection = ({
             type="time"
             name="expected_delivery_time"
             className="w-full border rounded-md p-2"
-            value={safeRequestData.expected_delivery_time || ""}
+            value={safeRequestData.expected_delivery_time || currentTime}
             onChange={(e) =>
               setRequestData({
                 ...safeRequestData,

@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
-import { driverAPI } from "../utils/Api";
+import { driverAPI,vendorAPI } from "../utils/Api";
 
 const DriverDetails = () => {
   const [drivers, setDrivers] = useState([]);
+  const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
+    vendor_id: "",
     terminal_id: "",
     driver_name: "",
     address: "",
@@ -55,9 +57,25 @@ const DriverDetails = () => {
     }
   };
 
-  // Fetch drivers on component mount
+  // Fetch all vendors for dropdown
+  const fetchVendors = async () => {
+    try {
+      const response = await vendorAPI.getAllVendors(); // You'll need to add this API method
+      if (response.success) {
+        setVendors(response.data);
+      } else {
+        toast.error("Failed to fetch vendors");
+      }
+    } catch (error) {
+      console.error("Error fetching vendors:", error);
+      toast.error("Failed to fetch vendors");
+    }
+  };
+
+  // Fetch drivers and vendors on component mount
   useEffect(() => {
     fetchDrivers();
+    fetchVendors();
   }, []);
 
   // Handle form input changes
@@ -73,6 +91,7 @@ const DriverDetails = () => {
   const handleSelectDriver = (driver) => {
     setSelectedDriver(driver);
     setFormData({
+      vendor_id: driver.VENDOR_ID || "",
       terminal_id: driver.TERMINAL_ID || "",
       driver_name: driver.DRIVER_NAME || "",
       address: driver.ADDRESS || "",
@@ -108,6 +127,17 @@ const DriverDetails = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Validate required fields
+    if (!formData.vendor_id) {
+      toast.error("Please select a vendor");
+      return;
+    }
+    
+    if (!formData.driver_name.trim()) {
+      toast.error("Driver name is required");
+      return;
+    }
+    
     try {
       if (isEditing && selectedDriver) {
         // Update existing driver
@@ -117,7 +147,7 @@ const DriverDetails = () => {
           fetchDrivers();
           setIsEditing(false);
         } else {
-          toast.error("Failed to update driver");
+          toast.error(response.error || "Failed to update driver");
         }
       } else {
         // Create new driver
@@ -127,12 +157,12 @@ const DriverDetails = () => {
           fetchDrivers();
           resetForm();
         } else {
-          toast.error("Failed to create driver");
+          toast.error(response.error || "Failed to create driver");
         }
       }
     } catch (error) {
       console.error("Error saving driver:", error);
-      toast.error(error.message || "Failed to save driver");
+      toast.error(error.response?.data?.error || error.message || "Failed to save driver");
     }
   };
 
@@ -148,11 +178,11 @@ const DriverDetails = () => {
           fetchDrivers();
           resetForm();
         } else {
-          toast.error("Failed to delete driver");
+          toast.error(response.error || "Failed to delete driver");
         }
       } catch (error) {
         console.error("Error deleting driver:", error);
-        toast.error(error.message || "Failed to delete driver");
+        toast.error(error.response?.data?.error || error.message || "Failed to delete driver");
       }
     }
   };
@@ -162,6 +192,7 @@ const DriverDetails = () => {
     setSelectedDriver(null);
     setIsEditing(false);
     setFormData({
+      vendor_id: "",
       terminal_id: "",
       driver_name: "",
       address: "",
@@ -192,6 +223,12 @@ const DriverDetails = () => {
     });
   };
 
+  // Get vendor name by ID
+  const getVendorName = (vendorId) => {
+    const vendor = vendors.find(v => v.VENDOR_ID === vendorId);
+    return vendor ? vendor.VENDOR_NAME : 'Unknown Vendor';
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">Driver Management</h1>
@@ -218,8 +255,9 @@ const DriverDetails = () => {
                   onClick={() => handleSelectDriver(driver)}
                 >
                   <div className="font-medium text-gray-900">{driver.DRIVER_NAME}</div>
-                  <div className="text-sm text-gray-500">{driver.DRIVER_CODE}</div>
-                  <div className="text-sm text-gray-500">{driver.VEHICLE_NO}</div>
+                  <div className="text-sm text-gray-500">Code: {driver.DRIVER_CODE || 'N/A'}</div>
+                  <div className="text-sm text-gray-500">Vehicle: {driver.VEHICLE_NO || 'N/A'}</div>
+                  <div className="text-sm text-blue-600">Vendor: {driver.VENDOR_NAME || 'N/A'}</div>
                 </div>
               ))
             )}
@@ -270,6 +308,26 @@ const DriverDetails = () => {
                   {/* Basic Information */}
                   <div className="space-y-4">
                     <h3 className="text-md font-medium text-gray-900 border-b pb-2">Basic Information</h3>
+                    
+                    {/* Vendor Selection - Required Field */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Vendor*</label>
+                      <select
+                        name="vendor_id"
+                        value={formData.vendor_id}
+                        onChange={handleInputChange}
+                        disabled={!isEditing}
+                        required
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+                      >
+                        <option value="">Select Vendor</option>
+                        {vendors.map((vendor) => (
+                          <option key={vendor.VENDOR_ID} value={vendor.VENDOR_ID}>
+                            {vendor.VENDOR_NAME} ({vendor.VENDOR_CODE})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Terminal ID</label>
@@ -322,12 +380,12 @@ const DriverDetails = () => {
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Address</label>
-                      <input
-                        type="text"
+                      <textarea
                         name="address"
                         value={formData.address}
                         onChange={handleInputChange}
                         disabled={!isEditing}
+                        rows="3"
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
                       />
                     </div>
@@ -341,6 +399,7 @@ const DriverDetails = () => {
                           value={formData.blood_group}
                           onChange={handleInputChange}
                           disabled={!isEditing}
+                          placeholder="e.g., A+, B-, O+"
                           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
                         />
                       </div>
@@ -450,6 +509,7 @@ const DriverDetails = () => {
                         value={formData.vehicle_no}
                         onChange={handleInputChange}
                         disabled={!isEditing}
+                        placeholder="e.g., DL01AB1234"
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
                       />
                     </div>
@@ -486,6 +546,7 @@ const DriverDetails = () => {
                         value={formData.dl_doc}
                         onChange={handleInputChange}
                         disabled={!isEditing}
+                        placeholder="Document path/URL"
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
                       />
                     </div>
@@ -498,6 +559,7 @@ const DriverDetails = () => {
                         value={formData.address_doc}
                         onChange={handleInputChange}
                         disabled={!isEditing}
+                        placeholder="Document path/URL"
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
                       />
                     </div>
@@ -517,6 +579,7 @@ const DriverDetails = () => {
                         value={formData.salary}
                         onChange={handleInputChange}
                         disabled={!isEditing}
+                        step="0.01"
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
                       />
                     </div>
@@ -541,6 +604,7 @@ const DriverDetails = () => {
                         value={formData.trip_bal}
                         onChange={handleInputChange}
                         disabled={!isEditing}
+                        step="0.01"
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
                       />
                     </div>
@@ -558,7 +622,7 @@ const DriverDetails = () => {
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Active Flag</label>
+                      <label className="block text-sm font-medium text-gray-700">Active Status</label>
                       <select
                         name="active_flage"
                         value={formData.active_flage}
@@ -566,8 +630,8 @@ const DriverDetails = () => {
                         disabled={!isEditing}
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
                       >
-                        <option value="Y">Yes</option>
-                        <option value="N">No</option>
+                        <option value="Y">Active</option>
+                        <option value="N">Inactive</option>
                       </select>
                     </div>
                     

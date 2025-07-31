@@ -267,23 +267,6 @@ const VinDetailsPage = () => {
   };
   
 
-  // Validate container data for VIN
-  const validateContainers = () => {
-    const errors = [];
-    containers.forEach((container, index) => {
-      if (!container.containerNo.trim()) {
-        errors.push(`VIN ${index + 1}: VIN number is required`);
-      } else {
-        const vinRegex = /^[A-Z0-9]{17}$/;
-        if (!vinRegex.test(container.containerNo)) {
-          errors.push(
-            `VIN ${index + 1}: VIN must be exactly 17 alphanumeric characters (e.g., 1HGCM82633A004352)`
-          );
-        }
-      }
-    });
-    return errors;
-  };
 
   
   // Get existing transporter data for a specific container/vehicle
@@ -307,11 +290,7 @@ const VinDetailsPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
   
-    const errors = validateContainers();
-    if (errors.length > 0) {
-      toast.error(`Please fix the following errors:\n${errors.join("\n")}`);
-      return;
-    }
+   
   
     setIsSubmitting(true);
     try {

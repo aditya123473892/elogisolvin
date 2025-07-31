@@ -671,6 +671,8 @@ export const fleetEquipmentAPI = {
     }
   },
 };
+// Updated driverAPI to match your existing structure
+// Add this to your existing Api.js file where you have the 'api' axios instance
 
 export const driverAPI = {
   // Get all drivers
@@ -728,14 +730,26 @@ export const driverAPI = {
     }
   },
 
-  // Get drivers by vendor ID
+  // Get drivers by vendor ID - Fixed route
   getDriversByVendorId: async (vendorId) => {
     try {
-      const response = await api.get(`/vendor/${vendorId}`);
+      const response = await api.get(`/drivers/vendor/${vendorId}`);
       return response.data;
     } catch (error) {
       console.error("Error fetching drivers by vendor ID:", error);
       throw error.response?.data || error.message;
     }
   },
+
+  // Get vendors for dropdown - Add this method
+  getVendors: async () => {
+    try {
+      const response = await api.get("/vendors"); // or "/drivers/vendors/list" if you prefer the other route
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching vendors:", error);
+      throw error.response?.data || error.message;
+    }
+  }
 };
+

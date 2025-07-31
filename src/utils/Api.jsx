@@ -611,69 +611,6 @@ export const vendorAPI = {
   },
 };
 
-// Add this at the end of the file
-export const fleetEquipmentAPI = {
-  // Get all fleet equipment
-  getAllFleetEquipment: async () => {
-    try {
-      const response = await api.get("/fleet-equipment");
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching fleet equipment:", error);
-      throw error.response?.data || error.message;
-    }
-  },
-
-  // Get fleet equipment by ID
-  getFleetEquipmentById: async (equipmentId) => {
-    try {
-      const response = await api.get(`/fleet-equipment/${equipmentId}`);
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching fleet equipment details:", error);
-      throw error.response?.data || error.message;
-    }
-  },
-
-  // Create new fleet equipment
-  createFleetEquipment: async (equipmentData) => {
-    try {
-      const response = await api.post("/fleet-equipment", equipmentData);
-      return response.data;
-    } catch (error) {
-      console.error("Error creating fleet equipment:", error);
-      throw error.response?.data || error.message;
-    }
-  },
-
-  // Update fleet equipment
-  updateFleetEquipment: async (equipmentId, equipmentData) => {
-    try {
-      const response = await api.put(
-        `/fleet-equipment/${equipmentId}`,
-        equipmentData
-      );
-      return response.data;
-    } catch (error) {
-      console.error("Error updating fleet equipment:", error);
-      throw error.response?.data || error.message;
-    }
-  },
-
-  // Delete fleet equipment
-  deleteFleetEquipment: async (equipmentId) => {
-    try {
-      const response = await api.delete(`/fleet-equipment/${equipmentId}`);
-      return response.data;
-    } catch (error) {
-      console.error("Error deleting fleet equipment:", error);
-      throw error.response?.data || error.message;
-    }
-  },
-};
-// Updated driverAPI to match your existing structure
-// Add this to your existing Api.js file where you have the 'api' axios instance
-
 export const driverAPI = {
   // Get all drivers
   getAllDrivers: async () => {
@@ -748,6 +685,63 @@ export const driverAPI = {
       return response.data;
     } catch (error) {
       console.error("Error fetching vendors:", error);
+      throw error.response?.data || error.message;
+    }
+  }
+};
+
+export const equipmentAPI = {
+  // Get all equipment
+  getAllEquipment: async () => {
+    try {
+      const response = await api.get("/equipment");
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching equipment:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Get equipment by ID
+  getEquipmentById: async (equipmentId) => {
+    try {
+      const response = await api.get(`/equipment/${equipmentId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching equipment details:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Create new equipment
+  createEquipment: async (equipmentData) => {
+    try {
+      const response = await api.post("/equipment", equipmentData);
+      return response.data;
+    } catch (error) {
+      console.error("Error creating equipment:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Update equipment
+  updateEquipment: async (equipmentId, equipmentData) => {
+    try {
+      const response = await api.put(`/equipment/${equipmentId}`, equipmentData);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating equipment:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Delete equipment
+  deleteEquipment: async (equipmentId) => {
+    try {
+      const response = await api.delete(`/equipment/${equipmentId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting equipment:", error);
       throw error.response?.data || error.message;
     }
   }

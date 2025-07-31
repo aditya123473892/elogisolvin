@@ -24,7 +24,9 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 // Add this import at the top with other imports
 import DriverDetails from "./Pages/DriverDetails";
-import FleetEquipmentDetails from "./Pages/FleetEquipmentDetails";
+// Add this import at the top with other imports
+import EquipmentDetails from "./Pages/EquipmentDetails";
+
 import Vindetails from "./Pages/VinDetailsPage";
 
 const DashboardLayout = ({ children }) => {
@@ -185,6 +187,16 @@ function App() {
               </ProtectedRoute>
             }
           />
+              <Route
+            path="/customer/equipments"
+            element={
+              <ProtectedRoute allowedRoles={["Customer"]}>
+                <DashboardLayout>
+                 <EquipmentDetails></EquipmentDetails>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/customer/drivers"
             element={
@@ -205,16 +217,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-<Route
-  path="/customer/fleet-equipment"
-  element={
-    <ProtectedRoute allowedRoles={["Customer"]}>
-      <DashboardLayout>
-        <FleetEquipmentDetails />
-      </DashboardLayout>
-    </ProtectedRoute>
-  }
-/>
+
           
 
           {/* Driver route */}
@@ -228,6 +231,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+          
 
           {/* Root redirect */}
           <Route path="/" element={<RoleRedirect />} />
@@ -252,6 +256,9 @@ function App() {
 }
 
 export default App;
+
+// Add this route in the Routes component, near the other admin routes
+
 
 
 

@@ -60,7 +60,7 @@ export function CustomerSidebar({
     {
       name: "Fleet Equipment",
       icon: FileText,
-      path: "fleet-equipment",
+      path: "equipments",
       description: "Analytics & History",
     },
     {

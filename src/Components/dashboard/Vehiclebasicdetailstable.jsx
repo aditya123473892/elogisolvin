@@ -8,8 +8,8 @@ const VendorSearchInput = ({ value, onChange, placeholder }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState(value || "");
   const [loading, setLoading] = useState(false);
-  const [dropdownPosition, setDropdownPosition] = useState('bottom');
-  
+  const [dropdownPosition, setDropdownPosition] = useState("bottom");
+
   const inputRef = useRef(null);
   const dropdownRef = useRef(null);
 
@@ -51,18 +51,18 @@ const VendorSearchInput = ({ value, onChange, placeholder }) => {
   // Simple dropdown position calculation
   const calculateDropdownPosition = () => {
     if (!inputRef.current) return;
-    
+
     const inputRect = inputRef.current.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
     const dropdownHeight = 200; // Fixed smaller height
-    
+
     const spaceBelow = viewportHeight - inputRect.bottom;
     const spaceAbove = inputRect.top;
-    
+
     if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
-      setDropdownPosition('top');
+      setDropdownPosition("top");
     } else {
-      setDropdownPosition('bottom');
+      setDropdownPosition("bottom");
     }
   };
 
@@ -75,8 +75,12 @@ const VendorSearchInput = ({ value, onChange, placeholder }) => {
   // Handle click outside to close dropdown
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target) &&
-          inputRef.current && !inputRef.current.contains(event.target)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target) &&
+        inputRef.current &&
+        !inputRef.current.contains(event.target)
+      ) {
         setIsOpen(false);
       }
     };
@@ -88,31 +92,31 @@ const VendorSearchInput = ({ value, onChange, placeholder }) => {
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      window.addEventListener('scroll', calculateDropdownPosition, true);
-      window.addEventListener('resize', calculateDropdownPosition);
+      document.addEventListener("mousedown", handleClickOutside);
+      window.addEventListener("scroll", calculateDropdownPosition, true);
+      window.addEventListener("resize", calculateDropdownPosition);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('scroll', calculateDropdownPosition, true);
-      window.removeEventListener('resize', calculateDropdownPosition);
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", calculateDropdownPosition, true);
+      window.removeEventListener("resize", calculateDropdownPosition);
     };
   }, [isOpen, filteredVendors.length]);
 
   // Simple dropdown position styles
   const getDropdownStyles = () => {
-    if (!inputRef.current || !isOpen) return { display: 'none' };
-    
+    if (!inputRef.current || !isOpen) return { display: "none" };
+
     const inputRect = inputRef.current.getBoundingClientRect();
-    
+
     const styles = {
       width: `${Math.max(inputRect.width, 200)}px`,
-      maxHeight: '200px', // Fixed height
+      maxHeight: "200px", // Fixed height
       zIndex: 9999,
     };
 
-    if (dropdownPosition === 'top') {
+    if (dropdownPosition === "top") {
       styles.bottom = `${window.innerHeight - inputRect.top + 4}px`;
       styles.left = `${inputRect.left}px`;
     } else {
@@ -151,8 +155,8 @@ const VendorSearchInput = ({ value, onChange, placeholder }) => {
 
       {/* Improved dropdown with constrained dimensions */}
       {isOpen && filteredVendors.length > 0 && (
-        <div 
-          ref={dropdownRef} 
+        <div
+          ref={dropdownRef}
           className="fixed bg-white border border-gray-300 rounded-md shadow-lg overflow-y-auto"
           style={getDropdownStyles()}
         >
@@ -170,7 +174,8 @@ const VendorSearchInput = ({ value, onChange, placeholder }) => {
                 {vendor.VENDOR_NAME}
               </div>
               <div className="text-sm text-gray-500 truncate">
-                {vendor.VENDOR_CODE || "No code"} | {vendor.CITY || vendor.ADDRESS || "No location"}
+                {vendor.VENDOR_CODE || "No code"} |{" "}
+                {vendor.CITY || vendor.ADDRESS || "No location"}
               </div>
             </div>
           ))}
@@ -178,8 +183,8 @@ const VendorSearchInput = ({ value, onChange, placeholder }) => {
       )}
 
       {isOpen && filteredVendors.length === 0 && searchTerm && (
-        <div 
-          ref={dropdownRef} 
+        <div
+          ref={dropdownRef}
           className="fixed bg-white border border-gray-300 rounded-md shadow-lg"
           style={getDropdownStyles()}
         >
@@ -199,8 +204,8 @@ const DriverSearchInput = ({ value, onChange, vendorName, placeholder }) => {
   const [searchTerm, setSearchTerm] = useState(value || "");
   const [loading, setLoading] = useState(false);
   const [vendorId, setVendorId] = useState(null);
-  const [dropdownPosition, setDropdownPosition] = useState('bottom');
-  
+  const [dropdownPosition, setDropdownPosition] = useState("bottom");
+
   const inputRef = useRef(null);
   const dropdownRef = useRef(null);
 
@@ -211,14 +216,14 @@ const DriverSearchInput = ({ value, onChange, vendorName, placeholder }) => {
         setVendorId(null);
         return;
       }
-      
+
       try {
         console.log("Fetching vendors for name:", vendorName);
         const vendorsResponse = await vendorAPI.getAllVendors();
         const vendors = vendorsResponse.data || vendorsResponse || [];
         console.log("All vendors:", vendors);
-        const vendor = vendors.find(v => v.VENDOR_NAME === vendorName);
-        
+        const vendor = vendors.find((v) => v.VENDOR_NAME === vendorName);
+
         if (vendor) {
           console.log("Found vendor:", vendor);
           setVendorId(vendor.VENDOR_ID);
@@ -231,10 +236,10 @@ const DriverSearchInput = ({ value, onChange, vendorName, placeholder }) => {
         setVendorId(null);
       }
     };
-  
+
     getVendorId();
   }, [vendorName]);
-  
+
   // Second effect to fetch drivers when vendor ID changes
   useEffect(() => {
     const fetchDrivers = async () => {
@@ -244,7 +249,7 @@ const DriverSearchInput = ({ value, onChange, vendorName, placeholder }) => {
         setFilteredDrivers([]);
         return;
       }
-  
+
       setLoading(true);
       try {
         console.log("Fetching drivers for vendor ID:", vendorId);
@@ -262,7 +267,7 @@ const DriverSearchInput = ({ value, onChange, vendorName, placeholder }) => {
         setLoading(false);
       }
     };
-  
+
     fetchDrivers();
   }, [vendorId]);
 
@@ -284,18 +289,18 @@ const DriverSearchInput = ({ value, onChange, vendorName, placeholder }) => {
   // Simple dropdown position calculation
   const calculateDropdownPosition = () => {
     if (!inputRef.current) return;
-    
+
     const inputRect = inputRef.current.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
     const dropdownHeight = 200; // Fixed smaller height
-    
+
     const spaceBelow = viewportHeight - inputRect.bottom;
     const spaceAbove = inputRect.top;
-    
+
     if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
-      setDropdownPosition('top');
+      setDropdownPosition("top");
     } else {
-      setDropdownPosition('bottom');
+      setDropdownPosition("bottom");
     }
   };
 
@@ -307,38 +312,42 @@ const DriverSearchInput = ({ value, onChange, vendorName, placeholder }) => {
   // Handle click outside to close dropdown
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target) &&
-          inputRef.current && !inputRef.current.contains(event.target)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target) &&
+        inputRef.current &&
+        !inputRef.current.contains(event.target)
+      ) {
         setIsOpen(false);
       }
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      window.addEventListener('scroll', calculateDropdownPosition, true);
-      window.addEventListener('resize', calculateDropdownPosition);
+      document.addEventListener("mousedown", handleClickOutside);
+      window.addEventListener("scroll", calculateDropdownPosition, true);
+      window.addEventListener("resize", calculateDropdownPosition);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('scroll', calculateDropdownPosition, true);
-      window.removeEventListener('resize', calculateDropdownPosition);
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", calculateDropdownPosition, true);
+      window.removeEventListener("resize", calculateDropdownPosition);
     };
   }, [isOpen, filteredDrivers.length]);
 
   // Simple dropdown position styles
   const getDropdownStyles = () => {
-    if (!inputRef.current || !isOpen) return { display: 'none' };
-    
+    if (!inputRef.current || !isOpen) return { display: "none" };
+
     const inputRect = inputRef.current.getBoundingClientRect();
-    
+
     const styles = {
-      width: `${Math.max(inputRect.width, 200)}px`,
-      maxHeight: '200px', // Fixed height
+      width: `${Math.max(inputRect.width, 250)}px`, // Increased width for vehicle info
+      maxHeight: "200px", // Fixed height
       zIndex: 9999,
     };
 
-    if (dropdownPosition === 'top') {
+    if (dropdownPosition === "top") {
       styles.bottom = `${window.innerHeight - inputRect.top + 4}px`;
       styles.left = `${inputRect.left}px`;
     } else {
@@ -347,6 +356,33 @@ const DriverSearchInput = ({ value, onChange, vendorName, placeholder }) => {
     }
 
     return styles;
+  };
+
+  // Helper function to format vehicle info
+  const getVehicleInfo = (driver) => {
+    if (driver.VEHICLE_NO) {
+      return `Vehicle: ${driver.VEHICLE_NO}`;
+    } else if (driver.VEHICLE_ID) {
+      return `Vehicle ID: ${driver.VEHICLE_ID}`;
+    } else {
+      return "No vehicle assigned";
+    }
+  };
+
+  // Helper function to get contact info
+  const getContactInfo = (driver) => {
+    const contact = driver.CONTACT_NO || driver.MOBILE_NO;
+    const license = driver.DL_NO;
+
+    if (contact && license) {
+      return `${contact} | License: ${license}`;
+    } else if (contact) {
+      return contact;
+    } else if (license) {
+      return `License: ${license}`;
+    } else {
+      return "No contact info";
+    }
   };
 
   return (
@@ -376,17 +412,17 @@ const DriverSearchInput = ({ value, onChange, vendorName, placeholder }) => {
         )}
       </div>
 
-      {/* Improved dropdown with constrained dimensions */}
+      {/* Enhanced dropdown with vehicle information */}
       {isOpen && filteredDrivers.length > 0 && (
-        <div 
-          ref={dropdownRef} 
+        <div
+          ref={dropdownRef}
           className="fixed bg-white border border-gray-300 rounded-md shadow-lg overflow-y-auto"
           style={getDropdownStyles()}
         >
           {filteredDrivers.map((driver) => (
             <div
               key={driver.DRIVER_ID}
-              className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+              className="px-3 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
               onClick={() => {
                 setSearchTerm(driver.DRIVER_NAME);
                 onChange(driver.DRIVER_NAME, driver);
@@ -396,8 +432,11 @@ const DriverSearchInput = ({ value, onChange, vendorName, placeholder }) => {
               <div className="font-medium text-gray-900 truncate">
                 {driver.DRIVER_NAME}
               </div>
-              <div className="text-sm text-gray-500 truncate">
-                {driver.CONTACT_NO || driver.MOBILE_NO || "No contact"} | License: {driver.DL_NO || "N/A"}
+              <div className="text-sm text-gray-500 truncate mt-1">
+                {getContactInfo(driver)}
+              </div>
+              <div className="text-sm text-blue-600 truncate mt-1">
+                {getVehicleInfo(driver)}
               </div>
             </div>
           ))}
@@ -405,8 +444,8 @@ const DriverSearchInput = ({ value, onChange, vendorName, placeholder }) => {
       )}
 
       {isOpen && filteredDrivers.length === 0 && searchTerm && (
-        <div 
-          ref={dropdownRef} 
+        <div
+          ref={dropdownRef}
           className="fixed bg-white border border-gray-300 rounded-md shadow-lg"
           style={getDropdownStyles()}
         >
@@ -417,8 +456,8 @@ const DriverSearchInput = ({ value, onChange, vendorName, placeholder }) => {
       )}
 
       {!vendorName && isOpen && (
-        <div 
-          ref={dropdownRef} 
+        <div
+          ref={dropdownRef}
           className="fixed bg-white border border-gray-300 rounded-md shadow-lg"
           style={getDropdownStyles()}
         >
@@ -431,7 +470,7 @@ const DriverSearchInput = ({ value, onChange, vendorName, placeholder }) => {
   );
 };
 
-// Updated table component with backward compatibility handler
+// Updated table component with vehicle number auto-fill
 const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
   const validateVehicleData = (field, value) => {
     switch (field) {
@@ -473,15 +512,21 @@ const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
     updateVehicleData(index, "transporterName", vendorName); // Keep old prop updated
   };
 
+  // Updated driver selection handler with vehicle number auto-fill
   const handleDriverSelection = (index, driverName, driverData) => {
     if (driverData) {
       updateVehicleData(index, "driverName", driverName);
-      updateVehicleData(index, "driverContact", driverData.MOBILE_NO || driverData.CONTACT_NO || "");
+      updateVehicleData(
+        index,
+        "driverContact",
+        driverData.MOBILE_NO || driverData.CONTACT_NO || ""
+      );
       updateVehicleData(index, "licenseNumber", driverData.DL_NO || "");
-      
+      updateVehicleData(index, "vehicleNumber", driverData.VEHICLE_NO || ""); // NEW: Auto-fill vehicle number
+
       if (driverData.DL_RENEWABLE_DATE) {
         const date = new Date(driverData.DL_RENEWABLE_DATE);
-        const formattedDate = date.toISOString().split('T')[0];
+        const formattedDate = date.toISOString().split("T")[0];
         updateVehicleData(index, "licenseExpiry", formattedDate);
       }
     } else {
@@ -579,7 +624,9 @@ const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
                 <td className="px-3 py-4 whitespace-nowrap">
                   <DriverSearchInput
                     value={vehicle.driverName}
-                    onChange={(value, driverData) => handleDriverSelection(index, value, driverData)}
+                    onChange={(value, driverData) =>
+                      handleDriverSelection(index, value, driverData)
+                    }
                     vendorName={getVendorName(vehicle)}
                     placeholder="Select driver"
                   />
@@ -679,7 +726,6 @@ const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
             ))}
           </tbody>
         </table>
-        
       </div>
     </div>
   );

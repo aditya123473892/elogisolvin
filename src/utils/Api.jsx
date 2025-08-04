@@ -687,7 +687,7 @@ export const driverAPI = {
       console.error("Error fetching vendors:", error);
       throw error.response?.data || error.message;
     }
-  }
+  },
 };
 
 export const equipmentAPI = {
@@ -727,7 +727,10 @@ export const equipmentAPI = {
   // Update equipment
   updateEquipment: async (equipmentId, equipmentData) => {
     try {
-      const response = await api.put(`/equipment/${equipmentId}`, equipmentData);
+      const response = await api.put(
+        `/equipment/${equipmentId}`,
+        equipmentData
+      );
       return response.data;
     } catch (error) {
       console.error("Error updating equipment:", error);
@@ -744,6 +747,17 @@ export const equipmentAPI = {
       console.error("Error deleting equipment:", error);
       throw error.response?.data || error.message;
     }
-  }
+  },
 };
 
+export const vehicleAPI = {
+  getAllvehicles: async () => {
+    try {
+      const response = await api.get("/vehicles");
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching vehicles:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+};

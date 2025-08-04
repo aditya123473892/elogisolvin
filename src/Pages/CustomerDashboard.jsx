@@ -85,7 +85,6 @@ export default function CustomerDashboard({
     vendorContact: "",
     vehicleNumber: "",
     driverName: "",
-  
   });
 
   // Header functions (matching AdminDashboard)

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
-import { transporterAPI, transporterListAPI } from "../utils/Api"; 
+import { transporterAPI, transporterListAPI } from "../utils/Api";
 import VehicleBasicDetailsTable from "../Components/dashboard/Vehiclebasicdetailstable";
 import VehicleChargesTable from "../Components/dashboard/VehicleChargetable";
 import ContainerDetailsTable from "../Components/dashboard/Containerdetailstable";
+import ModalChecklist from "../Components/dashboard/ModalChecklist";
 const TransporterSearchInput = ({ value, onChange, placeholder }) => {
   const [transporters, setTransporters] = useState([]);
   const [filteredTransporters, setFilteredTransporters] = useState([]);
@@ -263,11 +264,11 @@ export const TransporterDetails = ({
               line: existingDetail.line || "",
               sealNo: existingDetail.seal_no || "",
               numberOfContainers: existingDetail.number_of_containers || "",
-              seal1: existingDetail.seal1 || "", 
-              seal2: existingDetail.seal2 || "", 
-              containerTotalWeight: existingDetail.container_total_weight || "", 
-              cargoTotalWeight: existingDetail.cargo_total_weight || "", 
-              containerType: existingDetail.container_type || "", 
+              seal1: existingDetail.seal1 || "",
+              seal2: existingDetail.seal2 || "",
+              containerTotalWeight: existingDetail.container_total_weight || "",
+              cargoTotalWeight: existingDetail.cargo_total_weight || "",
+              containerType: existingDetail.container_type || "",
               containerSize: existingDetail.container_size || "",
               vehicleType: transporterData?.vehicle_type || "", // Add this line to get vehicle_type from transporterData
             });
@@ -384,37 +385,46 @@ export const TransporterDetails = ({
     if (!vehicle.licenseExpiry) {
       errors.push(`Vehicle ${index + 1}: License expiry date is required`);
     }
-  
 
     return errors;
   };
-  const handleSubmit = async (e) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleOpenModal = (e) => {
     e.preventDefault();
-  
-    if (!transportRequestId) {
-      toast.error("Transport request ID is required");
-      return;
-    }
-  
-    // Validate all vehicles
     const allErrors = [];
     vehicleDataList.forEach((vehicle, index) => {
       const vehicleErrors = validateVehicleData(vehicle, index);
       allErrors.push(...vehicleErrors);
     });
-  
+
     if (allErrors.length > 0) {
       toast.error(`Please fix the following errors:\n${allErrors.join("\n")}`);
       return;
     }
-  
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+  };
+
+  const handleVerifyAndProceed = () => {
+    setIsModalOpen(false);
+    handleSubmit();
+  };
+  const handleSubmit = async () => {
+    if (!transportRequestId) {
+      toast.error("Transport request ID is required");
+      return;
+    }
+
     setIsSubmitting(true);
-  
+
     try {
       const promises = vehicleDataList.map(async (vehicle, index) => {
-        // Convert serviceCharges object to JSON string
         const serviceChargesJson = JSON.stringify(vehicle.serviceCharges || {});
-  
+
         const payload = {
           transport_request_id: transportRequestId,
           transporter_name: vehicle.transporterName.trim(),
@@ -423,7 +433,7 @@ export const TransporterDetails = ({
           driver_contact: vehicle.driverContact.trim(),
           license_number: vehicle.licenseNumber.trim(),
           license_expiry: vehicle.licenseExpiry,
-          base_charge: 0, // Always set to 0
+          base_charge: 0,
           additional_charges: parseFloat(vehicle.additionalCharges) || 0,
           service_charges: serviceChargesJson,
           total_charge: parseFloat(vehicle.totalCharge) || 0,
@@ -441,9 +451,7 @@ export const TransporterDetails = ({
           container_type: vehicle.containerType?.trim() || null,
           container_size: vehicle.containerSize?.trim() || null,
         };
-  
-        console.log(`Saving vehicle ${index + 1}:`, payload);
-  
+
         try {
           const response = vehicle.id
             ? await transporterAPI.updateTransporter(vehicle.id, payload)
@@ -451,18 +459,15 @@ export const TransporterDetails = ({
                 transportRequestId,
                 payload
               );
-              
-          console.log(`Response for vehicle ${index + 1}:`, response);
           return response;
         } catch (error) {
           console.error(`Error saving vehicle ${index + 1}:`, error);
           throw error;
         }
       });
-  
+
       const responses = await Promise.all(promises);
-  
-      // Update vehicle data with response IDs and data
+
       const updatedVehicleList = vehicleDataList.map((vehicle, index) => {
         const response = responses[index];
         if (response.success && response.data) {
@@ -474,26 +479,17 @@ export const TransporterDetails = ({
         }
         return vehicle;
       });
-  
+
       setVehicleDataList(updatedVehicleList);
-  
+
       const successCount = responses.filter((r) => r.success).length;
       const failedCount = responses.length - successCount;
-  
+
       if (successCount === responses.length) {
         toast.success(
           `All ${successCount} vehicle details saved successfully!`
         );
-        
-        // Fetch recent request again after successful submission
-        try {
-          await loadTransporterDetails();
-          console.log("Recent request data refreshed successfully");
-        } catch (refreshError) {
-          console.error("Error refreshing recent request data:", refreshError);
-          // Don't show error toast for refresh failure as main operation succeeded
-        }
-        
+        await loadTransporterDetails();
       } else if (successCount > 0) {
         toast.warning(
           `${successCount} vehicle(s) saved successfully, ${failedCount} failed`
@@ -548,7 +544,7 @@ export const TransporterDetails = ({
       </div>
 
       <div className="p-6">
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleOpenModal} className="space-y-8">
           {/* Vehicle Basic Details Table */}
           <VehicleBasicDetailsTable
             vehicleDataList={vehicleDataList}
@@ -562,7 +558,6 @@ export const TransporterDetails = ({
             services={services}
             updateVehicleData={updateVehicleData}
           />
-
 
           {/* Total Summary */}
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-200">
@@ -635,17 +630,26 @@ export const TransporterDetails = ({
                   {numberOfVehicles > 1 ? "s" : ""})
                 </>
               )}
-           
             </button>
           </div>
-             <ContainerDetailsTable
-  vehicleDataList={vehicleDataList}
-  updateVehicleData={updateVehicleData}
-  transportRequestId={transportRequestId}
-  tripType={vehicleType || (vehicleDataList.length > 0 && vehicleDataList[0].vehicleType ? vehicleDataList[0].vehicleType : "")}
-/>
+          <ContainerDetailsTable
+            vehicleDataList={vehicleDataList}
+            updateVehicleData={updateVehicleData}
+            transportRequestId={transportRequestId}
+            tripType={
+              vehicleType ||
+              (vehicleDataList.length > 0 && vehicleDataList[0].vehicleType
+                ? vehicleDataList[0].vehicleType
+                : "")
+            }
+          />
         </form>
       </div>
+      <ModalChecklist
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onVerify={handleVerifyAndProceed}
+      />
     </div>
   );
 };

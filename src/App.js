@@ -28,6 +28,7 @@ import DriverDetails from "./Pages/DriverDetails";
 import EquipmentDetails from "./Pages/EquipmentDetails";
 
 import Vindetails from "./Pages/VinDetailsPage";
+import ASNManagement from "./Pages/ASNupload";
 
 const DashboardLayout = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
@@ -148,6 +149,16 @@ function App() {
             }
           />
           <Route
+            path="/customer/ASN"
+            element={
+              <ProtectedRoute allowedRoles={["Customer"]}>
+                <DashboardLayout>
+                  <ASNManagement></ASNManagement>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/customer/my-shipments" // Changed from "/my-shipments"
             element={
               <ProtectedRoute allowedRoles={["Customer"]}>
@@ -187,12 +198,12 @@ function App() {
               </ProtectedRoute>
             }
           />
-              <Route
+          <Route
             path="/customer/equipments"
             element={
               <ProtectedRoute allowedRoles={["Customer"]}>
                 <DashboardLayout>
-                 <EquipmentDetails></EquipmentDetails>
+                  <EquipmentDetails></EquipmentDetails>
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -207,18 +218,16 @@ function App() {
               </ProtectedRoute>
             }
           />
-   <Route
+          <Route
             path="/customer/vinpage"
             element={
               <ProtectedRoute allowedRoles={["Customer"]}>
                 <DashboardLayout>
-                 <Vindetails></Vindetails>
+                  <Vindetails></Vindetails>
                 </DashboardLayout>
               </ProtectedRoute>
             }
           />
-
-          
 
           {/* Driver route */}
           <Route
@@ -231,7 +240,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-          
 
           {/* Root redirect */}
           <Route path="/" element={<RoleRedirect />} />
@@ -258,7 +266,3 @@ function App() {
 export default App;
 
 // Add this route in the Routes component, near the other admin routes
-
-
-
-

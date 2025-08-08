@@ -2,12 +2,296 @@ import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { driverAPI, vendorAPI } from "../utils/Api";
 
+// Modal Checklist Component
+const ModalChecklist = ({ isOpen, onClose, onVerify }) => {
+  const [checkedItems, setCheckedItems] = useState({});
+
+  const checklistItems = [
+    "CABIN ROOF",
+    "CABIN INDICATOR",
+    "PANEL LIGHT",
+    "PANEL DISPLAY",
+    "PANEL LOCK",
+    "PANEL TOP GLASS",
+    "GEAR LOCK",
+    "DIESEL TANK KEY",
+    "DIESEL TANK",
+    "SEAT BELT LHS",
+    "SEAT BELT RHS",
+    "DRIVER SEAT",
+    "CONDUCTOR SEAT",
+    "FRONT BUMPER OK/NOT OK",
+    "DASH BOARD ADDITIONAL SPOT",
+    "NUMBER PLATE",
+    "NUMBER PLATE LIGHT",
+    "NUMBER PLATE BULB",
+    "TROLLEY AIR PRESSURE TANK",
+    "HYDROLIC JACK",
+    "HYDROLIC JACK SHOE",
+    "TROLLEY INSIDE LINER SHOE",
+    "PM IN TROLLEY (YES/NO)",
+    "TROLLEY TOOL BOX (TOOL)",
+    "TROLLEY BACK (KHALA)",
+    "TROLLEY SIDE SIDE RAIL",
+    "TROLLEY LHS SIDE WALL",
+    "TROLLEY RHS SIDE WALL",
+    "SIDE END PLATE",
+    "HYDROLIC JACK DECK",
+    "BACK FOOT",
+    "SPARETY INSIDE GRACK",
+    "TROLLEY INSIDE BODY",
+    "TROLLEY FLOOR FOAM",
+    "TROLLEY DOOR",
+    "TROLLEY SIDE BOX INSIDE",
+    "TROLLEY SMALL WINDOW TOP SLIDING OK/NOT OK",
+    "TROLLEY SMALL WINDOW BOTTOM ZND",
+    "TROLLEY REMOTE",
+    "TRAILER FLOOR",
+    "TROLLEY CONTROL BOX ZINK/NOT OK",
+    "UPPER JACK ZINK/GLADER",
+    "TROLLEY MUDGUARD LHS",
+    "TROLLEY MUDGUARD RHS",
+    "TROLLEY INSIDE LINER OK/NOT OK",
+    "HORSE FRONT LHS TYRE NO",
+    "HORSE FRONT RHS TYRE NO",
+    "HORSE REAR LHS TYRE NO",
+    "HORSE REAR RHS TYRE NO",
+    "TROLLY FRONT LHS TYRE NO",
+    "TROLLY FRONT RHS TYRE NO",
+    "TROLLY REAR LHS TYRE NO",
+    "TROLLY REAR RHS TYRE NO",
+    "STEPANY NO",
+    "CABIN FLOOR",
+    "CABIN SIDE MIRROR",
+    "CABIN MIDDLE MIRROR ON TOP",
+    "CABIN INSIDE MIRROR",
+    "CABIN INSIDE MIRROR GLASS",
+    "CABIN WASHSHIELD",
+    "CABIN RHS WINDOW",
+    "CABIN LHS WINDOW",
+    "CABIN FOOTSTEP RHS",
+    "CABIN FOOTSTEP LHS",
+    "CABIN DOOR LHS HANDLE",
+    "CABIN DOOR RHS HANDLE",
+    "CABIN DOOR GLASS HANDLE",
+    "CABIN DOOR GLASS WORKING/NOT WORKING",
+    "FIRE SYLINDER",
+    "PARKING LIGHT FRONT",
+    "CABIN DOOR LOCK",
+    "BATTERY BOX",
+    "STEEL FRAME",
+    "SANDWICH",
+    "HORSE BACK",
+    "HORSE LHS",
+    "HORSE RHS",
+    "HORSE MACHINE",
+    "UPS",
+    "LHS WIPER",
+    "RHS WIPER",
+    "NOX SENSOR",
+    "DIFUSER MACHINE",
+    "UREA NOZZLE",
+    "UREA SENSOR WITH COVER",
+    "BONNET SEAT",
+    "NUMBER OF JACK",
+    "CHASIS/KM READING/ENGINE REG NUMBER",
+    "CARRIER DESCRIPTION WHILE TAKING HANDOVER FROM OEM",
+  ];
+
+  const handleItemCheck = (index) => {
+    setCheckedItems((prev) => ({
+      ...prev,
+      [index]: !prev[index],
+    }));
+  };
+
+  const handleVerify = () => {
+    const checkedCount = Object.values(checkedItems).filter(Boolean).length;
+    if (checkedCount === 0) {
+      toast.warning("Please check at least one item before proceeding");
+      return;
+    }
+    onVerify(checkedItems);
+  };
+
+  const handleClose = () => {
+    setCheckedItems({});
+    onClose();
+  };
+
+  return isOpen ? (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        backgroundColor: "rgba(0,0,0,0.5)",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        zIndex: 999,
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: "#fff",
+          padding: "20px",
+          width: "95%",
+          maxHeight: "90vh",
+          overflowY: "auto",
+          borderRadius: "10px",
+          boxShadow: "0 0 15px rgba(0,0,0,0.2)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "20px",
+          }}
+        >
+          <h2 style={{ margin: 0, color: "#2c3e50" }}>
+            Vehicle Inspection Checklist
+          </h2>
+          <button
+            onClick={handleClose}
+            style={{
+              padding: "6px 12px",
+              backgroundColor: "#e74c3c",
+              color: "#fff",
+              border: "none",
+              borderRadius: "5px",
+              cursor: "pointer",
+            }}
+          >
+            Close
+          </button>
+        </div>
+
+        <div
+          style={{
+            backgroundColor: "#f8f9fa",
+            padding: "10px",
+            borderRadius: "5px",
+            marginBottom: "15px",
+            border: "1px solid #dee2e6",
+          }}
+        >
+          <p style={{ margin: 0, fontSize: "14px", color: "#6c757d" }}>
+            Please verify the vehicle inspection checklist before saving driver
+            details. Check all applicable items and click "Verify and Proceed"
+            to continue.
+          </p>
+          <p
+            style={{
+              margin: "5px 0 0 0",
+              fontSize: "12px",
+              color: "#28a745",
+              fontWeight: "bold",
+            }}
+          >
+            Checked Items: {Object.values(checkedItems).filter(Boolean).length}{" "}
+            / {checklistItems.length}
+          </p>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "10px",
+            marginBottom: "20px",
+          }}
+        >
+          {checklistItems.map((item, index) => (
+            <label
+              key={index}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                padding: "8px 12px",
+                border: "1px solid #ccc",
+                borderRadius: "6px",
+                background: checkedItems[index] ? "#e8f5e8" : "#f9f9f9",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={checkedItems[index] || false}
+                onChange={() => handleItemCheck(index)}
+                style={{ marginRight: "10px", transform: "scale(1.1)" }}
+              />
+              <span
+                style={{
+                  fontSize: "13px",
+                  fontWeight: checkedItems[index] ? "500" : "normal",
+                }}
+              >
+                {item}
+              </span>
+            </label>
+          ))}
+        </div>
+
+        <div
+          style={{
+            textAlign: "center",
+            borderTop: "1px solid #dee2e6",
+            paddingTop: "20px",
+          }}
+        >
+          <button
+            onClick={handleClose}
+            style={{
+              padding: "10px 20px",
+              backgroundColor: "#6c757d",
+              color: "#fff",
+              border: "none",
+              borderRadius: "6px",
+              fontWeight: "bold",
+              cursor: "pointer",
+              marginRight: "10px",
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleVerify}
+            style={{
+              padding: "10px 20px",
+              backgroundColor: "#28a745",
+              color: "#fff",
+              border: "none",
+              borderRadius: "6px",
+              fontWeight: "bold",
+              cursor: "pointer",
+            }}
+          >
+            Verify and Proceed (
+            {Object.values(checkedItems).filter(Boolean).length} items checked)
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+};
+
+// Main Driver Details Component
 const DriverDetails = () => {
   const [drivers, setDrivers] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [pendingFormData, setPendingFormData] = useState(null);
+  const [pendingAction, setPendingAction] = useState(null); // 'create' or 'update'
+
   const [formData, setFormData] = useState({
     vendor_id: "",
     terminal_id: "",
@@ -60,7 +344,7 @@ const DriverDetails = () => {
   // Fetch all vendors for dropdown
   const fetchVendors = async () => {
     try {
-      const response = await vendorAPI.getAllVendors(); // You'll need to add this API method
+      const response = await vendorAPI.getAllVendors();
       if (response.success) {
         setVendors(response.data);
       } else {
@@ -127,7 +411,7 @@ const DriverDetails = () => {
     setIsEditing(false);
   };
 
-  // Handle form submission for creating/updating driver
+  // Handle form submission - now opens modal first
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -142,15 +426,34 @@ const DriverDetails = () => {
       return;
     }
 
+    // Store form data and action type, then show modal
+    setPendingFormData({ ...formData });
+    setPendingAction(isEditing && selectedDriver ? "update" : "create");
+    setShowModal(true);
+  };
+
+  // Handle modal verification - this is where the actual save happens
+  const handleModalVerify = async (checkedItems) => {
+    setShowModal(false);
+
+    if (!pendingFormData || !pendingAction) {
+      toast.error("Something went wrong. Please try again.");
+      return;
+    }
+
     try {
-      if (isEditing && selectedDriver) {
+      let response;
+
+      if (pendingAction === "update" && selectedDriver) {
         // Update existing driver
-        const response = await driverAPI.updateDriver(
+        response = await driverAPI.updateDriver(
           selectedDriver.DRIVER_ID,
-          formData
+          pendingFormData
         );
         if (response.success) {
-          toast.success("Driver updated successfully");
+          toast.success(
+            "Driver updated successfully after inspection verification"
+          );
           fetchDrivers();
           setIsEditing(false);
         } else {
@@ -158,21 +461,42 @@ const DriverDetails = () => {
         }
       } else {
         // Create new driver
-        const response = await driverAPI.createDriver(formData);
+        response = await driverAPI.createDriver(pendingFormData);
         if (response.success) {
-          toast.success("Driver created successfully");
+          toast.success(
+            "Driver created successfully after inspection verification"
+          );
           fetchDrivers();
           resetForm();
         } else {
           toast.error(response.error || "Failed to create driver");
         }
       }
+
+      // Log inspection data (you can save this to database if needed)
+      console.log("Inspection checklist data:", {
+        driverId: response.data?.DRIVER_ID || "new",
+        checkedItems: checkedItems,
+        timestamp: new Date().toISOString(),
+        action: pendingAction,
+      });
     } catch (error) {
       console.error("Error saving driver:", error);
       toast.error(
         error.response?.data?.error || error.message || "Failed to save driver"
       );
+    } finally {
+      // Clear pending data
+      setPendingFormData(null);
+      setPendingAction(null);
     }
+  };
+
+  // Handle modal close
+  const handleModalClose = () => {
+    setShowModal(false);
+    setPendingFormData(null);
+    setPendingAction(null);
   };
 
   // Handle delete driver
@@ -245,6 +569,13 @@ const DriverDetails = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">Driver Management</h1>
+
+      {/* Modal Checklist */}
+      <ModalChecklist
+        isOpen={showModal}
+        onClose={handleModalClose}
+        onVerify={handleModalVerify}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Driver List */}
@@ -338,6 +669,34 @@ const DriverDetails = () => {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Alert about inspection requirement */}
+                {isEditing && (
+                  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <svg
+                          className="h-5 w-5 text-yellow-400"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm text-yellow-700">
+                          <strong>Vehicle Inspection Required:</strong> Before
+                          saving driver details, you'll need to complete the
+                          vehicle inspection checklist.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Basic Information */}
                   <div className="space-y-4">
@@ -757,7 +1116,9 @@ const DriverDetails = () => {
                       type="submit"
                       className="py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                     >
-                      {selectedDriver ? "Update Driver" : "Create Driver"}
+                      {selectedDriver
+                        ? "Complete Inspection & Update Driver"
+                        : "Complete Inspection & Create Driver"}
                     </button>
                   </div>
                 )}

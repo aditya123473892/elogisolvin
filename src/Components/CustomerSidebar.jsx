@@ -64,10 +64,10 @@ export function CustomerSidebar({
       description: "Analytics & History",
     },
     {
-      name: "Support",
+      name: "ASN",
       icon: MessageSquare,
-      path: "support",
-      description: "Help & Contact",
+      path: "ASN",
+      description: "Manage ASN",
     },
     {
       name: "Settings",

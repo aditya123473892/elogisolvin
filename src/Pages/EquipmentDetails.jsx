@@ -93,11 +93,12 @@ const EquipmentDetails = () => {
 
   // Handle form input changes
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
+    const { name, value, type, files } = e.target;
+    if (type === 'file') {
+        setFormData({ ...formData, [name]: files[0] });
+    } else {
+        setFormData({ ...formData, [name]: value });
+    }
   };
 
   // Handle equipment selection
@@ -159,10 +160,15 @@ const EquipmentDetails = () => {
       return;
     }
     
+    const data = new FormData();
+    for (const key in formData) {
+        data.append(key, formData[key]);
+    }
+
     try {
       if (isEditing && selectedEquipment) {
         // Update existing equipment
-        const response = await equipmentAPI.updateEquipment(selectedEquipment.EQUIPMENT_ID, formData);
+        const response = await equipmentAPI.updateEquipment(selectedEquipment.EQUIPMENT_ID, data);
         if (response.success) {
           toast.success("Equipment updated successfully");
           fetchEquipment();
@@ -172,7 +178,7 @@ const EquipmentDetails = () => {
         }
       } else {
         // Create new equipment
-        const response = await equipmentAPI.createEquipment(formData);
+        const response = await equipmentAPI.createEquipment(data);
         if (response.success) {
           toast.success("Equipment created successfully");
           fetchEquipment();
@@ -707,12 +713,11 @@ const EquipmentDetails = () => {
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Fitness Document</label>
                       <input
-                        type="text"
+                        type="file"
                         name="FITNESS_DOC"
-                        value={formData.FITNESS_DOC}
                         onChange={handleInputChange}
                         disabled={!isEditing}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+                        className="mt-1 block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none"
                       />
                     </div>
                     
@@ -731,48 +736,44 @@ const EquipmentDetails = () => {
                     <div>
                       <label className="block text-sm font-medium text-gray-700">RC Document</label>
                       <input
-                        type="text"
+                        type="file"
                         name="RC_DOC"
-                        value={formData.RC_DOC}
                         onChange={handleInputChange}
                         disabled={!isEditing}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+                        className="mt-1 block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none"
                       />
                     </div>
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Insurance Document</label>
                       <input
-                        type="text"
+                        type="file"
                         name="INSURANCE_DOC"
-                        value={formData.INSURANCE_DOC}
                         onChange={handleInputChange}
                         disabled={!isEditing}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+                        className="mt-1 block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none"
                       />
                     </div>
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Permit A</label>
                       <input
-                        type="text"
+                        type="file"
                         name="PERMIT_A"
-                        value={formData.PERMIT_A}
                         onChange={handleInputChange}
                         disabled={!isEditing}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+                        className="mt-1 block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none"
                       />
                     </div>
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Permit B</label>
                       <input
-                        type="text"
+                        type="file"
                         name="PERMIT_B"
-                        value={formData.PERMIT_B}
                         onChange={handleInputChange}
                         disabled={!isEditing}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+                        className="mt-1 block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none"
                       />
                     </div>
                     
@@ -870,12 +871,11 @@ const EquipmentDetails = () => {
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Image</label>
                       <input
-                        type="text"
+                        type="file"
                         name="IMAGE"
-                        value={formData.IMAGE}
                         onChange={handleInputChange}
                         disabled={!isEditing}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+                        className="mt-1 block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none"
                       />
                     </div>
                     

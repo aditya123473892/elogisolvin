@@ -761,3 +761,72 @@ export const vehicleAPI = {
     }
   },
 };
+// Add these functions to your existing api.jsx file
+
+export const asnAPI = {
+  // Get all ASN records
+  getAllASN: async () => {
+    try {
+      const response = await api.get("/asn");
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching ASN records:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Get ASN record by ID
+  getASNById: async (asnId) => {
+    try {
+      const response = await api.get(`/asn/${asnId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching ASN record:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Update ASN record
+  updateASN: async (asnId, asnData) => {
+    try {
+      const response = await api.put(`/asn/${asnId}`, asnData);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating ASN record:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Delete ASN record
+  deleteASN: async (asnId) => {
+    try {
+      const response = await api.delete(`/asn/${asnId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting ASN record:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Create ASN record
+  createASN: async (asnData) => {
+    try {
+      const response = await api.post("/asn", asnData);
+      return response.data;
+    } catch (error) {
+      console.error("Error creating ASN record:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Create bulk ASN records
+  createBulkASN: async (asnDataArray) => {
+    try {
+      const response = await api.post("/asn/bulk", { records: asnDataArray });
+      return response.data;
+    } catch (error) {
+      console.error("Error creating bulk ASN records:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+};

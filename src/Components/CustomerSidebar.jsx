@@ -7,15 +7,12 @@ import {
   Package,
   FileText,
   Settings,
-  DollarSign,
   MessageSquare,
   X,
   LogOut,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { api } from "../utils/Api";
-
 export function CustomerSidebar({
   collapsed,
   toggleSidebar,
@@ -87,7 +84,7 @@ export function CustomerSidebar({
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
   }, [mobileMenuOpen, toggleMobileMenu]);
-
+       
   useEffect(() => {
     if (mobileMenuOpen) {
       document.body.style.overflow = "hidden";
@@ -130,13 +127,11 @@ export function CustomerSidebar({
 
   return (
     <>
-      {/* Sidebar - Desktop */}
-      <div
+     <div
         className={`bg-slate-900 text-white ${
           collapsed ? "w-16" : "w-64"
         } flex-shrink-0 transition-all duration-300 ease-in-out hidden md:flex flex-col shadow-lg border-r border-slate-700 fixed h-full z-40`}
       >
-        {/* Header Section */}
         <div className="p-4 border-b border-slate-700 bg-slate-800/50">
           {collapsed ? (
             <div className="flex flex-col items-center space-y-2">
@@ -174,8 +169,6 @@ export function CustomerSidebar({
             </div>
           )}
         </div>
-
-        {/* Navigation Section */}
         <div className="flex-1 py-4 px-2 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
           {navItems.map((item, index) => (
             <div
@@ -232,8 +225,6 @@ export function CustomerSidebar({
             </div>
           ))}
         </div>
-
-        {/* User Section & Logout */}
         <div className="border-t border-slate-700 p-4 space-y-3 bg-slate-800/30">
           <button
             onClick={handleLogout}
@@ -248,10 +239,7 @@ export function CustomerSidebar({
             )}
           </button>
         </div>
-      </div>
-
-      {/* Mobile Sidebar Overlay */}
-      {mobileMenuOpen && (
+      </div> {mobileMenuOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] md:hidden">
           <div className="absolute inset-0" onClick={toggleMobileMenu} />
           <div
@@ -259,7 +247,6 @@ export function CustomerSidebar({
               mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
             }`}
           >
-            {/* Mobile Header */}
             <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-800 sticky top-0 z-10">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-r from-green-600 to-green-700 rounded-lg flex items-center justify-center shadow-md">
@@ -280,8 +267,6 @@ export function CustomerSidebar({
                 <X className="h-5 w-5 text-slate-200" />
               </button>
             </div>
-
-            {/* Mobile Navigation */}
             <div className="flex-1 py-4 px-3 space-y-2">
               {navItems.map((item, index) => (
                 <Link
@@ -325,9 +310,7 @@ export function CustomerSidebar({
                 </Link>
               ))}
             </div>
-
-            {/* Mobile User Section & Logout */}
-            <div className="border-t border-slate-700 p-4 space-y-3 bg-slate-800/30">
+             <div className="border-t border-slate-700 p-4 space-y-3 bg-slate-800/30">
               {user && (
                 <div className="flex items-center space-x-3 p-3 bg-slate-800 rounded-lg border border-slate-700/50">
                   <div className="flex-1 min-w-0">

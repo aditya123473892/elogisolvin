@@ -19,14 +19,10 @@ import AdminLayout from "./Pages/AdminLayout";
 import ShipmentsPage from "./Pages/Myshipments";
 import ContainerDetailsPage from "./Pages/Containerdetailspage";
 import VendorDetails from "./Pages/VendorDetails";
-// Add these imports
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-// Add this import at the top with other imports
 import DriverDetails from "./Pages/DriverDetails";
-// Add this import at the top with other imports
 import EquipmentDetails from "./Pages/EquipmentDetails";
-
 import Vindetails from "./Pages/VinDetailsPage";
 import ASNManagement from "./Pages/ASNupload";
 

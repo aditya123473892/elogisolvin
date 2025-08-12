@@ -512,8 +512,9 @@ export const locationAPI = {
   // Get all locations
   getAllLocations: async () => {
     try {
-      const response = await api.get("/api/locations");
+      const response = await api.get("/locations");
       return response.data;
+      console.log("Locations fetched successfully:", response.data);
     } catch (error) {
       throw error.response?.data || error.message;
     }

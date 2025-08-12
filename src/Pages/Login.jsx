@@ -15,16 +15,19 @@ import {
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { authAPI, setAuthToken } from "../utils/Api";
+import { locationAPI } from "../utils/Api"; // example
 
 export default function Login() {
   const [isLogin, setIsLogin] = useState(true);
   const [showOtpStep, setShowOtpStep] = useState(false);
+  const [locations, setLocations] = useState([]); // State to hold locations
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     phone: "",
     password: "",
     role: "Customer",
+    location: "",
     otp: "",
   });
   const [loading, setLoading] = useState(false);
@@ -33,6 +36,24 @@ export default function Login() {
   const [otpSession, setOtpSession] = useState(null); // Store session info for OTP verification
   const navigate = useNavigate();
   const { login, signup } = useAuth();
+
+  // Fixed useEffect in your Login component
+  useEffect(() => {
+    const loadLocations = async () => {
+      try {
+        console.log("Starting to load locations...");
+        const data = await locationAPI.getAllLocations();
+        console.log("Locations loaded successfully:", data);
+        setLocations(data);
+      } catch (err) {
+        console.error("Failed to load locations:", err);
+        // Show user-friendly error
+        toast.error("Failed to load locations. Please refresh the page.");
+        setError("Failed to load locations");
+      }
+    };
+    loadLocations();
+  }, []);
 
   // Timer countdown for OTP resend
   useEffect(() => {
@@ -618,6 +639,43 @@ export default function Login() {
                         placeholder="••••••••"
                         required
                       />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="location"
+                        className="block text-sm font-medium text-gray-700 mb-1"
+                      >
+                        Location
+                      </label>
+                      <div className="relative">
+                        <select
+                          id="location"
+                          name="location"
+                          value={formData.location}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setFormData((prev) => ({
+                              ...prev,
+                              location: value,
+                            }));
+                            sessionStorage.setItem("selectedLocation", value); // store in session storage
+                          }}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg appearance-none focus:ring-blue-500 focus:border-blue-500"
+                          required={!isLogin}
+                        >
+                          <option value="" disabled>
+                            Select Location
+                          </option>
+                          {locations.map((loc) => (
+                            <option key={loc.id} value={loc.id}>
+                              {loc.LOCATION_NAME}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                          <ChevronDown className="h-5 w-5 text-gray-400" />
+                        </div>
+                      </div>
                     </div>
                   </div>
 

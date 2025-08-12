@@ -25,6 +25,7 @@ import DriverDetails from "./Pages/DriverDetails";
 import EquipmentDetails from "./Pages/EquipmentDetails";
 import Vindetails from "./Pages/VinDetailsPage";
 import ASNManagement from "./Pages/ASNupload";
+import TransportReports from "./Pages/Reports";
 
 const DashboardLayout = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
@@ -210,6 +211,16 @@ function App() {
               <ProtectedRoute allowedRoles={["Customer"]}>
                 <DashboardLayout>
                   <DriverDetails />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/reports"
+            element={
+              <ProtectedRoute allowedRoles={["Customer"]}>
+                <DashboardLayout>
+                  <TransportReports></TransportReports>
                 </DashboardLayout>
               </ProtectedRoute>
             }

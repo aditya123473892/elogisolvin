@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import "jspdf-autotable";
-import logo from "../images/elogilogo.png"; // Adjust the path as necessary
+import logo from "../images/translogo.png"; // Adjust the path as necessary
 
 export const generateGR = (request, transporterDetails = null) => {
   const copies = ["Original Copy", "Duplicate Copy", "Triplicate Copy"];
@@ -20,17 +20,17 @@ export const generateGR = (request, transporterDetails = null) => {
   const getContainerDetails = () => {
     const firstTransporter = getFirstTransporter();
     if (!firstTransporter) return null;
-    
+
     // If containers array exists, get first container
     if (firstTransporter.containers && firstTransporter.containers.length > 0) {
       return firstTransporter.containers[0];
     }
-    
+
     // Fallback to direct properties
     return {
       container_no: firstTransporter.container_no,
       line: firstTransporter.line,
-      seal_no: firstTransporter.seal_no
+      seal_no: firstTransporter.seal_no,
     };
   };
 
@@ -59,9 +59,14 @@ export const generateGR = (request, transporterDetails = null) => {
     // Main Company Header (keeping this part as requested)
     doc.setFontSize(14);
     doc.setTextColor(0, 0, 255);
-    doc.text("TEAM ELOGISOL", doc.internal.pageSize.width / 2, 28, {
-      align: "center",
-    });
+    doc.text(
+      "TRANSPLUS LOGISTICS PRIVATE LIMITED",
+      doc.internal.pageSize.width / 2,
+      28,
+      {
+        align: "center",
+      }
+    );
 
     doc.setFontSize(8);
     doc.setTextColor(0, 0, 0);
@@ -75,9 +80,9 @@ export const generateGR = (request, transporterDetails = null) => {
     // Updated Company Address and Details (keeping this part as requested)
     doc.setFontSize(7);
     const addressLines = [
-      "Regd. Office: E-6, 3rd Floor, Office No-3, Kalkaji, New Delhi 110019",
+      "Regd. Office:Gf-15 TDI CENTER PLOT NO.7 ,Jasola, New Delhi-110025",
       "Admin Office: Phone No: +91-11-49061530, Mobile: +91-9810296622",
-      "E-mail: amit.singh@elogisol.in Website: www.elogisol.com",
+      "E-mail: ops@transplus.in Website: www.transplus.in",
       "State Code: 07 | GSTIN: 07AABCE3576G1Z1 | PAN: AABCE3576G | CIN: U63090DL2004PTC123819",
     ];
 
@@ -300,9 +305,15 @@ export const generateGR = (request, transporterDetails = null) => {
       50
     );
 
-    const originLocation = formatLocation(request.pickup_location || "Not Specified");
-    const toLocation = formatLocation(request.delivery_location || "Not Specified");
-    const handoverLocation = formatLocation(request.delivery_location || "Not Specified");
+    const originLocation = formatLocation(
+      request.pickup_location || "Not Specified"
+    );
+    const toLocation = formatLocation(
+      request.delivery_location || "Not Specified"
+    );
+    const handoverLocation = formatLocation(
+      request.delivery_location || "Not Specified"
+    );
 
     // Format date from API data
     const formatDate = (dateString) => {
@@ -321,7 +332,12 @@ export const generateGR = (request, transporterDetails = null) => {
           content: "GR No",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: request.formatted_request_id || request.id?.toString() || "Not Available" },
+        {
+          content:
+            request.formatted_request_id ||
+            request.id?.toString() ||
+            "Not Available",
+        },
       ],
       [
         {
@@ -389,7 +405,8 @@ export const generateGR = (request, transporterDetails = null) => {
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
         {
-          content: request.commodity || request.description || "MISCELLANEOUS GOODS",
+          content:
+            request.commodity || request.description || "MISCELLANEOUS GOODS",
           styles: { colSpan: 3 },
         },
         "",
@@ -447,7 +464,7 @@ export const generateGR = (request, transporterDetails = null) => {
         const match = request.vehicle_size.match(/(\d+)/);
         return match ? match[1] : "40";
       }
-      
+
       // Try to determine from container counts
       if (request.containers_40ft && parseInt(request.containers_40ft) > 0) {
         return "40";
@@ -455,7 +472,7 @@ export const generateGR = (request, transporterDetails = null) => {
       if (request.containers_20ft && parseInt(request.containers_20ft) > 0) {
         return "20";
       }
-      
+
       return "40"; // Default
     };
 
@@ -465,7 +482,13 @@ export const generateGR = (request, transporterDetails = null) => {
           content: "Jo No",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: request.job_number || request.formatted_request_id || request.id?.toString() || "Not Available" },
+        {
+          content:
+            request.job_number ||
+            request.formatted_request_id ||
+            request.id?.toString() ||
+            "Not Available",
+        },
         {
           content: "(TO BE FILLED BY PARTY)",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230], colSpan: 2 },
@@ -477,7 +500,12 @@ export const generateGR = (request, transporterDetails = null) => {
           content: "Container No",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: containerDetails?.container_no || request.container_number || "Not Available" },
+        {
+          content:
+            containerDetails?.container_no ||
+            request.container_number ||
+            "Not Available",
+        },
         {
           content: "Party Ref No.",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
@@ -506,38 +534,59 @@ export const generateGR = (request, transporterDetails = null) => {
           content: "Seal No",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: containerDetails?.seal_no || request.seal_number || "Not Available" },
+        {
+          content:
+            containerDetails?.seal_no || request.seal_number || "Not Available",
+        },
       ],
       [
         {
           content: "Line",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: containerDetails?.line || request.shipping_line || "Not Available" },
+        {
+          content:
+            containerDetails?.line || request.shipping_line || "Not Available",
+        },
         {
           content: "Factory Site Reporting",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: request.factory_reporting_date ? formatDate(request.factory_reporting_date) : "-" },
+        {
+          content: request.factory_reporting_date
+            ? formatDate(request.factory_reporting_date)
+            : "-",
+        },
       ],
       [
         {
           content: "Seal No",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: containerDetails?.seal_no || request.seal_number || "Not Available" },
+        {
+          content:
+            containerDetails?.seal_no || request.seal_number || "Not Available",
+        },
         {
           content: "Factory Site Release",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: request.factory_release_date ? formatDate(request.factory_release_date) : "-" },
+        {
+          content: request.factory_release_date
+            ? formatDate(request.factory_release_date)
+            : "-",
+        },
       ],
       [
         {
           content: "Pay Load",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
-        { content: `${request.cargo_weight || "Not Specified"} ${request.cargo_weight ? 'kg' : ''}` },
+        {
+          content: `${request.cargo_weight || "Not Specified"} ${
+            request.cargo_weight ? "kg" : ""
+          }`,
+        },
         {
           content: "VIA",
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
@@ -559,7 +608,11 @@ export const generateGR = (request, transporterDetails = null) => {
           styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
         },
         {
-          content: request.port || request.origin_port || request.destination_port || "Not Specified",
+          content:
+            request.port ||
+            request.origin_port ||
+            request.destination_port ||
+            "Not Specified",
           styles: { colSpan: 3 },
         },
         "",
@@ -626,7 +679,8 @@ export const generateGR = (request, transporterDetails = null) => {
     // Footer with dynamic URL using API data
     doc.setFontSize(6);
     doc.setTextColor(0, 0, 255);
-    const grNumber = request.formatted_request_id || request.id?.toString() || "default";
+    const grNumber =
+      request.formatted_request_id || request.id?.toString() || "default";
     doc.text(
       `https://www.elogfreight.com/GR.PH?uen6PRNT&Pthm-num-IDNO=sp=${grNumber}`,
       14,

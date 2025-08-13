@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import logo from "../images/elogilogo.png"; // Adjust the path as necessary
+import logo from "../images/translogo.png"; // Adjust the path as necessary
 
 export const generateInvoice = (request, transporterDetails) => {
   try {
@@ -18,13 +18,15 @@ export const generateInvoice = (request, transporterDetails) => {
     // Header section
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
-    doc.text("TEAM ELOGISOL PVT. LTD.", pageWidth / 2, 20, { align: "center" });
+    doc.text("Transplus Logistics Pvt Ltd.", pageWidth / 2, 20, {
+      align: "center",
+    });
     doc.setLineWidth(0.3);
 
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     doc.text(
-      "Regd. Office: E-6, 3rd Floor, Office No-3, Kalkaji, New Delhi 110019",
+      "Gf-15 TDI CENTER PLOT NO.7 ,Jasola, New Delhi-110025",
       pageWidth / 2,
       28,
       { align: "center" }
@@ -35,10 +37,10 @@ export const generateInvoice = (request, transporterDetails) => {
       33,
       { align: "center" }
     );
-    doc.text("E-mail: amit.singh@elogisol.in", pageWidth / 2, 38, {
+    doc.text("E-mail: ops@transplus.in", pageWidth / 2, 38, {
       align: "center",
     });
-    doc.text("Website: www.elogisol.com", pageWidth / 2, 43, {
+    doc.text("Website: www.transplus.in", pageWidth / 2, 43, {
       align: "center",
     });
     doc.text("State Code: 07 GSTIN: 07AABCE3576G1Z1", pageWidth / 2, 48, {
@@ -51,7 +53,7 @@ export const generateInvoice = (request, transporterDetails) => {
 
     // Add company logo
     try {
-      doc.addImage(logo, "PNG", 15, 15, 30, 20); // Add logo at (15, 15, 30, 25)
+      doc.addImage(logo, "PNG", 18, 15, 30, 20); // Add logo at (15, 15, 30, 25)
     } catch (error) {
       console.error("Error adding logo to PDF:", error);
       // Fallback to placeholder if logo fails
@@ -96,7 +98,11 @@ export const generateInvoice = (request, transporterDetails) => {
     doc.text("Invoice:", pageWidth - 80, 85);
     doc.text(`ECAB/${request.id}/00${request.id}`, pageWidth - 35, 85);
     doc.text("Dated:", pageWidth - 80, 92);
-    doc.text(new Date(request.created_at).toLocaleDateString("en-GB"), pageWidth - 35, 92);
+    doc.text(
+      new Date(request.created_at).toLocaleDateString("en-GB"),
+      pageWidth - 35,
+      92
+    );
     doc.text("Place of Supply:", pageWidth - 80, 99);
     doc.text("07", pageWidth - 35, 99);
     doc.text("Size/Type:", pageWidth - 80, 106);
@@ -104,14 +110,44 @@ export const generateInvoice = (request, transporterDetails) => {
     doc.text("Line:", pageWidth - 80, 113);
     doc.text(transporterDetails[0]?.line || "N/A", pageWidth - 35, 113);
     doc.text("POL:", pageWidth - 80, 120);
-    doc.text(request.pickup_location ? request.pickup_location.split(',')[0] : "N/A", pageWidth - 35, 120);
+    doc.text(
+      request.pickup_location ? request.pickup_location.split(",")[0] : "N/A",
+      pageWidth - 35,
+      120
+    );
     doc.text("POD:", pageWidth - 80, 127);
-    doc.text(request.delivery_location ? request.delivery_location.split(',')[0] : "N/A", pageWidth - 35, 127);
+    doc.text(
+      request.delivery_location
+        ? request.delivery_location.split(",")[0]
+        : "N/A",
+      pageWidth - 35,
+      127
+    );
 
     // Location details - from API data
-    doc.text(`Empty Pickup: ${request.pickup_location ? request.pickup_location.split(',')[0] : "N/A"}`, 15, 142);
-    doc.text(`Factory Location: ${request.stuffing_location || request.pickup_location || "N/A"}`, 100, 142);
-    doc.text(`Handover ICD: ${request.delivery_location ? request.delivery_location.split(',')[0] : "N/A"}`, pageWidth - 50, 142);
+    doc.text(
+      `Empty Pickup: ${
+        request.pickup_location ? request.pickup_location.split(",")[0] : "N/A"
+      }`,
+      15,
+      142
+    );
+    doc.text(
+      `Factory Location: ${
+        request.stuffing_location || request.pickup_location || "N/A"
+      }`,
+      100,
+      142
+    );
+    doc.text(
+      `Handover ICD: ${
+        request.delivery_location
+          ? request.delivery_location.split(",")[0]
+          : "N/A"
+      }`,
+      pageWidth - 50,
+      142
+    );
 
     // Summary of Charges header
     doc.setFontSize(11);

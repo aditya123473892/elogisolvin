@@ -67,9 +67,9 @@ export function CustomerSidebar({
       description: "Manage ASN",
     },
     {
-      name: "Settings",
+      name: "Reports",
       icon: Settings,
-      path: "settings",
+      path: "reports",
       description: "Account Configuration",
     },
   ];

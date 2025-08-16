@@ -172,6 +172,9 @@ const ShipmentDetailsModal = ({
                 Shipment Details
               </h3>
               <p className="text-indigo-100 mt-1 text-sm font-medium">
+                Shipa No. {shipment.SHIPA_NO}
+              </p>
+              <p className="text-indigo-100 mt-1 text-sm font-medium">
                 ID: {shipment.id}
               </p>
             </div>
@@ -267,10 +270,10 @@ const ShipmentDetailsModal = ({
                       : "N/A"
                   }
                 />
-                <InfoRow
+                {/* <InfoRow
                   label="Number of Vehicles"
                   value={shipment.no_of_vehicles || "N/A"}
-                />
+                /> */}
                 <InfoRow
                   label="Stuffing Location"
                   value={shipment.stuffing_location || "N/A"}
@@ -317,7 +320,8 @@ const ShipmentDetailsModal = ({
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     Expected: {formatDate(shipment.expected_pickup_date)}
-                    {shipment.expected_pickup_time && ` at ${shipment.expected_pickup_time}`}
+                    {shipment.expected_pickup_time &&
+                      ` at ${shipment.expected_pickup_time}`}
                   </p>
                 </div>
                 <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
@@ -330,7 +334,8 @@ const ShipmentDetailsModal = ({
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     Expected: {formatDate(shipment.expected_delivery_date)}
-                    {shipment.expected_delivery_time && ` at ${shipment.expected_delivery_time}`}
+                    {shipment.expected_delivery_time &&
+                      ` at ${shipment.expected_delivery_time}`}
                   </p>
                 </div>
               </div>

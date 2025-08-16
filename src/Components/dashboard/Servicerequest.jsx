@@ -45,6 +45,7 @@ const ServiceRequestForm = ({
     expected_delivery_time: currentTime,
     transporterDetails: [],
     vehicle_status: "Empty",
+    SHIPA_NO: "",
     ...requestData,
   };
 

@@ -555,6 +555,9 @@ export const servicesAPI = {
   },
 };
 
+// Assuming you have a base API instance configured
+// import api from './baseApi'; // Your configured axios instance
+
 export const vendorAPI = {
   // Get all vendors
   getAllVendors: async () => {
@@ -562,7 +565,6 @@ export const vendorAPI = {
       const response = await api.get("/vendors");
       return response.data;
     } catch (error) {
-      console.error("Error fetching vendors:", error);
       throw error.response?.data || error.message;
     }
   },
@@ -573,29 +575,49 @@ export const vendorAPI = {
       const response = await api.get(`/vendors/${vendorId}`);
       return response.data;
     } catch (error) {
-      console.error("Error fetching vendor details:", error);
       throw error.response?.data || error.message;
     }
   },
 
-  // Create new vendor
-  createVendor: async (vendorData) => {
+  // Get vendor document
+  getVendorDocument: async (vendorId, documentNumber) => {
     try {
-      const response = await api.post("/vendors", vendorData);
+      const response = await api.get(
+        `/vendors/${vendorId}/document/${documentNumber}`,
+        {
+          responseType: "blob",
+        }
+      );
       return response.data;
     } catch (error) {
-      console.error("Error creating vendor:", error);
       throw error.response?.data || error.message;
     }
   },
 
-  // Update vendor
-  updateVendor: async (vendorId, vendorData) => {
+  // Create new vendor with documents
+  createVendor: async (formData) => {
     try {
-      const response = await api.put(`/vendors/${vendorId}`, vendorData);
+      const response = await api.post("/vendors", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
       return response.data;
     } catch (error) {
-      console.error("Error updating vendor:", error);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Update vendor with documents
+  updateVendor: async (vendorId, formData) => {
+    try {
+      const response = await api.put(`/vendors/${vendorId}`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      return response.data;
+    } catch (error) {
       throw error.response?.data || error.message;
     }
   },
@@ -606,10 +628,59 @@ export const vendorAPI = {
       const response = await api.delete(`/vendors/${vendorId}`);
       return response.data;
     } catch (error) {
-      console.error("Error deleting vendor:", error);
       throw error.response?.data || error.message;
     }
   },
+};
+
+// 2. Update these functions in your VendorDetails component:
+
+const createVendorWithDocuments = async (formData, documentFiles) => {
+  const data = new FormData();
+
+  // Append all form data
+  Object.keys(formData).forEach((key) => {
+    if (
+      formData[key] !== null &&
+      formData[key] !== undefined &&
+      formData[key] !== ""
+    ) {
+      data.append(key, formData[key]);
+    }
+  });
+
+  // Append document files
+  if (documentFiles?.length > 0) {
+    documentFiles.forEach((file) => {
+      data.append("documents", file);
+    });
+  }
+
+  return await vendorAPI.createVendor(data);
+};
+
+const updateVendorWithDocuments = async (id, formData, documentFiles) => {
+  const data = new FormData();
+
+  // Append all form data
+  Object.keys(formData).forEach((key) => {
+    if (
+      formData[key] !== null &&
+      formData[key] !== undefined &&
+      formData[key] !== ""
+    ) {
+      data.append(key, formData[key]);
+    }
+  });
+
+  // Append document files (only if new files are selected)
+  if (documentFiles?.length > 0) {
+    documentFiles.forEach((file) => {
+      data.append("documents", file);
+    });
+  }
+
+  return await vendorAPI.updateVendor(id, data);
 };
 
 export const driverAPI = {

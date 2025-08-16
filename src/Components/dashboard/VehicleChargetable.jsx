@@ -17,7 +17,7 @@ const VehicleChargesTable = ({
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                 Vehicle Number
               </th>
-            
+
               {services.map((serviceName) => (
                 <th
                   key={serviceName}
@@ -42,7 +42,7 @@ const VehicleChargesTable = ({
                     {vehicle.vehicleNumber}
                   </span>
                 </td>
-               
+
                 {services.map((serviceName) => (
                   <td key={serviceName} className="px-4 py-4 whitespace-nowrap">
                     <input
@@ -60,17 +60,11 @@ const VehicleChargesTable = ({
                           updatedCharges
                         );
 
-                        // Change this calculation to remove baseCharge
-                        const serviceTotal = Object.values(updatedCharges).reduce(
-                          (sum, val) => sum + (parseFloat(val) || 0),
-                          0
-                        );
-                        const newTotal =
-                          // (parseFloat(vehicle.baseCharge) || 0) + // Remove this line
-                          (parseFloat(vehicle.additionalCharges) || 0) +
-                          serviceTotal;
+                        const serviceTotal = Object.values(
+                          updatedCharges
+                        ).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
 
-                        updateVehicleData(index, "totalCharge", newTotal);
+                        updateVehicleData(index, "totalCharge", serviceTotal);
                       }}
                       placeholder={`${serviceName} charge`}
                       min="0"
@@ -89,16 +83,7 @@ const VehicleChargesTable = ({
                         "additionalCharges",
                         e.target.value
                       );
-
-                      const serviceTotal = Object.values(
-                        vehicle.serviceCharges || {}
-                      ).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
-                      const newTotal =
-                        // (parseFloat(vehicle.baseCharge) || 0) + // Remove this line
-                        (parseFloat(e.target.value) || 0) +
-                        serviceTotal;
-
-                      updateVehicleData(index, "totalCharge", newTotal);
+                      // No update to totalCharge here to exclude additionalCharges
                     }}
                     placeholder="Additional charges"
                     min="0"

@@ -1,8 +1,8 @@
 import React from "react";
 import ServicesSelection from "../dashboard/ServiceSelection";
 
-const PricingScheduleSection = ({ 
-  safeRequestData, 
+const PricingScheduleSection = ({
+  safeRequestData,
   setRequestData,
   services,
   loadingServices,
@@ -12,7 +12,7 @@ const PricingScheduleSection = ({
   setIsNewServiceModalOpen,
   handleServiceAdded,
   today,
-  currentTime
+  currentTime,
 }) => {
   const currentNoOfVehicles = parseInt(safeRequestData.no_of_vehicles) || 1;
 
@@ -70,10 +70,10 @@ const PricingScheduleSection = ({
                     )}
                   </span>
                 </div>
-                <div className="flex justify-between text-sm">
+                {/* <div className="flex justify-between text-sm">
                   <span>Number of vehicles:</span>
                   <span>{currentNoOfVehicles}</span>
-                </div>
+                </div> */}
                 <div className="flex justify-between font-bold text-lg border-t pt-1 mt-1">
                   <span>Total Charge:</span>
                   <span>₹{totalCharge.toFixed(2)}</span>

@@ -13,7 +13,8 @@ import {
 const parseServiceType = (serviceType) => {
   if (!serviceType) return [];
   try {
-    const parsed = typeof serviceType === "string" ? JSON.parse(serviceType) : serviceType;
+    const parsed =
+      typeof serviceType === "string" ? JSON.parse(serviceType) : serviceType;
     return Array.isArray(parsed) ? parsed : [];
   } catch (e) {
     console.error("Error parsing service type:", e);
@@ -24,7 +25,9 @@ const parseServiceType = (serviceType) => {
 const parseServicePrices = (servicePrices) => {
   if (!servicePrices) return {};
   try {
-    return typeof servicePrices === "string" ? JSON.parse(servicePrices) : servicePrices;
+    return typeof servicePrices === "string"
+      ? JSON.parse(servicePrices)
+      : servicePrices;
   } catch (e) {
     console.error("Error parsing service prices:", e);
     return {};
@@ -33,12 +36,12 @@ const parseServicePrices = (servicePrices) => {
 
 const formatCurrency = (amount) => {
   if (!amount || amount === 0) return "Not specified";
-  return `₹${Number(amount).toLocaleString('en-IN')}`;
+  return `₹${Number(amount).toLocaleString("en-IN")}`;
 };
 
 const formatDateTime = (date, time) => {
   if (!date) return "Not specified";
-  const formattedDate = new Date(date).toLocaleDateString('en-IN');
+  const formattedDate = new Date(date).toLocaleDateString("en-IN");
   return time ? `${formattedDate} at ${time}` : formattedDate;
 };
 
@@ -60,13 +63,13 @@ const getStatusColor = (status) => {
 // Function to group vehicles by unique identifier and consolidate containers
 const groupVehiclesByIdentifier = (transporterDetails) => {
   if (!transporterDetails || transporterDetails.length === 0) return [];
-  
+
   const vehicleMap = new Map();
-  
+
   transporterDetails.forEach((detail) => {
     // Create a unique key for each vehicle (vehicle_number + transporter_name for safety)
     const vehicleKey = `${detail.vehicle_number}_${detail.transporter_name}`;
-    
+
     if (vehicleMap.has(vehicleKey)) {
       // Add container to existing vehicle
       const existingVehicle = vehicleMap.get(vehicleKey);
@@ -75,24 +78,28 @@ const groupVehiclesByIdentifier = (transporterDetails) => {
           container_no: detail.container_no,
           line: detail.line,
           seal_no: detail.seal_no,
-          id: detail.id
+          id: detail.id,
         });
       }
     } else {
       // Create new vehicle entry
       const vehicleData = {
         ...detail,
-        containers: detail.container_no ? [{
-          container_no: detail.container_no,
-          line: detail.line,
-          seal_no: detail.seal_no,
-          id: detail.id
-        }] : []
+        containers: detail.container_no
+          ? [
+              {
+                container_no: detail.container_no,
+                line: detail.line,
+                seal_no: detail.seal_no,
+                id: detail.id,
+              },
+            ]
+          : [],
       };
       vehicleMap.set(vehicleKey, vehicleData);
     }
   });
-  
+
   return Array.from(vehicleMap.values());
 };
 
@@ -117,7 +124,9 @@ export default function RequestModal({
         <div className="sticky top-0 bg-white px-6 py-4 border-b border-gray-200">
           <div className="flex justify-between items-center">
             <h3 className="text-xl font-semibold text-gray-900">
-              {selectedRequest.formatted_request_id || `Booking #${selectedRequest.id}`} - Complete Details
+              {selectedRequest.formatted_request_id ||
+                `Booking #${selectedRequest.id}`}{" "}
+              - Complete Details
             </h3>
             <button
               onClick={onClose}
@@ -140,7 +149,9 @@ export default function RequestModal({
               <div className="space-y-4">
                 {/* Customer Information */}
                 <div className="bg-white p-4 rounded-lg border">
-                  <h5 className="font-medium text-gray-900 mb-3">Customer Information</h5>
+                  <h5 className="font-medium text-gray-900 mb-3">
+                    Customer Information
+                  </h5>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">
@@ -179,7 +190,9 @@ export default function RequestModal({
 
                 {/* Vehicle & Cargo Information */}
                 <div className="bg-white p-4 rounded-lg border">
-                  <h5 className="font-medium text-gray-900 mb-3">Vehicle & Cargo Information</h5>
+                  <h5 className="font-medium text-gray-900 mb-3">
+                    Vehicle & Cargo Information
+                  </h5>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">
@@ -213,14 +226,14 @@ export default function RequestModal({
                         {selectedRequest.cargo_type || "Not specified"}
                       </div>
                     </div>
-                    <div>
+                    {/* <div>
                       <label className="block text-sm font-medium text-gray-700">
                         Number of Vehicles
                       </label>
                       <div className="text-sm text-gray-900">
                         {selectedRequest.no_of_vehicles || 1}
                       </div>
-                    </div>
+                    </div> */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700">
                         Vehicle Status
@@ -266,7 +279,7 @@ export default function RequestModal({
                     <DollarSign className="h-4 w-4 mr-1" />
                     Service Types & Pricing
                   </h5>
-                  
+
                   <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Service Types
@@ -305,12 +318,21 @@ export default function RequestModal({
                       <div className="text-sm text-gray-900">
                         {Object.keys(servicePrices).length > 0 ? (
                           <div className="space-y-1">
-                            {Object.entries(servicePrices).map(([service, price]) => (
-                              <div key={service} className="flex justify-between">
-                                <span className="text-gray-600">{service}:</span>
-                                <span className="font-medium">{formatCurrency(price)}</span>
-                              </div>
-                            ))}
+                            {Object.entries(servicePrices).map(
+                              ([service, price]) => (
+                                <div
+                                  key={service}
+                                  className="flex justify-between"
+                                >
+                                  <span className="text-gray-600">
+                                    {service}:
+                                  </span>
+                                  <span className="font-medium">
+                                    {formatCurrency(price)}
+                                  </span>
+                                </div>
+                              )
+                            )}
                           </div>
                         ) : (
                           "No service prices specified"
@@ -322,7 +344,9 @@ export default function RequestModal({
 
                 {/* Location Information */}
                 <div className="bg-white p-4 rounded-lg border">
-                  <h5 className="font-medium text-gray-900 mb-3">Location Information</h5>
+                  <h5 className="font-medium text-gray-900 mb-3">
+                    Location Information
+                  </h5>
                   <div className="space-y-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">
@@ -366,7 +390,10 @@ export default function RequestModal({
                         Expected Pickup
                       </label>
                       <div className="text-sm text-gray-900">
-                        {formatDateTime(selectedRequest.expected_pickup_date, selectedRequest.expected_pickup_time)}
+                        {formatDateTime(
+                          selectedRequest.expected_pickup_date,
+                          selectedRequest.expected_pickup_time
+                        )}
                       </div>
                     </div>
                     <div>
@@ -375,7 +402,10 @@ export default function RequestModal({
                         Expected Delivery
                       </label>
                       <div className="text-sm text-gray-900">
-                        {formatDateTime(selectedRequest.expected_delivery_date, selectedRequest.expected_delivery_time)}
+                        {formatDateTime(
+                          selectedRequest.expected_delivery_date,
+                          selectedRequest.expected_delivery_time
+                        )}
                       </div>
                     </div>
                     <div>
@@ -383,7 +413,9 @@ export default function RequestModal({
                         Request Created
                       </label>
                       <div className="text-sm text-gray-900">
-                        {new Date(selectedRequest.created_at).toLocaleString('en-IN')}
+                        {new Date(selectedRequest.created_at).toLocaleString(
+                          "en-IN"
+                        )}
                       </div>
                     </div>
                     <div>
@@ -391,7 +423,9 @@ export default function RequestModal({
                         Last Updated
                       </label>
                       <div className="text-sm text-gray-900">
-                        {new Date(selectedRequest.updated_at).toLocaleString('en-IN')}
+                        {new Date(selectedRequest.updated_at).toLocaleString(
+                          "en-IN"
+                        )}
                       </div>
                     </div>
                   </div>
@@ -419,7 +453,7 @@ export default function RequestModal({
                           ? `(Sequence: ${transporter.vehicle_sequence})`
                           : ""}
                       </h5>
-                      
+
                       {/* Vehicle Basic Details */}
                       <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -468,60 +502,68 @@ export default function RequestModal({
                           </label>
                           <div className="text-sm text-gray-900">
                             {transporter.license_expiry
-                              ? new Date(transporter.license_expiry).toLocaleDateString('en-IN')
+                              ? new Date(
+                                  transporter.license_expiry
+                                ).toLocaleDateString("en-IN")
                               : "Not specified"}
                           </div>
                         </div>
                       </div>
 
                       {/* Container Details - Multiple containers per vehicle */}
-                      {transporter.containers && transporter.containers.length > 0 && (
-                        <div className="mt-4 pt-4 border-t">
-                          <h6 className="font-medium text-gray-900 mb-3">
-                            Container Details ({transporter.containers.length} container{transporter.containers.length > 1 ? 's' : ''})
-                          </h6>
-                          <div className="space-y-3">
-                            {transporter.containers.map((container, containerIndex) => (
-                              <div
-                                key={container.id || containerIndex}
-                                className="bg-gray-50 p-3 rounded-lg"
-                              >
-                                <div className="flex justify-between items-center mb-2">
-                                  <span className="text-sm font-medium text-gray-700">
-                                    Container {containerIndex + 1}
-                                  </span>
-                                </div>
-                                <div className="grid grid-cols-3 gap-3">
-                                  <div>
-                                    <label className="block text-xs font-medium text-gray-600">
-                                      Container Number
-                                    </label>
-                                    <div className="text-sm text-gray-900">
-                                      {container.container_no || "Not specified"}
+                      {transporter.containers &&
+                        transporter.containers.length > 0 && (
+                          <div className="mt-4 pt-4 border-t">
+                            <h6 className="font-medium text-gray-900 mb-3">
+                              Container Details ({transporter.containers.length}{" "}
+                              container
+                              {transporter.containers.length > 1 ? "s" : ""})
+                            </h6>
+                            <div className="space-y-3">
+                              {transporter.containers.map(
+                                (container, containerIndex) => (
+                                  <div
+                                    key={container.id || containerIndex}
+                                    className="bg-gray-50 p-3 rounded-lg"
+                                  >
+                                    <div className="flex justify-between items-center mb-2">
+                                      <span className="text-sm font-medium text-gray-700">
+                                        Container {containerIndex + 1}
+                                      </span>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-3">
+                                      <div>
+                                        <label className="block text-xs font-medium text-gray-600">
+                                          Container Number
+                                        </label>
+                                        <div className="text-sm text-gray-900">
+                                          {container.container_no ||
+                                            "Not specified"}
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <label className="block text-xs font-medium text-gray-600">
+                                          Line
+                                        </label>
+                                        <div className="text-sm text-gray-900">
+                                          {container.line || "Not specified"}
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <label className="block text-xs font-medium text-gray-600">
+                                          Seal Number
+                                        </label>
+                                        <div className="text-sm text-gray-900">
+                                          {container.seal_no || "Not specified"}
+                                        </div>
+                                      </div>
                                     </div>
                                   </div>
-                                  <div>
-                                    <label className="block text-xs font-medium text-gray-600">
-                                      Line
-                                    </label>
-                                    <div className="text-sm text-gray-900">
-                                      {container.line || "Not specified"}
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs font-medium text-gray-600">
-                                      Seal Number
-                                    </label>
-                                    <div className="text-sm text-gray-900">
-                                      {container.seal_no || "Not specified"}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
+                                )
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
                       <div className="mt-4 pt-4 border-t">
                         <h6 className="font-medium text-gray-900 mb-2">
@@ -529,7 +571,14 @@ export default function RequestModal({
                         </h6>
                         <div className="text-sm text-gray-900">
                           <div className="font-semibold text-gray-900">
-                            Total Charge: {formatCurrency(transporter.total_charge)}
+                            Total Charge:{" "}
+                            {formatCurrency(transporter.total_charge)}
+                          </div>
+                        </div>
+                        <div className="text-sm text-gray-900">
+                          <div className="font-semibold text-gray-900">
+                            Additional Charge:{" "}
+                            {formatCurrency(transporter.additional_charges)}
                           </div>
                         </div>
                       </div>

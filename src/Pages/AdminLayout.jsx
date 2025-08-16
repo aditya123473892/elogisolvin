@@ -112,12 +112,13 @@ const AdminLayout = () => {
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-6">
-         
-          // Add this route in the Routes component
           <Routes>
             <Route path="/" element={<FleetManagementAdminDashboard />} />
             <Route path="/users" element={<AdminUsers />} />
-            <Route path="/transport-requests" element={<AdminTransportRequests />} />
+            <Route
+              path="/transport-requests"
+              element={<AdminTransportRequests />}
+            />
             <Route path="/fleet-equipment" element={<EquipmentDetails />} />
           </Routes>
         </main>

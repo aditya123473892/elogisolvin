@@ -51,6 +51,27 @@ const VehicleDetailsSection = ({
       {/* Vehicle Type and Status */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
+          <label htmlFor="shipa_no" className="block text-sm font-medium mb-2">
+            SHIPA NO
+          </label>
+          <input
+            type="text"
+            id="shipa_no"
+            name="shipa_no"
+            value={safeRequestData.SHIPA_NO || ""}
+            onChange={(e) =>
+              setRequestData((prev) => ({
+                ...prev,
+                SHIPA_NO: e.target.value,
+              }))
+            }
+            className="w-full border rounded-md p-2 focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            placeholder="Enter SHIPA NO (e.g., SHIP20250813001)"
+            required={!safeRequestData.id} // Required for new requests, optional for updates
+          />
+        </div>
+
+        <div>
           <label className="block text-sm font-medium mb-2">Trip Type</label>
           <select
             name="vehicle_type"
@@ -199,7 +220,7 @@ const VehicleDetailsSection = ({
       </div>
 
       {/* Number of Vehicles */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block text-sm font-medium mb-2">
             Number of Vehicles *
@@ -257,7 +278,7 @@ const VehicleDetailsSection = ({
             )}
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Container Selection */}
       {shouldShowContainerDetails(safeRequestData.vehicle_type) &&

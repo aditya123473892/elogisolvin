@@ -798,6 +798,12 @@ const ShipmentReports = () => {
                       <span className="font-medium">{selectedReport.id}</span>
                     </div>
                     <div className="flex justify-between">
+                      <span className="text-gray-500">Shipa NO:</span>
+                      <span className="font-medium">
+                        {selectedReport.SHIPA_NO}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
                       <span className="text-gray-500">Tracking ID:</span>
                       <span className="font-medium">
                         {selectedReport.tracking_id || "N/A"}
@@ -851,6 +857,12 @@ const ShipmentReports = () => {
                       <span className="text-gray-500">Customer ID:</span>
                       <span className="font-medium">
                         {selectedReport.customer_id}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">SHIPA No:</span>
+                      <span className="font-medium">
+                        {selectedReport.SHIPA_NO}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -1124,6 +1136,17 @@ const ShipmentReports = () => {
                                   ₹
                                   {(
                                     transporter.total_charge || 0
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">
+                                  Additional Charge:
+                                </span>
+                                <span className="font-medium text-orange-600">
+                                  ₹
+                                  {(
+                                    transporter.additional_charges || 0
                                   ).toLocaleString()}
                                 </span>
                               </div>

@@ -14,7 +14,6 @@ import {
   LogOut,
   Shield,
   Activity,
-
 } from "lucide-react";
 
 export function AdminSidebar({
@@ -49,10 +48,10 @@ export function AdminSidebar({
       description: "Fleet Management",
     },
     {
-      name: "Drivers",
+      name: "Vendors ",
       icon: Shield,
-      path: "drivers",
-      description: "Driver Management",
+      path: "vendor-controller",
+      description: "Vendor Management",
     },
     {
       name: "Fleet Equipment",
@@ -181,7 +180,11 @@ export function AdminSidebar({
               style={{ animationDelay: `${index * 50}ms` }}
             >
               <Link
-                to={item.path === "dashboard" ? "/admin-dashboard" : `/admin/${item.path}`}
+                to={
+                  item.path === "dashboard"
+                    ? "/admin-dashboard"
+                    : `/admin/${item.path}`
+                }
                 state={{ fromSidebar: true }}
                 onClick={() => handleNavigation(item.path)}
                 className={`group flex items-center py-3 px-3 rounded-xl transition-all duration-200 relative overflow-hidden ${
@@ -195,7 +198,9 @@ export function AdminSidebar({
                 )}
                 <item.icon
                   className={`h-5 w-5 flex-shrink-0 relative z-10 ${
-                    isActiveItem(item.path) ? "text-white" : "text-slate-400 group-hover:text-white"
+                    isActiveItem(item.path)
+                      ? "text-white"
+                      : "text-slate-400 group-hover:text-white"
                   }`}
                 />
                 {!collapsed && (
@@ -203,7 +208,9 @@ export function AdminSidebar({
                     <div className="font-medium text-sm">{item.name}</div>
                     <div
                       className={`text-xs transition-colors duration-200 ${
-                        isActiveItem(item.path) ? "text-blue-100" : "text-slate-400 group-hover:text-slate-300"
+                        isActiveItem(item.path)
+                          ? "text-blue-100"
+                          : "text-slate-400 group-hover:text-slate-300"
                       }`}
                     >
                       {item.description}
@@ -218,7 +225,9 @@ export function AdminSidebar({
               {collapsed && hoveredItem === item.path && (
                 <div className="absolute left-full ml-3 top-1/2 transform -translate-y-1/2 bg-slate-800 text-white px-4 py-3 rounded-lg shadow-xl border border-slate-600 z-50 whitespace-nowrap animate-in slide-in-from-left-2 duration-200">
                   <div className="font-medium text-sm">{item.name}</div>
-                  <div className="text-xs text-slate-400 mt-1">{item.description}</div>
+                  <div className="text-xs text-slate-400 mt-1">
+                    {item.description}
+                  </div>
                   <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-2 border-4 border-transparent border-r-slate-800"></div>
                 </div>
               )}
@@ -228,8 +237,6 @@ export function AdminSidebar({
 
         {/* User Section & Logout */}
         <div className="border-t border-slate-700 p-4 space-y-3 bg-slate-800/30">
-       
-         
           <button
             onClick={handleLogout}
             className={`group flex items-center py-3 px-3 w-full rounded-xl transition-all duration-200 text-red-400 hover:bg-red-900/30 hover:text-red-300 focus:outline-none focus:ring-2 focus:ring-red-500 ${
@@ -239,7 +246,9 @@ export function AdminSidebar({
             aria-label="Logout"
           >
             <LogOut className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
-            {!collapsed && <span className="ml-3 font-medium text-sm">Logout</span>}
+            {!collapsed && (
+              <span className="ml-3 font-medium text-sm">Logout</span>
+            )}
           </button>
         </div>
       </div>
@@ -278,7 +287,11 @@ export function AdminSidebar({
               {navItems.map((item, index) => (
                 <Link
                   key={item.path}
-                  to={item.path === "dashboard" ? "/admin-dashboard" : `/admin/${item.path}`}
+                  to={
+                    item.path === "dashboard"
+                      ? "/admin-dashboard"
+                      : `/admin/${item.path}`
+                  }
                   state={{ fromSidebar: true }}
                   onClick={() => handleNavigation(item.path)}
                   className={`group flex items-center py-4 px-4 rounded-xl transition-all duration-200 relative overflow-hidden ${
@@ -293,14 +306,18 @@ export function AdminSidebar({
                   )}
                   <item.icon
                     className={`h-6 w-6 flex-shrink-0 relative z-10 ${
-                      isActiveItem(item.path) ? "text-white" : "text-slate-400 group-hover:text-white"
+                      isActiveItem(item.path)
+                        ? "text-white"
+                        : "text-slate-400 group-hover:text-white"
                     }`}
                   />
                   <div className="ml-4 flex-1 relative z-10">
                     <div className="font-semibold text-base">{item.name}</div>
                     <div
                       className={`text-sm mt-1 transition-colors duration-200 ${
-                        isActiveItem(item.path) ? "text-blue-100" : "text-slate-400 group-hover:text-slate-300"
+                        isActiveItem(item.path)
+                          ? "text-blue-100"
+                          : "text-slate-400 group-hover:text-slate-300"
                       }`}
                     >
                       {item.description}
@@ -320,7 +337,6 @@ export function AdminSidebar({
 
             {/* Mobile User Section & Logout */}
             <div className="border-t border-slate-700 p-5 space-y-4 bg-slate-800/30">
-           
               <button
                 onClick={handleLogout}
                 className="group flex items-center py-4 px-4 w-full rounded-xl transition-all duration-200 text-red-400 hover:bg-red-900/30 hover:text-red-300 active:bg-red-900/40 focus:outline-none focus:ring-2 focus:ring-red-500"

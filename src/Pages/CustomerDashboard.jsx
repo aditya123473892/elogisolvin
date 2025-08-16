@@ -1,7 +1,10 @@
 import { useState, useCallback, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
+
 import { generateInvoice } from "../utils/pdfGenerator";
+
 import ServiceRequestForm from "../Components/dashboard/Servicerequest";
+
 import {
   CheckCircle,
   AlertTriangle,
@@ -17,11 +20,17 @@ import {
   ChevronRight,
   Download,
 } from "lucide-react";
+
 import api from "../utils/Api";
+
 import { toast, ToastContainer } from "react-toastify";
+
 import "react-toastify/dist/ReactToastify.css";
+
 import { useNavigate } from "react-router-dom";
+
 import StatsCards from "../Components/dashboard/StatCards";
+
 import { TransporterDetails } from "./Transporterdetails";
 
 export default function CustomerDashboard({
@@ -35,15 +44,17 @@ export default function CustomerDashboard({
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  // State for header functionality (matching AdminDashboard)
   const [searchQuery, setSearchQuery] = useState("");
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [notifications, setNotifications] = useState([]);
 
-  // Simplified request data state
+  // In CustomerDashboard.js - Update the initial requestData state around line 50-80
+  // Add SHIPA_NO to the initial state
+
   const [requestData, setRequestData] = useState({
     id: null,
+    SHIPA_NO: "", // ADD THIS LINE
     consignee: "",
     consigner: "",
     vehicle_type: "",
@@ -138,6 +149,9 @@ export default function CustomerDashboard({
     return Math.ceil(allRequests.length / requestsPerPage);
   };
 
+  // In CustomerDashboard.js - Update the handleSubmit function around line 200-250
+  // Add SHIPA_NO to the formData object
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -209,16 +223,14 @@ export default function CustomerDashboard({
         return `${timeString.trim()}:00`;
       };
 
-      // Clean form data preparation
-      // In CustomerDashboard.js - Update the handleSubmit function
-      // Add vehicle_status to the formData object around line 200-250
-
+      // Clean form data preparation - FIXED: Added SHIPA_NO field
       const formData = {
+        SHIPA_NO: requestData.SHIPA_NO?.trim() || "", // ADD THIS LINE
         consignee: requestData.consignee.trim(),
         consigner: requestData.consigner.trim(),
         vehicle_type: requestData.vehicle_type,
         vehicle_size: requestData.vehicle_size,
-        vehicle_status: requestData.vehicle_status, // ADD THIS LINE
+        vehicle_status: requestData.vehicle_status,
         no_of_vehicles: parseInt(requestData.no_of_vehicles) || 1,
         pickup_location: requestData.pickup_location.trim(),
         stuffing_location: requestData.stuffing_location.trim(),
@@ -241,7 +253,6 @@ export default function CustomerDashboard({
         ),
         requested_price: parseFloat(requestData.requested_price) || 0,
         status: "Pending",
-        // Remove this duplicate line: vehicle_status: "Empty"
       };
 
       console.log("Form data being sent:", formData); // Debug log
@@ -307,22 +318,15 @@ export default function CustomerDashboard({
     return timeString;
   };
 
-  // 3. Update the handleRequestClick function
-
-  // Reset form to initial state
-  // In CustomerDashboard.js - Update the handleCancelEdit function
-  // Add vehicle_status to the reset object around line 350-380
-  // In CustomerDashboard.js - Update the handleCancelEdit function
-  // Add vehicle_status to the reset object around line 350-380
-
   const handleCancelEdit = () => {
     setRequestData({
       id: null,
+      SHIPA_NO: "", // ADD THIS LINE
       consignee: "",
       consigner: "",
       vehicle_type: "",
       vehicle_size: "",
-      vehicle_status: "Empty", // ADD THIS LINE
+      vehicle_status: "Empty",
       containers_20ft: 0,
       containers_40ft: 0,
       no_of_vehicles: "",
@@ -344,27 +348,21 @@ export default function CustomerDashboard({
       admin_comment: "",
     });
   };
-
-  // Helper function to check if a request can be edited
   const canEditRequest = (status) => {
     const normalizedStatus = status.toLowerCase();
     return normalizedStatus !== "completed";
   };
 
-  // In CustomerDashboard.js - Update the handleRequestClick function
-  // Add vehicle_status to the request data mapping around line 400-450
-  // In CustomerDashboard.js - Update the handleRequestClick function
-  // Add vehicle_status to the request data mapping around line 400-450
-
   const handleRequestClick = (request) => {
     if (canEditRequest(request.status)) {
       setRequestData({
         id: request.id,
+        SHIPA_NO: request.SHIPA_NO || "", // ADD THIS LINE
         consignee: request.consignee || "",
         consigner: request.consigner || "",
         vehicle_type: request.vehicle_type || "",
         vehicle_size: request.vehicle_size || "",
-        vehicle_status: request.vehicle_status || "Empty", // ADD THIS LINE
+        vehicle_status: request.vehicle_status || "Empty",
         no_of_vehicles: request.no_of_vehicles || "1",
         pickup_location: request.pickup_location || "",
         stuffing_location: request.stuffing_location || "",

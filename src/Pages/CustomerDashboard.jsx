@@ -158,42 +158,14 @@ export default function CustomerDashboard({
 
     try {
       // Validate required fields before submission
-      if (
-        !requestData.expected_pickup_date ||
-        !requestData.expected_pickup_time
-      ) {
-        toast.error("Expected pickup date and time are required");
+      if (!requestData.expected_pickup_date) {
+        toast.error("Expected pickup date is required");
         setIsSubmitting(false);
         return;
       }
 
-      if (
-        !requestData.expected_delivery_date ||
-        !requestData.expected_delivery_time
-      ) {
-        toast.error("Expected delivery date and time are required");
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Validate time format (HH:MM)
-      const isValidTime = (timeString) => {
-        if (!timeString) return false;
-        return /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(timeString.trim());
-      };
-
-      if (!isValidTime(requestData.expected_pickup_time)) {
-        toast.error(
-          "Invalid pickup time format. Please use HH:MM format (e.g., 14:30)"
-        );
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (!isValidTime(requestData.expected_delivery_time)) {
-        toast.error(
-          "Invalid delivery time format. Please use HH:MM format (e.g., 14:30)"
-        );
+      if (!requestData.expected_delivery_date) {
+        toast.error("Expected delivery date is required");
         setIsSubmitting(false);
         return;
       }
@@ -285,10 +257,6 @@ export default function CustomerDashboard({
       // Enhanced error handling
       if (error.response?.data?.message) {
         toast.error(error.response.data.message);
-      } else if (error.message.includes("time")) {
-        toast.error(
-          "Invalid time format. Please use HH:MM format (e.g., 14:30)"
-        );
       } else if (error.message.includes("date")) {
         toast.error("Invalid date format. Please select a valid date");
       } else {
@@ -299,23 +267,6 @@ export default function CustomerDashboard({
     } finally {
       setIsSubmitting(false);
     }
-  };
-  // 2. Add a helper function to format time from database for HTML input
-  const formatTimeForInput = (timeString) => {
-    if (!timeString) return "";
-
-    // Handle different time formats from database
-    if (typeof timeString === "string") {
-      // If it's in HH:MM:SS format, extract HH:MM
-      if (timeString.includes(":")) {
-        const parts = timeString.split(":");
-        if (parts.length >= 2) {
-          return `${parts[0].padStart(2, "0")}:${parts[1].padStart(2, "0")}`;
-        }
-      }
-    }
-
-    return timeString;
   };
 
   const handleCancelEdit = () => {
@@ -387,10 +338,7 @@ export default function CustomerDashboard({
           ? request.expected_delivery_date.split("T")[0]
           : "",
         requested_price: parseFloat(request.requested_price) || 0,
-        expected_pickup_time: formatTimeForInput(request.expected_pickup_time),
-        expected_delivery_time: formatTimeForInput(
-          request.expected_delivery_time
-        ),
+
         status: request.status || "Pending",
         admin_comment: request.admin_comment || "",
       });

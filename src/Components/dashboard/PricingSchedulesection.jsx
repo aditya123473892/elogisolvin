@@ -104,22 +104,6 @@ const PricingScheduleSection = ({
             min={today}
             required
           />
-          <label className="block text-sm font-medium mt-2 mb-2">
-            Expected Pickup Time
-          </label>
-          <input
-            type="time"
-            name="expected_pickup_time"
-            className="w-full border rounded-md p-2"
-            value={safeRequestData.expected_pickup_time || currentTime}
-            onChange={(e) =>
-              setRequestData((prev) => ({
-                ...prev,
-                expected_pickup_time: e.target.value,
-              }))
-            }
-            required
-          />
         </div>
         <div>
           <label className="block text-sm font-medium mb-2">
@@ -136,22 +120,6 @@ const PricingScheduleSection = ({
               })
             }
             min={safeRequestData.expected_pickup_date || today}
-            required
-          />
-          <label className="block text-sm font-medium mt-2 mb-2">
-            Expected Delivery Time
-          </label>
-          <input
-            type="time"
-            name="expected_delivery_time"
-            className="w-full border rounded-md p-2"
-            value={safeRequestData.expected_delivery_time || currentTime}
-            onChange={(e) =>
-              setRequestData({
-                ...safeRequestData,
-                expected_delivery_time: e.target.value,
-              })
-            }
             required
           />
         </div>

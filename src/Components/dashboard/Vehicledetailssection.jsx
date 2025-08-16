@@ -174,49 +174,6 @@ const VehicleDetailsSection = ({
         </div>
 
         {/* Vehicle Size Inputs */}
-        {safeRequestData.vehicle_type === "Trailer" && (
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Trailer Size (in feet)
-            </label>
-            <input
-              type="text"
-              className="w-full border rounded-md p-2"
-              placeholder="Enter trailer size (e.g., 40)"
-              value={safeRequestData.vehicle_size}
-              onChange={(e) =>
-                setRequestData((prev) => ({
-                  ...prev,
-                  trailerSize: e.target.value,
-                  vehicle_size: e.target.value,
-                }))
-              }
-              required
-            />
-          </div>
-        )}
-
-        {safeRequestData.vehicle_type === "Truck" && (
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Truck Size (in feet)
-            </label>
-            <input
-              type="text"
-              className="w-full border rounded-md p-2"
-              placeholder="Enter truck size (e.g., 24)"
-              value={safeRequestData.vehicle_size}
-              onChange={(e) =>
-                setRequestData((prev) => ({
-                  ...prev,
-                  truckSize: e.target.value,
-                  vehicle_size: e.target.value,
-                }))
-              }
-              required
-            />
-          </div>
-        )}
       </div>
 
       {/* Number of Vehicles */}
@@ -281,86 +238,85 @@ const VehicleDetailsSection = ({
       </div> */}
 
       {/* Container Selection */}
-      {shouldShowContainerDetails(safeRequestData.vehicle_type) &&
-        currentVehicleStatus === "Loaded" && (
-          <div className="space-y-4">
-            <label className="block text-sm font-medium mb-2">
-              Container Details
-            </label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {shouldShowContainerDetails(safeRequestData.vehicle_type) && (
+        <div className="space-y-4">
+          <label className="block text-sm font-medium mb-2">
+            Container Details
+          </label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 border rounded-lg">
+              <div className="space-y-2">
+                <label className="text-sm font-medium block">
+                  20' Containers
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  className="w-full border rounded-md p-2"
+                  placeholder="Enter number of 20ft containers"
+                  value={safeRequestData.containers_20ft}
+                  onChange={(e) =>
+                    setRequestData((prev) => ({
+                      ...prev,
+                      containers_20ft: Number(e.target.value) || 0,
+                      total_containers:
+                        (Number(e.target.value) || 0) +
+                        (Number(prev.containers_40ft) || 0),
+                    }))
+                  }
+                />
+              </div>
+            </div>
+
+            {shouldShow40ftOption(safeRequestData.vehicle_type) && (
               <div className="p-4 border rounded-lg">
                 <div className="space-y-2">
                   <label className="text-sm font-medium block">
-                    20' Containers
+                    40' Containers
                   </label>
                   <input
                     type="number"
                     min="0"
                     className="w-full border rounded-md p-2"
-                    placeholder="Enter number of 20ft containers"
-                    value={safeRequestData.containers_20ft}
+                    placeholder="Enter number of 40ft containers"
+                    value={safeRequestData.containers_40ft}
                     onChange={(e) =>
                       setRequestData((prev) => ({
                         ...prev,
-                        containers_20ft: Number(e.target.value) || 0,
+                        containers_40ft: Number(e.target.value) || 0,
                         total_containers:
-                          (Number(e.target.value) || 0) +
-                          (Number(prev.containers_40ft) || 0),
+                          (Number(prev.containers_20ft) || 0) +
+                          (Number(e.target.value) || 0),
                       }))
                     }
                   />
                 </div>
               </div>
-
-              {shouldShow40ftOption(safeRequestData.vehicle_type) && (
-                <div className="p-4 border rounded-lg">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium block">
-                      40' Containers
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      className="w-full border rounded-md p-2"
-                      placeholder="Enter number of 40ft containers"
-                      value={safeRequestData.containers_40ft}
-                      onChange={(e) =>
-                        setRequestData((prev) => ({
-                          ...prev,
-                          containers_40ft: Number(e.target.value) || 0,
-                          total_containers:
-                            (Number(prev.containers_20ft) || 0) +
-                            (Number(e.target.value) || 0),
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-2 text-sm text-gray-600">
-              Total Containers: {safeRequestData.total_containers}
-              {(safeRequestData.containers_20ft > 0 ||
-                safeRequestData.containers_40ft > 0) && (
-                <span className="ml-2">
-                  (
-                  {safeRequestData.containers_20ft > 0
-                    ? `${safeRequestData.containers_20ft} × 20ft`
-                    : ""}
-                  {safeRequestData.containers_20ft > 0 &&
-                  safeRequestData.containers_40ft > 0
-                    ? ", "
-                    : ""}
-                  {safeRequestData.containers_40ft > 0
-                    ? `${safeRequestData.containers_40ft} × 40ft`
-                    : ""}
-                  )
-                </span>
-              )}
-            </div>
+            )}
           </div>
-        )}
+
+          <div className="mt-2 text-sm text-gray-600">
+            Total Containers: {safeRequestData.total_containers}
+            {(safeRequestData.containers_20ft > 0 ||
+              safeRequestData.containers_40ft > 0) && (
+              <span className="ml-2">
+                (
+                {safeRequestData.containers_20ft > 0
+                  ? `${safeRequestData.containers_20ft} × 20ft`
+                  : ""}
+                {safeRequestData.containers_20ft > 0 &&
+                safeRequestData.containers_40ft > 0
+                  ? ", "
+                  : ""}
+                {safeRequestData.containers_40ft > 0
+                  ? `${safeRequestData.containers_40ft} × 40ft`
+                  : ""}
+                )
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 };

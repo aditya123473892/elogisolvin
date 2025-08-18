@@ -163,34 +163,6 @@ const StatsCards = () => {
           : "0% success rate",
       route: "/customer/my-shipments?status=completed", // Updated route
     },
-    {
-      title: "In Progress",
-      value: stats.inProgressRequests,
-      icon: Truck,
-      color: "indigo",
-      bgColor: "bg-indigo-50",
-      iconColor: "text-indigo-600",
-      change:
-        stats.inProgressRequests > 0
-          ? "Active shipments"
-          : "No active shipments",
-      route: "/customer/my-shipments?status=inprogress", // Updated route
-    },
-    {
-      title: "Total Spent",
-      value: `₹${stats.totalSpent.toLocaleString("en-IN")}`,
-      icon: DollarSign,
-      color: "purple",
-      bgColor: "bg-purple-50",
-      iconColor: "text-purple-600",
-      change:
-        stats.completedRequests > 0
-          ? `Avg: ₹${(
-              stats.totalSpent / stats.completedRequests
-            ).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`
-          : "No completed requests",
-      route: "/customer/my-shipments?status=completed", // Updated route
-    },
   ];
 
   // Loading state

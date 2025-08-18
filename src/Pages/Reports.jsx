@@ -51,7 +51,7 @@ const ShipmentReports = () => {
     try {
       setIsLoading(true);
 
-      // Fetch shipments data using the same endpoint as ShipmentsPage
+      // Fetch shipments data
       const shipmentsResponse = await api.get(
         "/transport-requests/my-requests"
       );
@@ -59,11 +59,11 @@ const ShipmentReports = () => {
       if (shipmentsResponse.data?.success) {
         const shipments = shipmentsResponse.data.requests;
 
-        // Process each shipment to get complete data including transporter details and transactions
+        // Process each shipment
         const reportsWithDetails = await Promise.all(
           shipments.map(async (shipment) => {
             try {
-              // Fetch transporter details for profit/loss calculation
+              // Fetch transporter details
               let transporterDetails = [];
               let vehicleCharges = 0;
               let vehicleCount = 0;
@@ -76,10 +76,9 @@ const ShipmentReports = () => {
                     ? transporterResponse.data
                     : [transporterResponse.data];
 
-                  // Filter unique vehicles based on vehicle_number (same logic as ShipmentsPage)
+                  // Filter unique vehicles
                   const uniqueVehicles = [];
                   const vehicleMap = new Map();
-
                   details.forEach((detail) => {
                     if (
                       detail.vehicle_number &&
@@ -100,7 +99,7 @@ const ShipmentReports = () => {
                 );
               }
 
-              // Fetch transaction data using the same approach as PaymentModal
+              // Fetch transaction data
               let transactionData = null;
               let totalPaid = 0;
               let grNumber = `GR-${shipment.id}`;
@@ -123,13 +122,10 @@ const ShipmentReports = () => {
                 );
               }
 
-              // Calculate service charges using the same logic as ShipmentsPage
-              const serviceCharges =
-                vehicleCharges > 0
-                  ? vehicleCharges
-                  : parseFloat(shipment.requested_price || 0);
+              // Use requested_price directly for service charges
+              const serviceCharges = parseFloat(shipment.requested_price || 0);
 
-              // Calculate profit/loss
+              // Calculate profit/loss based on requested_price
               const profitLoss = serviceCharges - vehicleCharges;
               const profitLossPercentage =
                 serviceCharges > 0 ? (profitLoss / serviceCharges) * 100 : 0;
@@ -145,14 +141,11 @@ const ShipmentReports = () => {
 
               return {
                 ...shipment,
-                // IDs and tracking
                 gr_no: grNumber,
                 trip_no: `TRIP-${shipment.id}`,
                 invoice_no: `INV-${new Date(
                   shipment.created_at
                 ).getFullYear()}-${String(shipment.id).padStart(4, "0")}`,
-
-                // Financial data
                 service_charges: serviceCharges,
                 vehicle_charges: vehicleCharges,
                 profit_loss: profitLoss,
@@ -160,18 +153,21 @@ const ShipmentReports = () => {
                 total_paid: totalPaid,
                 outstanding_amount: outstandingAmount,
                 payment_status: paymentStatus,
-
-                // Additional details
                 vehicle_count: vehicleCount,
                 transporter_details: transporterDetails,
                 transaction_data: transactionData,
-                customer_name: `Customer ${shipment.customer_id}`, // You may want to fetch actual customer name
+                customer_name: `Customer ${shipment.customer_id}`,
                 total_containers:
                   (shipment.containers_20ft || 0) +
                   (shipment.containers_40ft || 0),
               };
             } catch (error) {
               console.error(`Error processing shipment ${shipment.id}:`, error);
+              // Fallback using requested_price
+              const serviceCharges = parseFloat(shipment.requested_price || 0);
+              const profitLoss = serviceCharges;
+              const profitLossPercentage = 100;
+
               return {
                 ...shipment,
                 gr_no: `GR-${shipment.id}`,
@@ -179,12 +175,12 @@ const ShipmentReports = () => {
                 invoice_no: `INV-${new Date(
                   shipment.created_at
                 ).getFullYear()}-${String(shipment.id).padStart(4, "0")}`,
-                service_charges: parseFloat(shipment.requested_price || 0),
+                service_charges: serviceCharges,
                 vehicle_charges: 0,
-                profit_loss: parseFloat(shipment.requested_price || 0),
-                profit_loss_percentage: 100,
+                profit_loss: profitLoss,
+                profit_loss_percentage: profitLossPercentage,
                 total_paid: 0,
-                outstanding_amount: parseFloat(shipment.requested_price || 0),
+                outstanding_amount: serviceCharges,
                 payment_status: "Unpaid",
                 vehicle_count: shipment.no_of_vehicles || 1,
                 transporter_details: [],
@@ -816,6 +812,12 @@ const ShipmentReports = () => {
                       </span>
                     </div>
                     <div className="flex justify-between">
+                      <span className="text-gray-500">Requested Price</span>
+                      <span className="font-medium">
+                        {selectedReport.requested_price}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
                       <span className="text-gray-500">Trip Number:</span>
                       <span className="font-medium">
                         {selectedReport.trip_no}
@@ -903,7 +905,7 @@ const ShipmentReports = () => {
                       <span className="text-gray-500">Service Charges:</span>
                       <span className="font-medium text-green-600">
                         ₹
-                        {(selectedReport.service_charges || 0).toLocaleString()}
+                        {(selectedReport.requested_price || 0).toLocaleString()}
                       </span>
                     </div>
                     <div className="flex justify-between">

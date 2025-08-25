@@ -465,9 +465,6 @@ const ShipmentReports = () => {
                   ₹{totalRevenue.toLocaleString()}
                 </p>
               </div>
-              <div className="p-3 bg-green-100 rounded-lg">
-                <DollarSign className="w-6 h-6 text-green-600" />
-              </div>
             </div>
           </div>
 
@@ -478,9 +475,6 @@ const ShipmentReports = () => {
                 <p className="text-2xl font-bold text-orange-600">
                   ₹{totalCosts.toLocaleString()}
                 </p>
-              </div>
-              <div className="p-3 bg-orange-100 rounded-lg">
-                <Truck className="w-6 h-6 text-orange-600" />
               </div>
             </div>
           </div>
@@ -497,13 +491,6 @@ const ShipmentReports = () => {
                   ₹{totalProfit.toLocaleString()}
                 </p>
               </div>
-              <div className="p-3 bg-blue-100 rounded-lg">
-                {totalProfit >= 0 ? (
-                  <TrendingUp className="w-6 h-6 text-green-600" />
-                ) : (
-                  <TrendingDown className="w-6 h-6 text-red-600" />
-                )}
-              </div>
             </div>
           </div>
 
@@ -514,9 +501,6 @@ const ShipmentReports = () => {
                 <p className="text-2xl font-bold text-blue-600">
                   ₹{totalPaid.toLocaleString()}
                 </p>
-              </div>
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <FileText className="w-6 h-6 text-blue-600" />
               </div>
             </div>
           </div>
@@ -529,10 +513,7 @@ const ShipmentReports = () => {
                   ₹{totalOutstanding.toLocaleString()}
                 </p>
               </div>
-              <div className="p-3 bg-red-100 rounded-lg">
-                <FileText className="w-6 h-6 text-red-600" />
-              </div>
-            </div>
+             </div>
           </div>
         </div>
 
@@ -897,7 +878,6 @@ const ShipmentReports = () => {
                 {/* Financial Details */}
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                    <DollarSign className="w-5 h-5 mr-2 text-yellow-600" />
                     Financial Details
                   </h4>
                   <div className="space-y-2 text-sm">
@@ -950,7 +930,6 @@ const ShipmentReports = () => {
                 {/* Payment Information */}
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                    <FileText className="w-5 h-5 mr-2 text-blue-600" />
                     Payment Information
                   </h4>
                   <div className="space-y-2 text-sm">
@@ -1006,7 +985,6 @@ const ShipmentReports = () => {
                 {/* Cargo Details */}
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                    <Package className="w-5 h-5 mr-2 text-purple-600" />
                     Cargo Details
                   </h4>
                   <div className="space-y-2 text-sm">
@@ -1049,7 +1027,6 @@ const ShipmentReports = () => {
                 {/* Timeline */}
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                    <Calendar className="w-5 h-5 mr-2 text-indigo-600" />
                     Timeline
                   </h4>
                   <div className="space-y-2 text-sm">

@@ -48,24 +48,24 @@ export function CustomerSidebar({
       path: "vendors",
       description: "Manage Vendors",
     },
-    {
-      name: "Driver Management",
-      icon: Truck,
-      path: "drivers",
-      description: "Drivers Details",
-    },
-    {
-      name: "Fleet Equipment",
-      icon: FileText,
-      path: "equipments",
-      description: "Analytics & History",
-    },
-    {
-      name: "ASN",
-      icon: MessageSquare,
-      path: "ASN",
-      description: "Manage ASN",
-    },
+    // {
+    //   name: "Driver Management",
+    //   icon: Truck,
+    //   path: "drivers",
+    //   description: "Drivers Details",
+    // },
+    // {
+    //   name: "Fleet Equipment",
+    //   icon: FileText,
+    //   path: "equipments",
+    //   description: "Analytics & History",
+    // },
+    // {
+    //   name: "ASN",
+    //   icon: MessageSquare,
+    //   path: "ASN",
+    //   description: "Manage ASN",
+    // },
     {
       name: "Reports",
       icon: Settings,
@@ -84,7 +84,7 @@ export function CustomerSidebar({
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
   }, [mobileMenuOpen, toggleMobileMenu]);
-       
+
   useEffect(() => {
     if (mobileMenuOpen) {
       document.body.style.overflow = "hidden";
@@ -127,7 +127,7 @@ export function CustomerSidebar({
 
   return (
     <>
-     <div
+      <div
         className={`bg-slate-900 text-white ${
           collapsed ? "w-16" : "w-64"
         } flex-shrink-0 transition-all duration-300 ease-in-out hidden md:flex flex-col shadow-lg border-r border-slate-700 fixed h-full z-40`}
@@ -239,7 +239,8 @@ export function CustomerSidebar({
             )}
           </button>
         </div>
-      </div> {mobileMenuOpen && (
+      </div>{" "}
+      {mobileMenuOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] md:hidden">
           <div className="absolute inset-0" onClick={toggleMobileMenu} />
           <div
@@ -310,7 +311,7 @@ export function CustomerSidebar({
                 </Link>
               ))}
             </div>
-             <div className="border-t border-slate-700 p-4 space-y-3 bg-slate-800/30">
+            <div className="border-t border-slate-700 p-4 space-y-3 bg-slate-800/30">
               {user && (
                 <div className="flex items-center space-x-3 p-3 bg-slate-800 rounded-lg border border-slate-700/50">
                   <div className="flex-1 min-w-0">

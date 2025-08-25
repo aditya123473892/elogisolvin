@@ -297,13 +297,34 @@ const ContainerDetailsPage = () => {
   };
 
   // Validate container data
+  // Helper: ISO 6346 check digit calculation
+  const calculateCheckDigit = (containerNo) => {
+    // Take first 10 characters (4 letters + 6 digits)
+    const chars = containerNo.slice(0, 10).split("");
+    const letters = "0123456789A?BCDEFGHIJK?LMNOPQRSTU?VWXYZ";
+    // (where A=10, B=12, C=13 ... Z=38, skipping multiples of 11)
+
+    let sum = 0;
+    chars.forEach((char, i) => {
+      let value;
+      if (/[A-Z]/.test(char)) {
+        // Convert letters using ISO 6346 values
+        value = letters.indexOf(char);
+      } else {
+        value = parseInt(char, 10);
+      }
+      sum += value * Math.pow(2, i);
+    });
+
+    return (sum % 11) % 10; // modulo 11, if result is 10 -> 0
+  };
+
   const validateContainers = () => {
     const errors = [];
     containers.forEach((container, index) => {
       if (!container.containerNo.trim()) {
         errors.push(`Container ${index + 1}: Container number is required`);
       } else {
-        // Check container number format: 4 letters followed by 7 digits
         const containerNoRegex = /^[A-Z]{4}[0-9]{7}$/;
         if (!containerNoRegex.test(container.containerNo)) {
           errors.push(
@@ -311,6 +332,20 @@ const ContainerDetailsPage = () => {
               index + 1
             }: Container number must be 4 letters followed by 7 digits (e.g., ABCD1234567)`
           );
+        } else {
+          // Validate check digit
+          const expectedCheckDigit = calculateCheckDigit(container.containerNo);
+          const actualCheckDigit = parseInt(
+            container.containerNo.slice(-1),
+            10
+          );
+          if (expectedCheckDigit !== actualCheckDigit) {
+            errors.push(
+              `Container ${
+                index + 1
+              }: Invalid check digit. Expected ${expectedCheckDigit}, got ${actualCheckDigit}`
+            );
+          }
         }
       }
 

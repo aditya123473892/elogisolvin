@@ -53,30 +53,30 @@ export function AdminSidebar({
       path: "vendor-controller",
       description: "Vendor Management",
     },
-    {
-      name: "Fleet Equipment",
-      icon: Activity, // Add this line to fix the error
-      path: "fleet-equipment",
-      description: "Equipment Management",
-    },
-    {
-      name: "Maintenance",
-      icon: Calendar,
-      path: "maintenance",
-      description: "Schedule & Track",
-    },
-    {
-      name: "Reports",
-      icon: FileText,
-      path: "reports",
-      description: "Analytics & Reports",
-    },
-    {
-      name: "Settings",
-      icon: Settings,
-      path: "settings",
-      description: "System Configuration",
-    },
+    // {
+    //   name: "Fleet Equipment",
+    //   icon: Activity, // Add this line to fix the error
+    //   path: "fleet-equipment",
+    //   description: "Equipment Management",
+    // },
+    // {
+    //   name: "Maintenance",
+    //   icon: Calendar,
+    //   path: "maintenance",
+    //   description: "Schedule & Track",
+    // // },
+    // {
+    //   name: "Reports",
+    //   icon: FileText,
+    //   path: "reports",
+    //   description: "Analytics & Reports",
+    // },
+    // {
+    //   name: "Settings",
+    //   icon: Settings,
+    //   path: "settings",
+    //   description: "System Configuration",
+    // },
   ];
 
   useEffect(() => {

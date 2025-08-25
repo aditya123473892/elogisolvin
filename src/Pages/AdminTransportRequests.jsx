@@ -5,19 +5,21 @@ import {
   Search,
   RefreshCw,
   Eye,
-  Download,
   Truck,
   MapPin,
   Package,
+  Download,
 } from "lucide-react";
 import { generateInvoice } from "../utils/pdfGenerator";
-import { generateGR } from "../utils/grGenerator";
+import { generateManualInvoice } from "../utils/ManualInvoicegenerator";
 import RequestModal from "../Components/Requestmodal";
+import ManualInvoiceModal from "../Components/Manualinvoice";
 
 const parseServiceType = (serviceType) => {
   if (!serviceType) return [];
   try {
-    const parsed = typeof serviceType === "string" ? JSON.parse(serviceType) : serviceType;
+    const parsed =
+      typeof serviceType === "string" ? JSON.parse(serviceType) : serviceType;
     return Array.isArray(parsed) ? parsed : [];
   } catch (e) {
     console.error("Error parsing service type:", e);
@@ -28,7 +30,9 @@ const parseServiceType = (serviceType) => {
 const parseServicePrices = (servicePrices) => {
   if (!servicePrices) return {};
   try {
-    return typeof servicePrices === "string" ? JSON.parse(servicePrices) : servicePrices;
+    return typeof servicePrices === "string"
+      ? JSON.parse(servicePrices)
+      : servicePrices;
   } catch (e) {
     console.error("Error parsing service prices:", e);
     return {};
@@ -37,7 +41,7 @@ const parseServicePrices = (servicePrices) => {
 
 const formatCurrency = (amount) => {
   if (!amount || amount === 0) return "Not specified";
-  return `₹${Number(amount).toLocaleString('en-IN')}`;
+  return `₹${Number(amount).toLocaleString("en-IN")}`;
 };
 
 export default function AdminTransportRequests() {
@@ -49,6 +53,8 @@ export default function AdminTransportRequests() {
   const [adminComment, setAdminComment] = useState("");
   const [updating, setUpdating] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [showManualInvoiceModal, setShowManualInvoiceModal] = useState(false);
+  const [manualInvoiceRequest, setManualInvoiceRequest] = useState(null);
 
   const fetchRequests = async () => {
     try {
@@ -96,15 +102,6 @@ export default function AdminTransportRequests() {
         adminComment: adminComment.trim(),
       });
 
-      if (status === "approved" && transporterDetails) {
-        const loadingToast = toast.loading("Generating GR...");
-        const doc = generateGR(selectedRequest, transporterDetails);
-        const timestamp = new Date().toISOString().split("T")[0];
-        doc.save(`gr-${requestId}-${timestamp}.pdf`);
-        toast.dismiss(loadingToast);
-        toast.success("GR generated successfully!");
-      }
-
       handleModalClose();
       fetchRequests();
       toast.success(`Request ${status} successfully`);
@@ -151,35 +148,33 @@ export default function AdminTransportRequests() {
     }
   };
 
-  const handleDownloadGR = async (request) => {
-    try {
-      const loadingToast = toast.loading("Generating GR...");
-      let transporterData = null;
+  const handleManualInvoice = (request) => {
+    setManualInvoiceRequest(request);
+    setShowManualInvoiceModal(true);
+  };
 
-      try {
-        const response = await api.get(
-          `/transport-requests/${request.id}/transporter`
-        );
-        if (response.data.success) {
-          transporterData = response.data.data;
-          console.log("data", response.data.data);
-        }
-      } catch (error) {
-        console.log(
-          "Warning: Transporter details not found, continuing with GR generation"
-        );
+  const handleGenerateManualInvoice = async (invoiceData) => {
+    try {
+      const loadingToast = toast.loading("Generating manual invoice...");
+
+      const doc = generateManualInvoice(invoiceData);
+      if (!doc) {
+        throw new Error("Failed to generate manual invoice PDF");
       }
 
-      const doc = generateGR(request, transporterData);
       const timestamp = new Date().toISOString().split("T")[0];
-      const filename = `gr-${request.id}-${timestamp}.pdf`;
-
+      const filename = `manual-invoice-${
+        invoiceData.originalRequest?.id || "custom"
+      }-${timestamp}.pdf`;
       doc.save(filename);
+
       toast.dismiss(loadingToast);
-      toast.success("GR downloaded successfully!");
+      toast.success("Manual invoice generated successfully!");
+      setShowManualInvoiceModal(false);
+      setManualInvoiceRequest(null);
     } catch (error) {
-      console.error("GR generation error:", error);
-      toast.error("Failed to generate GR. Please try again.");
+      console.error("Manual invoice generation error:", error);
+      toast.error("Failed to generate manual invoice. Please try again.");
     }
   };
 
@@ -314,8 +309,10 @@ export default function AdminTransportRequests() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredRequests.map((request) => {
                 const serviceTypes = parseServiceType(request.service_type);
-                const servicePrices = parseServicePrices(request.service_prices);
-                
+                const servicePrices = parseServicePrices(
+                  request.service_prices
+                );
+
                 return (
                   <tr key={request.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -325,7 +322,8 @@ export default function AdminTransportRequests() {
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">
-                            {request.formatted_request_id || `Booking #${request.id}`}
+                            {request.formatted_request_id ||
+                              `Booking #${request.id}`}
                           </div>
                           <div className="text-sm text-gray-500">
                             {new Date(request.created_at).toLocaleDateString()}
@@ -356,7 +354,7 @@ export default function AdminTransportRequests() {
                       <div>
                         <div className="text-sm font-medium text-gray-900 flex items-center">
                           <Truck className="h-4 w-4 mr-1" />
-                          {request.vehicle_type} 
+                          {request.vehicle_type}
                           {request.vehicle_size && ` (${request.vehicle_size})`}
                         </div>
                         <div className="text-sm text-gray-500">
@@ -401,7 +399,9 @@ export default function AdminTransportRequests() {
                           <>
                             <div className="flex items-center mb-1">
                               <MapPin className="h-3 w-3 mr-1 text-blue-600" />
-                              <span className="font-medium text-xs">Stuffing:</span>
+                              <span className="font-medium text-xs">
+                                Stuffing:
+                              </span>
                             </div>
                             <div className="text-xs text-gray-600 mb-2 ml-4 truncate max-w-xs">
                               {request.stuffing_location}
@@ -423,23 +423,36 @@ export default function AdminTransportRequests() {
                           {formatCurrency(request.requested_price)}
                         </div>
                         <div className="text-xs text-gray-500 mt-1">
-                          Weight: {request.cargo_weight ? `${request.cargo_weight}kg` : "Not specified"}
+                          Weight:{" "}
+                          {request.cargo_weight
+                            ? `${request.cargo_weight}kg`
+                            : "Not specified"}
                         </div>
-                        {(request.containers_20ft > 0 || request.containers_40ft > 0) && (
+                        {(request.containers_20ft > 0 ||
+                          request.containers_40ft > 0) && (
                           <div className="text-xs text-gray-500">
-                            Containers: {request.containers_20ft}×20ft, {request.containers_40ft}×40ft
+                            Containers: {request.containers_20ft}×20ft,{" "}
+                            {request.containers_40ft}×40ft
                           </div>
                         )}
                         {request.expected_pickup_date && (
                           <div className="text-xs text-gray-500">
-                            Pickup: {new Date(request.expected_pickup_date).toLocaleDateString()}
-                            {request.expected_pickup_time && ` ${request.expected_pickup_time}`}
+                            Pickup:{" "}
+                            {new Date(
+                              request.expected_pickup_date
+                            ).toLocaleDateString()}
+                            {request.expected_pickup_time &&
+                              ` ${request.expected_pickup_time}`}
                           </div>
                         )}
                         {request.expected_delivery_date && (
                           <div className="text-xs text-gray-500">
-                            Delivery: {new Date(request.expected_delivery_date).toLocaleDateString()}
-                            {request.expected_delivery_time && ` ${request.expected_delivery_time}`}
+                            Delivery:{" "}
+                            {new Date(
+                              request.expected_delivery_date
+                            ).toLocaleDateString()}
+                            {request.expected_delivery_time &&
+                              ` ${request.expected_delivery_time}`}
                           </div>
                         )}
                       </div>
@@ -454,17 +467,19 @@ export default function AdminTransportRequests() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleViewRequest(request)}
-                          className="text-blue-600 hover:text-blue-900 flex items-center"
-                          title="View Details"
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          View
-                        </button>
+                      <div className="flex flex-col space-y-1">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleViewRequest(request)}
+                            className="text-blue-600 hover:text-blue-900 flex items-center"
+                            title="View Details"
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </button>
+                        </div>
                         {request.status === "approved" && (
-                          <>
+                          <div className="flex space-x-2">
                             <button
                               onClick={() => handleDownloadInvoice(request)}
                               className="text-green-600 hover:text-green-900 flex items-center"
@@ -473,15 +488,7 @@ export default function AdminTransportRequests() {
                               <Download className="h-4 w-4 mr-1" />
                               Invoice
                             </button>
-                            <button
-                              onClick={() => handleDownloadGR(request)}
-                              className="text-green-600 hover:text-green-900 flex items-center ml-2"
-                              title="Download GR"
-                            >
-                              <Download className="h-4 w-4 mr-1" />
-                              GR
-                            </button>
-                          </>
+                          </div>
                         )}
                       </div>
                     </td>
@@ -507,6 +514,7 @@ export default function AdminTransportRequests() {
         )}
       </div>
 
+      {/* Request Details Modal */}
       <RequestModal
         selectedRequest={selectedRequest}
         transporterDetails={transporterDetails}
@@ -515,6 +523,17 @@ export default function AdminTransportRequests() {
         updating={updating}
         onClose={handleModalClose}
         onStatusUpdate={handleStatusUpdate}
+      />
+
+      {/* Manual Invoice Modal */}
+      <ManualInvoiceModal
+        isOpen={showManualInvoiceModal}
+        onClose={() => {
+          setShowManualInvoiceModal(false);
+          setManualInvoiceRequest(null);
+        }}
+        selectedRequest={manualInvoiceRequest}
+        onGenerateInvoice={handleGenerateManualInvoice}
       />
     </div>
   );

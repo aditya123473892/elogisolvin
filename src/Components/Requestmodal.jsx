@@ -337,7 +337,7 @@ export default function RequestModal({
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">
-                        Requested Price
+                        Total Price
                       </label>
                       <div className="text-sm text-gray-900 font-medium">
                         {formatCurrency(selectedRequest.requested_price)}

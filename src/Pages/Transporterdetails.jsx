@@ -387,7 +387,7 @@ export const TransporterDetails = ({
       <div className="bg-white rounded-lg shadow mt-6">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-medium text-gray-900">
-            Transporter Details ({vehicleCount} Vehicle
+            Transporter Details
             {vehicleCount > 1 ? "s" : ""})
           </h3>
         </div>
@@ -404,7 +404,7 @@ export const TransporterDetails = ({
       <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
         <div>
           <h3 className="text-lg font-medium text-gray-900">
-            Transporter Details ({vehicleCount} Vehicle
+            Transporter Details
             {vehicleCount > 1 ? "s" : ""})
           </h3>
           {transportRequestId && (
@@ -512,7 +512,7 @@ export const TransporterDetails = ({
                       d="M5 13l4 4L19 7"
                     />
                   </svg>
-                  Save All Transporter Details ({vehicleCount} Vehicle
+                  Save All Transporter Details
                   {vehicleCount > 1 ? "s" : ""})
                 </>
               )}

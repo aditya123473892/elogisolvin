@@ -48,7 +48,7 @@ const VehicleDetailsSection = ({
 
   return (
     <>
-      {/* Vehicle Type and Status */}
+      {/* SHIPA NO and Vehicle Type - First Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label htmlFor="shipa_no" className="block text-sm font-medium mb-2">
@@ -72,7 +72,7 @@ const VehicleDetailsSection = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-2">Trip Type</label>
+          <label className="block text-sm font-medium mb-2">Vehicle Type</label>
           <select
             name="vehicle_type"
             className="w-full border rounded-md p-2"
@@ -120,124 +120,121 @@ const VehicleDetailsSection = ({
             }}
             required
           >
-            <option value="">Select Trip Type</option>
-            <option value="Trailer">Container</option>
+            <option value="">Select Vehicle Type</option>
+            <option value="Trailer">Trailer</option>
             <option value="Truck">Truck</option>
           </select>
         </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-2">
-            Vehicle Status
-          </label>
-          {shouldForceLoadedStatus(safeRequestData.vehicle_type) ? (
-            <div>
-              <input
-                type="text"
-                className="w-full border rounded-md p-2 bg-gray-100"
-                value="Loaded"
-                disabled
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                This vehicle type is always loaded
-              </p>
-            </div>
-          ) : (
-            <select
-              name="vehicle_status"
-              className="w-full border rounded-md p-2"
-              value={safeRequestData.vehicle_status}
-              onChange={(e) =>
-                setRequestData((prev) => ({
-                  ...prev,
-                  vehicle_status: e.target.value,
-                  stuffing_location:
-                    e.target.value === "Empty" ? "" : prev.stuffing_location,
-                  containers_20ft:
-                    e.target.value === "Empty" ? 0 : prev.containers_20ft,
-                  containers_40ft:
-                    e.target.value === "Empty" ? 0 : prev.containers_40ft,
-                  total_containers:
-                    e.target.value === "Empty" ? 0 : prev.total_containers,
-                  commodity: e.target.value === "Empty" ? "" : prev.commodity,
-                  cargo_type: e.target.value === "Empty" ? "" : prev.cargo_type,
-                  cargo_weight:
-                    e.target.value === "Empty" ? 0 : prev.cargo_weight,
-                }))
-              }
-              required
-            >
-              <option value="Empty">Empty</option>
-              <option value="Loaded">Loaded</option>
-            </select>
-          )}
-        </div>
-
-        {/* Vehicle Size Inputs */}
       </div>
 
-      {/* Number of Vehicles */}
-      {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium mb-2">
-            Number of Vehicles *
-          </label>
-          {isRestrictedToSingleVehicle ? (
+      {/* Vehicle Size - Second Row (conditional based on vehicle type) */}
+      {safeRequestData.vehicle_type && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {safeRequestData.vehicle_type === "Trailer" && (
             <div>
+              <label className="block text-sm font-medium mb-2">
+                Trailer Size
+              </label>
               <input
-                type="number"
-                className="w-full border rounded-md p-2 bg-gray-100"
-                value={1}
-                disabled
+                type="text"
+                name="trailerSize"
+                value={
+                  safeRequestData.trailerSize ||
+                  safeRequestData.vehicle_size ||
+                  ""
+                }
+                onChange={(e) =>
+                  setRequestData((prev) => ({
+                    ...prev,
+                    trailerSize: e.target.value,
+                    vehicle_size: e.target.value,
+                  }))
+                }
+                className="w-full border rounded-md p-2"
+                placeholder="Enter trailer size"
+                required
               />
-              <p className="text-xs text-gray-500 mt-1">
-                This trip type only allows single vehicle transport
-              </p>
             </div>
-          ) : (
-            <input
-              type="number"
-              min="1"
-              max="50"
-              className="w-full border rounded-md p-2"
-              value={currentNoOfVehicles}
-              onChange={(e) => {
-                const newValue = parseInt(e.target.value) || 1;
-                const validValue = Math.max(1, Math.min(50, newValue));
-
-                setRequestData((prev) => ({
-                  ...prev,
-                  no_of_vehicles: validValue,
-                  transporterDetails: createTransporterDetailsArray(
-                    validValue,
-                    prev.transporterDetails || []
-                  ),
-                }));
-              }}
-              required
-            />
           )}
-        </div>
-        <div className="flex items-center">
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <div className="text-sm font-medium text-blue-800">
-              Vehicles Required: {currentNoOfVehicles}
+
+          {safeRequestData.vehicle_type === "Truck" && (
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Truck Size
+              </label>
+              <input
+                type="text"
+                name="truckSize"
+                value={
+                  safeRequestData.truckSize ||
+                  safeRequestData.vehicle_size ||
+                  ""
+                }
+                onChange={(e) =>
+                  setRequestData((prev) => ({
+                    ...prev,
+                    truckSize: e.target.value,
+                    vehicle_size: e.target.value,
+                  }))
+                }
+                className="w-full border rounded-md p-2"
+                placeholder="Enter truck size"
+                required
+              />
             </div>
-            <div className="text-xs text-blue-600 mt-1">
-              {currentNoOfVehicles === 1
-                ? "Single vehicle transport"
-                : `Multi-vehicle transport (${currentNoOfVehicles} vehicles)`}
-            </div>
-            {isRestrictedToSingleVehicle && (
-              <div className="text-xs text-orange-600 mt-1 font-medium">
-                Restricted to single vehicle only
+          )}
+
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Vehicle Status
+            </label>
+            {shouldForceLoadedStatus(safeRequestData.vehicle_type) ? (
+              <div>
+                <input
+                  type="text"
+                  className="w-full border rounded-md p-2 bg-gray-100"
+                  value="Loaded"
+                  disabled
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  This vehicle type is always loaded
+                </p>
               </div>
+            ) : (
+              <select
+                name="vehicle_status"
+                className="w-full border rounded-md p-2"
+                value={safeRequestData.vehicle_status}
+                onChange={(e) =>
+                  setRequestData((prev) => ({
+                    ...prev,
+                    vehicle_status: e.target.value,
+                    stuffing_location:
+                      e.target.value === "Empty" ? "" : prev.stuffing_location,
+                    containers_20ft:
+                      e.target.value === "Empty" ? 0 : prev.containers_20ft,
+                    containers_40ft:
+                      e.target.value === "Empty" ? 0 : prev.containers_40ft,
+                    total_containers:
+                      e.target.value === "Empty" ? 0 : prev.total_containers,
+                    commodity: e.target.value === "Empty" ? "" : prev.commodity,
+                    cargo_type:
+                      e.target.value === "Empty" ? "" : prev.cargo_type,
+                    cargo_weight:
+                      e.target.value === "Empty" ? 0 : prev.cargo_weight,
+                  }))
+                }
+                required
+              >
+                <option value="Empty">Empty</option>
+                <option value="Loaded">Loaded</option>
+              </select>
             )}
           </div>
         </div>
-      </div> */}
+      )}
 
-      {/* Container Selection */}
+      {/* Container Details - Third Section (only for Trailer) */}
       {shouldShowContainerDetails(safeRequestData.vehicle_type) && (
         <div className="space-y-4">
           <label className="block text-sm font-medium mb-2">
@@ -254,7 +251,7 @@ const VehicleDetailsSection = ({
                   min="0"
                   className="w-full border rounded-md p-2"
                   placeholder="Enter number of 20ft containers"
-                  value={safeRequestData.containers_20ft}
+                  value={safeRequestData.containers_20ft || ""}
                   onChange={(e) =>
                     setRequestData((prev) => ({
                       ...prev,
@@ -279,7 +276,7 @@ const VehicleDetailsSection = ({
                     min="0"
                     className="w-full border rounded-md p-2"
                     placeholder="Enter number of 40ft containers"
-                    value={safeRequestData.containers_40ft}
+                    value={safeRequestData.containers_40ft || ""}
                     onChange={(e) =>
                       setRequestData((prev) => ({
                         ...prev,
@@ -296,7 +293,7 @@ const VehicleDetailsSection = ({
           </div>
 
           <div className="mt-2 text-sm text-gray-600">
-            Total Containers: {safeRequestData.total_containers}
+            Total Containers: {safeRequestData.total_containers || 0}
             {(safeRequestData.containers_20ft > 0 ||
               safeRequestData.containers_40ft > 0) && (
               <span className="ml-2">

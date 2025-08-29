@@ -21,6 +21,7 @@ import {
   BarChart3,
   Users,
 } from "lucide-react";
+import api from "../utils/Api.jsx";
 
 const AllReportsPage = () => {
   const [allTransactions, setAllTransactions] = useState([]);
@@ -43,43 +44,24 @@ const AllReportsPage = () => {
     setError(null);
 
     try {
-      // Fetch all transactions
-      const transactionsResponse = await fetch(
-        "http://localhost:4000/api/transactions/all",
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      // Fetch all transactions using shared api instance
+      const transactionsResp = await api.get("/transactions/all");
+      const transactionsData = transactionsResp?.data || {};
 
-      if (!transactionsResponse.ok) {
-        throw new Error(
-          `Failed to fetch transactions: ${transactionsResponse.status}`
-        );
-      }
-
-      const transactionsData = await transactionsResponse.json();
-
-      if (!transactionsData.success) {
+      if (transactionsData.success === false) {
         throw new Error(
           transactionsData.message || "Failed to fetch transactions"
         );
       }
 
-      // Fetch all transport requests
-      const requestsResponse = await fetch(
-        "http://localhost:4000/api/transport-requests/all",
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-
+      // Fetch all transport requests using shared api instance
       let requestsData = { data: [] };
-      if (requestsResponse.ok) {
-        requestsData = await requestsResponse.json();
+      try {
+        const requestsResp = await api.get("/transport-requests/all");
+        requestsData = requestsResp?.data || { data: [] };
+      } catch (reqErr) {
+        // keep requestsData as empty if endpoint fails
+        console.warn("Failed to fetch transport requests:", reqErr);
       }
 
       setAllTransactions(transactionsData.data || []);
@@ -121,22 +103,16 @@ const AllReportsPage = () => {
         // fetch transporter details for this request from API
         let transporterArray = [];
         try {
-          const transporterResp = await fetch(
-            `http://localhost:4000/api/transport-requests/${requestId}/transporter`,
-            {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-                "Content-Type": "application/json",
-              },
-            }
+          const transporterResp = await api.get(
+            `/transport-requests/${requestId}/transporter`
           );
-          if (transporterResp.ok) {
-            const tdata = await transporterResp.json();
-            if (tdata && tdata.success && Array.isArray(tdata.data)) {
+          const tdata = transporterResp?.data;
+          if (tdata) {
+            // support both { success, data } and raw array responses
+            if (Array.isArray(tdata)) transporterArray = tdata;
+            else if (tdata.success && Array.isArray(tdata.data))
               transporterArray = tdata.data;
-            } else if (Array.isArray(tdata)) {
-              transporterArray = tdata;
-            }
+            else if (Array.isArray(tdata.data)) transporterArray = tdata.data;
           }
         } catch (e) {
           console.warn(

@@ -1,237 +1,263 @@
 import React, { useState, useEffect } from "react";
 import {
-  Search,
-  Filter,
-  Download,
-  Calendar,
+  DollarSign,
   TrendingUp,
   TrendingDown,
-  DollarSign,
-  Package,
   Truck,
   FileText,
-  Eye,
+  Calendar,
+  MapPin,
+  User,
+  CreditCard,
+  AlertCircle,
+  CheckCircle,
+  Download,
   RefreshCw,
+  Building,
+  Package,
+  Search,
+  Filter,
+  Eye,
+  BarChart3,
+  Users,
 } from "lucide-react";
-import { toast } from "react-toastify";
-import api from "../utils/Api";
-import { transporterAPI } from "../utils/Api";
 
-const ShipmentReports = () => {
-  const [reports, setReports] = useState([]);
+const AllReportsPage = () => {
+  const [allTransactions, setAllTransactions] = useState([]);
+  const [allRequests, setAllRequests] = useState([]);
+  const [reportData, setReportData] = useState([]);
   const [filteredReports, setFilteredReports] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [profitabilityFilter, setProfitabilityFilter] = useState("all");
   const [dateRange, setDateRange] = useState({ from: "", to: "" });
+  const [sortBy, setSortBy] = useState("request_id");
+  const [sortOrder, setSortOrder] = useState("desc");
   const [selectedReport, setSelectedReport] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
+  const fetchAllData = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Fetch all transactions
+      const transactionsResponse = await fetch(
+        "http://localhost:4000/api/transactions/all",
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      if (!transactionsResponse.ok) {
+        throw new Error(
+          `Failed to fetch transactions: ${transactionsResponse.status}`
+        );
+      }
+
+      const transactionsData = await transactionsResponse.json();
+
+      if (!transactionsData.success) {
+        throw new Error(
+          transactionsData.message || "Failed to fetch transactions"
+        );
+      }
+
+      // Fetch all transport requests
+      const requestsResponse = await fetch(
+        "http://localhost:4000/api/transport-requests/all",
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      let requestsData = { data: [] };
+      if (requestsResponse.ok) {
+        requestsData = await requestsResponse.json();
+      }
+
+      setAllTransactions(transactionsData.data || []);
+      setAllRequests(requestsData.data || []);
+
+      // Process and combine data
+      processReportData(transactionsData.data || [], requestsData.data || []);
+    } catch (err) {
+      console.error("Error fetching data:", err);
+      setError(err.message || "Failed to fetch data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const processReportData = (transactions, requests) => {
+    // Group transactions by request_id
+    const transactionsByRequest = transactions.reduce((acc, transaction) => {
+      const requestId = transaction.request_id;
+      if (!acc[requestId]) {
+        acc[requestId] = [];
+      }
+      acc[requestId].push(transaction);
+      return acc;
+    }, {});
+
+    // Create a map of requests for quick lookup
+    const requestsMap = requests.reduce((acc, request) => {
+      acc[request.id] = request;
+      return acc;
+    }, {});
+
+    // Generate report data
+    const reports = Object.keys(transactionsByRequest).map((requestId) => {
+      const requestTransactions = transactionsByRequest[requestId];
+      const request = requestsMap[requestId] || {};
+
+      // Calculate financial metrics
+      const totalRevenue =
+        request.requested_price || requestTransactions[0]?.requested_price || 0;
+      const totalVehicleCharges = requestTransactions.reduce(
+        (sum, tx) => sum + (tx.transporter_charge || 0),
+        0
+      );
+      const totalPaid = requestTransactions.reduce(
+        (sum, tx) => sum + (tx.total_paid || 0),
+        0
+      );
+      const grossProfit = totalRevenue - totalVehicleCharges;
+      const outstandingAmount = totalVehicleCharges - totalPaid;
+      const profitMargin =
+        totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
+
+      // Get the first transaction for basic info if request data is missing
+      const firstTransaction = requestTransactions[0] || {};
+
+      // Determine payment status
+      const paymentStatus =
+        totalPaid >= totalRevenue
+          ? "Fully Paid"
+          : totalPaid > 0
+          ? "Partially Paid"
+          : "Unpaid";
+
+      return {
+        request_id: parseInt(requestId),
+        id: parseInt(requestId), // Add id for consistency
+        formatted_request_id:
+          request.formatted_request_id || `REQ-${requestId}`,
+        tracking_id: request.tracking_id || `TR-${requestId}`,
+        gr_no: `GR-${requestId}`,
+        trip_no: `TRIP-${requestId}`,
+        invoice_no: `INV-${new Date(
+          request.created_at || Date.now()
+        ).getFullYear()}-${String(requestId).padStart(4, "0")}`,
+        SHIPA_NO: request.SHIPA_NO || `SHIPA-${requestId}`,
+        customer_name:
+          request.customer_name ||
+          firstTransaction.consigner ||
+          "Not specified",
+        customer_id: request.customer_id || `CUST-${requestId}`,
+        pickup_location:
+          request.pickup_location ||
+          firstTransaction.pickup_location ||
+          "Not specified",
+        delivery_location:
+          request.delivery_location ||
+          firstTransaction.delivery_location ||
+          "Not specified",
+        commodity:
+          request.commodity || firstTransaction.commodity || "General Cargo",
+        vehicle_type:
+          request.vehicle_type || firstTransaction.vehicle_type || "Standard",
+        status: request.status || "completed",
+        created_at: request.created_at || firstTransaction.created_at,
+        updated_at: request.updated_at,
+        expected_pickup_date: request.expected_pickup_date,
+        expected_delivery_date: request.expected_delivery_date,
+        actual_delivery_date: request.actual_delivery_date,
+        vehicle_count: requestTransactions.length,
+        no_of_vehicles: request.no_of_vehicles || requestTransactions.length,
+        containers_20ft: request.containers_20ft || 0,
+        containers_40ft: request.containers_40ft || 0,
+        total_containers:
+          (request.containers_20ft || 0) + (request.containers_40ft || 0),
+        cargo_weight: request.cargo_weight,
+        special_instructions: request.special_instructions,
+        total_revenue: totalRevenue,
+        requested_price: totalRevenue, // For compatibility
+        service_charges: totalRevenue,
+        total_vehicle_charges: totalVehicleCharges,
+        vehicle_charges: totalVehicleCharges,
+        gross_profit: grossProfit,
+        profit_loss: grossProfit,
+        profit_margin: profitMargin,
+        profit_loss_percentage: profitMargin,
+        total_paid: totalPaid,
+        outstanding_amount: outstandingAmount,
+        payment_status: paymentStatus,
+        is_profitable: grossProfit > 0,
+        transactions: requestTransactions,
+        request_details: request,
+        transporter_details: requestTransactions.map((tx) => ({
+          vehicle_number: tx.vehicle_number,
+          driver_name: tx.driver_name,
+          driver_phone: tx.driver_phone,
+          total_charge: tx.transporter_charge,
+          additional_charges: tx.additional_charges || 0,
+        })),
+        transaction_data: requestTransactions[0] || null,
+      };
+    });
+
+    setReportData(reports);
+    setFilteredReports(reports);
+  };
+
   useEffect(() => {
-    fetchReports();
+    fetchAllData();
   }, []);
 
   useEffect(() => {
     filterReports();
-  }, [reports, searchTerm, statusFilter, dateRange]);
-
-  // Helper function to calculate total amount for a request (same as ShipmentsPage)
-  const calculateRequestTotalAmount = (containerDetails) => {
-    if (!Array.isArray(containerDetails) || containerDetails.length === 0) {
-      return 0;
-    }
-
-    return containerDetails.reduce((total, detail) => {
-      const vehicleTotal = parseFloat(detail.total_charge || 0);
-      return total + vehicleTotal;
-    }, 0);
-  };
-
-  const fetchReports = async () => {
-    try {
-      setIsLoading(true);
-
-      // Fetch shipments data
-      const shipmentsResponse = await api.get(
-        "/transport-requests/my-requests"
-      );
-
-      if (shipmentsResponse.data?.success) {
-        const shipments = shipmentsResponse.data.requests;
-
-        // Process each shipment
-        const reportsWithDetails = await Promise.all(
-          shipments.map(async (shipment) => {
-            try {
-              // Fetch transporter details
-              let transporterDetails = [];
-              let vehicleCharges = 0;
-              let vehicleCount = 0;
-
-              try {
-                const transporterResponse =
-                  await transporterAPI.getTransporterByRequestId(shipment.id);
-                if (transporterResponse.success) {
-                  const details = Array.isArray(transporterResponse.data)
-                    ? transporterResponse.data
-                    : [transporterResponse.data];
-
-                  // Filter unique vehicles
-                  const uniqueVehicles = [];
-                  const vehicleMap = new Map();
-                  details.forEach((detail) => {
-                    if (
-                      detail.vehicle_number &&
-                      !vehicleMap.has(detail.vehicle_number)
-                    ) {
-                      vehicleMap.set(detail.vehicle_number, detail);
-                      uniqueVehicles.push(detail);
-                    }
-                  });
-
-                  transporterDetails = uniqueVehicles;
-                  vehicleCharges = calculateRequestTotalAmount(uniqueVehicles);
-                  vehicleCount = uniqueVehicles.length;
-                }
-              } catch (error) {
-                console.log(
-                  `No transporter details found for shipment ${shipment.id}`
-                );
-              }
-
-              // Fetch transaction data
-              let transactionData = null;
-              let totalPaid = 0;
-              let grNumber = `GR-${shipment.id}`;
-
-              try {
-                const transactionResponse = await api.get(
-                  `/transactions/request/${shipment.id}`
-                );
-                if (
-                  transactionResponse.data.success &&
-                  transactionResponse.data.data.length > 0
-                ) {
-                  transactionData = transactionResponse.data.data[0];
-                  totalPaid = parseFloat(transactionData.total_paid || 0);
-                  grNumber = transactionData.gr_no || grNumber;
-                }
-              } catch (error) {
-                console.log(
-                  `No transaction data found for shipment ${shipment.id}`
-                );
-              }
-
-              // Use requested_price directly for service charges
-              const serviceCharges = parseFloat(shipment.requested_price || 0);
-
-              // Calculate profit/loss based on requested_price
-              const profitLoss = serviceCharges - vehicleCharges;
-              const profitLossPercentage =
-                serviceCharges > 0 ? (profitLoss / serviceCharges) * 100 : 0;
-
-              // Determine payment status
-              const paymentStatus =
-                totalPaid >= serviceCharges
-                  ? "Fully Paid"
-                  : totalPaid > 0
-                  ? "Partially Paid"
-                  : "Unpaid";
-              const outstandingAmount = Math.max(0, serviceCharges - totalPaid);
-
-              return {
-                ...shipment,
-                gr_no: grNumber,
-                trip_no: `TRIP-${shipment.id}`,
-                invoice_no: `INV-${new Date(
-                  shipment.created_at
-                ).getFullYear()}-${String(shipment.id).padStart(4, "0")}`,
-                service_charges: serviceCharges,
-                vehicle_charges: vehicleCharges,
-                profit_loss: profitLoss,
-                profit_loss_percentage: profitLossPercentage,
-                total_paid: totalPaid,
-                outstanding_amount: outstandingAmount,
-                payment_status: paymentStatus,
-                vehicle_count: vehicleCount,
-                transporter_details: transporterDetails,
-                transaction_data: transactionData,
-                customer_name: `Customer ${shipment.customer_id}`,
-                total_containers:
-                  (shipment.containers_20ft || 0) +
-                  (shipment.containers_40ft || 0),
-              };
-            } catch (error) {
-              console.error(`Error processing shipment ${shipment.id}:`, error);
-              // Fallback using requested_price
-              const serviceCharges = parseFloat(shipment.requested_price || 0);
-              const profitLoss = serviceCharges;
-              const profitLossPercentage = 100;
-
-              return {
-                ...shipment,
-                gr_no: `GR-${shipment.id}`,
-                trip_no: `TRIP-${shipment.id}`,
-                invoice_no: `INV-${new Date(
-                  shipment.created_at
-                ).getFullYear()}-${String(shipment.id).padStart(4, "0")}`,
-                service_charges: serviceCharges,
-                vehicle_charges: 0,
-                profit_loss: profitLoss,
-                profit_loss_percentage: profitLossPercentage,
-                total_paid: 0,
-                outstanding_amount: serviceCharges,
-                payment_status: "Unpaid",
-                vehicle_count: shipment.no_of_vehicles || 1,
-                transporter_details: [],
-                transaction_data: null,
-                customer_name: `Customer ${shipment.customer_id}`,
-                total_containers:
-                  (shipment.containers_20ft || 0) +
-                  (shipment.containers_40ft || 0),
-              };
-            }
-          })
-        );
-
-        setReports(reportsWithDetails);
-        console.log("Processed reports with real data:", reportsWithDetails);
-      } else {
-        console.log("No shipments data found or unsuccessful response");
-        setReports([]);
-      }
-    } catch (error) {
-      console.error("Error fetching reports:", error);
-      toast.error("Failed to fetch shipment reports");
-      setReports([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [reportData, searchTerm, statusFilter, profitabilityFilter, dateRange]);
 
   const filterReports = () => {
-    let filtered = reports.filter((report) => {
+    let filtered = reportData.filter((report) => {
       const matchesSearch =
-        String(report.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
-        String(report.gr_no).toLowerCase().includes(searchTerm.toLowerCase()) ||
-        String(report.trip_no)
+        String(report.request_id)
           .toLowerCase()
           .includes(searchTerm.toLowerCase()) ||
+        String(report.formatted_request_id)
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        String(report.tracking_id)
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        String(report.gr_no).toLowerCase().includes(searchTerm.toLowerCase()) ||
         String(report.customer_name)
           .toLowerCase()
           .includes(searchTerm.toLowerCase()) ||
-        String(report.pickup_location || "")
+        String(report.pickup_location)
           .toLowerCase()
           .includes(searchTerm.toLowerCase()) ||
-        String(report.delivery_location || "")
+        String(report.delivery_location)
           .toLowerCase()
           .includes(searchTerm.toLowerCase()) ||
-        String(report.tracking_id || "")
+        String(report.commodity)
           .toLowerCase()
           .includes(searchTerm.toLowerCase());
 
       const matchesStatus =
         statusFilter === "all" || report.status === statusFilter;
+
+      const matchesProfitability =
+        profitabilityFilter === "all" ||
+        (profitabilityFilter === "profitable" && report.is_profitable) ||
+        (profitabilityFilter === "loss" && !report.is_profitable);
 
       let matchesDate = true;
       if (dateRange.from && dateRange.to) {
@@ -241,28 +267,86 @@ const ShipmentReports = () => {
         matchesDate = reportDate >= fromDate && reportDate <= toDate;
       }
 
-      return matchesSearch && matchesStatus && matchesDate;
+      return (
+        matchesSearch && matchesStatus && matchesProfitability && matchesDate
+      );
+    });
+
+    // Sort filtered data
+    filtered.sort((a, b) => {
+      let aValue = a[sortBy];
+      let bValue = b[sortBy];
+
+      if (typeof aValue === "string") {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+
+      if (sortOrder === "asc") {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
     });
 
     setFilteredReports(filtered);
   };
 
-  const refreshData = () => {
-    setIsLoading(true);
-    fetchReports();
-    toast.success("Reports data refreshed successfully");
+  const formatCurrency = (amount) => {
+    if (!amount && amount !== 0) return "₹0";
+    return `₹${Number(amount).toLocaleString("en-IN")}`;
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    try {
+      return new Date(dateString).toLocaleDateString("en-IN");
+    } catch {
+      return "N/A";
+    }
+  };
+
+  const formatDateTime = (dateString) => {
+    if (!dateString) return "N/A";
+    try {
+      return new Date(dateString).toLocaleString("en-IN");
+    } catch {
+      return "N/A";
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status?.toLowerCase()) {
+      case "approved":
+        return "bg-green-100 text-green-800";
+      case "rejected":
+        return "bg-red-100 text-red-800";
+      case "in progress":
+      case "in transit":
+        return "bg-blue-100 text-blue-800";
+      case "completed":
+      case "delivered":
+        return "bg-purple-100 text-purple-800";
+      case "cancelled":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-yellow-100 text-yellow-800";
+    }
   };
 
   const getStatusBadge = (status) => {
     const statusConfig = {
-      Pending: { color: "bg-yellow-100 text-yellow-800", icon: "⏳" },
-      Approved: { color: "bg-blue-100 text-blue-800", icon: "✓" },
-      "In Transit": { color: "bg-purple-100 text-purple-800", icon: "🚛" },
-      Delivered: { color: "bg-green-100 text-green-800", icon: "📦" },
-      Cancelled: { color: "bg-red-100 text-red-800", icon: "✕" },
+      pending: { color: "bg-yellow-100 text-yellow-800", icon: "⏳" },
+      approved: { color: "bg-blue-100 text-blue-800", icon: "✓" },
+      "in progress": { color: "bg-purple-100 text-purple-800", icon: "🚛" },
+      "in transit": { color: "bg-purple-100 text-purple-800", icon: "🚛" },
+      delivered: { color: "bg-green-100 text-green-800", icon: "📦" },
+      completed: { color: "bg-green-100 text-green-800", icon: "📦" },
+      cancelled: { color: "bg-red-100 text-red-800", icon: "✕" },
+      rejected: { color: "bg-red-100 text-red-800", icon: "✕" },
     };
 
-    const config = statusConfig[status] || statusConfig.Pending;
+    const config = statusConfig[status?.toLowerCase()] || statusConfig.pending;
     return (
       <span
         className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${config.color}`}
@@ -282,6 +366,10 @@ const ShipmentReports = () => {
     return <div className="w-4 h-4 bg-gray-300 rounded-full"></div>;
   };
 
+  const refreshData = () => {
+    fetchAllData();
+  };
+
   const exportToCSV = () => {
     const headers = [
       "Request ID",
@@ -289,6 +377,7 @@ const ShipmentReports = () => {
       "GR No",
       "Trip No",
       "Invoice No",
+      "Customer Name",
       "Customer ID",
       "Pickup Location",
       "Delivery Location",
@@ -312,11 +401,12 @@ const ShipmentReports = () => {
     ];
 
     const csvData = filteredReports.map((report) => [
-      report.id,
+      report.request_id,
       report.tracking_id || "",
       report.gr_no,
       report.trip_no,
       report.invoice_no,
+      report.customer_name,
       report.customer_id,
       report.pickup_location || "",
       report.delivery_location || "",
@@ -330,10 +420,8 @@ const ShipmentReports = () => {
       report.total_paid,
       report.outstanding_amount,
       report.payment_status,
-      new Date(report.created_at).toLocaleDateString(),
-      report.expected_delivery_date
-        ? new Date(report.expected_delivery_date).toLocaleDateString()
-        : "",
+      formatDate(report.created_at),
+      formatDate(report.expected_delivery_date),
       report.containers_20ft || 0,
       report.containers_40ft || 0,
       report.total_containers,
@@ -349,68 +437,42 @@ const ShipmentReports = () => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `shipment-reports-${
-      new Date().toISOString().split("T")[0]
-    }.csv`;
+    a.download = `all-reports-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
 
-  const getSummaryStats = () => {
-    const totalRevenue = filteredReports.reduce(
-      (sum, report) => sum + (report.service_charges || 0),
-      0
-    );
-    const totalCosts = filteredReports.reduce(
-      (sum, report) => sum + (report.vehicle_charges || 0),
-      0
-    );
-    const totalProfit = totalRevenue - totalCosts;
-    const totalOutstanding = filteredReports.reduce(
-      (sum, report) => sum + (report.outstanding_amount || 0),
-      0
-    );
-    const totalPaid = filteredReports.reduce(
-      (sum, report) => sum + (report.total_paid || 0),
-      0
-    );
+  // Calculate summary statistics
+  const totalRequests = filteredReports.length;
+  const profitableRequests = filteredReports.filter(
+    (r) => r.is_profitable
+  ).length;
+  const totalRevenue = filteredReports.reduce(
+    (sum, r) => sum + r.total_revenue,
+    0
+  );
+  const totalCosts = filteredReports.reduce(
+    (sum, r) => sum + r.total_vehicle_charges,
+    0
+  );
+  const totalProfit = filteredReports.reduce(
+    (sum, r) => sum + r.gross_profit,
+    0
+  );
+  const totalOutstanding = filteredReports.reduce(
+    (sum, r) => sum + r.outstanding_amount,
+    0
+  );
+  const totalPaid = filteredReports.reduce((sum, r) => sum + r.total_paid, 0);
+  const overallProfitMargin =
+    totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
 
-    return {
-      totalRevenue,
-      totalCosts,
-      totalProfit,
-      totalOutstanding,
-      totalPaid,
-    };
-  };
-
-  const { totalRevenue, totalCosts, totalProfit, totalOutstanding, totalPaid } =
-    getSummaryStats();
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    try {
-      return new Date(dateString).toLocaleDateString();
-    } catch {
-      return "N/A";
-    }
-  };
-
-  const formatDateTime = (dateString) => {
-    if (!dateString) return "N/A";
-    try {
-      return new Date(dateString).toLocaleString();
-    } catch {
-      return "N/A";
-    }
-  };
-
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading reports...</p>
+          <p className="mt-4 text-gray-600">Loading all reports...</p>
         </div>
       </div>
     );
@@ -425,19 +487,22 @@ const ShipmentReports = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">
-                  Shipment Reports
+                  All Transport Reports
                 </h1>
                 <p className="mt-1 text-sm text-gray-500">
-                  Comprehensive view of all shipments with profit/loss analysis
+                  Comprehensive P&L analysis for all transport requests
                 </p>
               </div>
               <div className="flex space-x-3">
                 <button
                   onClick={refreshData}
-                  className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  disabled={loading}
+                  className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-400 transition-colors"
                 >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Refresh
+                  <RefreshCw
+                    className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`}
+                  />
+                  {loading ? "Refreshing..." : "Refresh"}
                 </button>
                 <button
                   onClick={exportToCSV}
@@ -453,8 +518,38 @@ const ShipmentReports = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center gap-2 text-red-700">
+              <AlertCircle className="h-5 w-5" />
+              <span>{error}</span>
+            </div>
+          </div>
+        )}
+
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+          <div className="bg-white p-6 rounded-xl shadow-sm border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500 font-medium">
+                  Total Requests
+                </p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {totalRequests}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {profitableRequests} profitable (
+                  {totalRequests > 0
+                    ? ((profitableRequests / totalRequests) * 100).toFixed(1)
+                    : 0}
+                  %)
+                </p>
+              </div>
+              <FileText className="h-8 w-8 text-blue-600" />
+            </div>
+          </div>
+
           <div className="bg-white p-6 rounded-xl shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
@@ -462,9 +557,10 @@ const ShipmentReports = () => {
                   Total Revenue
                 </p>
                 <p className="text-2xl font-bold text-green-600">
-                  ₹{totalRevenue.toLocaleString()}
+                  {formatCurrency(totalRevenue)}
                 </p>
               </div>
+              <DollarSign className="h-8 w-8 text-green-600" />
             </div>
           </div>
 
@@ -473,9 +569,10 @@ const ShipmentReports = () => {
               <div>
                 <p className="text-sm text-gray-500 font-medium">Total Costs</p>
                 <p className="text-2xl font-bold text-orange-600">
-                  ₹{totalCosts.toLocaleString()}
+                  {formatCurrency(totalCosts)}
                 </p>
               </div>
+              <Truck className="h-8 w-8 text-orange-600" />
             </div>
           </div>
 
@@ -488,20 +585,17 @@ const ShipmentReports = () => {
                     totalProfit >= 0 ? "text-green-600" : "text-red-600"
                   }`}
                 >
-                  ₹{totalProfit.toLocaleString()}
+                  {formatCurrency(totalProfit)}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {overallProfitMargin.toFixed(1)}% margin
                 </p>
               </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-xl shadow-sm border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 font-medium">Total Paid</p>
-                <p className="text-2xl font-bold text-blue-600">
-                  ₹{totalPaid.toLocaleString()}
-                </p>
-              </div>
+              <BarChart3
+                className={`h-8 w-8 ${
+                  totalProfit >= 0 ? "text-green-600" : "text-red-600"
+                }`}
+              />
             </div>
           </div>
 
@@ -510,21 +604,25 @@ const ShipmentReports = () => {
               <div>
                 <p className="text-sm text-gray-500 font-medium">Outstanding</p>
                 <p className="text-2xl font-bold text-red-600">
-                  ₹{totalOutstanding.toLocaleString()}
+                  {formatCurrency(totalOutstanding)}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Paid: {formatCurrency(totalPaid)}
                 </p>
               </div>
+              <CreditCard className="h-8 w-8 text-red-600" />
             </div>
           </div>
         </div>
 
         {/* Filters */}
         <div className="bg-white p-6 rounded-xl shadow-sm border mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search by ID, GR No, Customer, Location..."
+                placeholder="Search requests..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -537,11 +635,21 @@ const ShipmentReports = () => {
               className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Status</option>
-              <option value="Pending">Pending</option>
-              <option value="Approved">Approved</option>
-              <option value="In Transit">In Transit</option>
-              <option value="Delivered">Delivered</option>
-              <option value="Cancelled">Cancelled</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="in progress">In Progress</option>
+              <option value="completed">Completed</option>
+              <option value="rejected">Rejected</option>
+            </select>
+
+            <select
+              value={profitabilityFilter}
+              onChange={(e) => setProfitabilityFilter(e.target.value)}
+              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All</option>
+              <option value="profitable">Profitable</option>
+              <option value="loss">Loss Making</option>
             </select>
 
             <div className="flex gap-2">
@@ -551,7 +659,7 @@ const ShipmentReports = () => {
                 onChange={(e) =>
                   setDateRange((prev) => ({ ...prev, from: e.target.value }))
                 }
-                className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="From Date"
               />
               <input
@@ -560,10 +668,22 @@ const ShipmentReports = () => {
                 onChange={(e) =>
                   setDateRange((prev) => ({ ...prev, to: e.target.value }))
                 }
-                className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="To Date"
               />
             </div>
+
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="request_id">Request ID</option>
+              <option value="created_at">Date Created</option>
+              <option value="total_revenue">Revenue</option>
+              <option value="gross_profit">Profit</option>
+              <option value="profit_margin">Profit Margin</option>
+            </select>
           </div>
         </div>
 
@@ -595,14 +715,14 @@ const ShipmentReports = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredReports.map((report) => (
-                  <tr key={report.id} className="hover:bg-gray-50">
+                  <tr key={report.request_id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="space-y-1">
                         <div className="text-sm font-medium text-gray-900">
-                          ID: {report.id}
+                          ID: {report.request_id}
                         </div>
                         <div className="text-xs text-gray-500">
-                          Tracking: {report.tracking_id || "N/A"}
+                          Tracking: {report.tracking_id}
                         </div>
                         <div className="text-xs text-gray-500">
                           GR: {report.gr_no}
@@ -621,13 +741,13 @@ const ShipmentReports = () => {
                           {report.customer_name}
                         </div>
                         <div className="text-xs text-gray-500">
-                          From: {report.pickup_location || "N/A"}
+                          From: {report.pickup_location}
                         </div>
                         <div className="text-xs text-gray-500">
-                          To: {report.delivery_location || "N/A"}
+                          To: {report.delivery_location}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {report.commodity || "N/A"}
+                          {report.commodity}
                         </div>
                         <div className="text-xs text-blue-600">
                           {report.vehicle_count} vehicles
@@ -641,40 +761,40 @@ const ShipmentReports = () => {
                             Revenue:
                           </span>
                           <span className="text-sm font-medium text-green-600">
-                            ₹{(report.service_charges || 0).toLocaleString()}
+                            {formatCurrency(report.total_revenue)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-500">Costs:</span>
                           <span className="text-sm font-medium text-orange-600">
-                            ₹{(report.vehicle_charges || 0).toLocaleString()}
+                            {formatCurrency(report.total_vehicle_charges)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between border-t pt-2">
                           <div className="flex items-center gap-1">
-                            {getProfitLossIndicator(report.profit_loss || 0)}
+                            {getProfitLossIndicator(report.gross_profit)}
                             <span className="text-xs text-gray-500">P&L:</span>
                           </div>
                           <span
                             className={`text-sm font-bold ${
-                              (report.profit_loss || 0) >= 0
+                              report.gross_profit >= 0
                                 ? "text-green-600"
                                 : "text-red-600"
                             }`}
                           >
-                            ₹{(report.profit_loss || 0).toLocaleString()}
+                            {formatCurrency(report.gross_profit)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-500">Margin:</span>
                           <span
                             className={`text-xs font-medium ${
-                              (report.profit_loss_percentage || 0) >= 0
+                              report.profit_margin >= 0
                                 ? "text-green-600"
                                 : "text-red-600"
                             }`}
                           >
-                            {(report.profit_loss_percentage || 0).toFixed(1)}%
+                            {report.profit_margin.toFixed(1)}%
                           </span>
                         </div>
                       </div>
@@ -684,7 +804,7 @@ const ShipmentReports = () => {
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-500">Paid:</span>
                           <span className="text-sm font-medium text-blue-600">
-                            ₹{(report.total_paid || 0).toLocaleString()}
+                            {formatCurrency(report.total_paid)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
@@ -692,7 +812,7 @@ const ShipmentReports = () => {
                             Outstanding:
                           </span>
                           <span className="text-sm font-medium text-red-600">
-                            ₹{(report.outstanding_amount || 0).toLocaleString()}
+                            {formatCurrency(report.outstanding_amount)}
                           </span>
                         </div>
                         <span
@@ -733,11 +853,20 @@ const ShipmentReports = () => {
             <div className="text-center py-12">
               <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500">
-                No reports found matching your criteria.
+                {reportData.length === 0
+                  ? "No transaction data available."
+                  : "No reports match your current filters."}
               </p>
             </div>
           )}
         </div>
+
+        {/* Results Count */}
+        {filteredReports.length > 0 && (
+          <div className="mt-4 text-sm text-gray-600 text-center">
+            Showing {filteredReports.length} of {reportData.length} reports
+          </div>
+        )}
       </div>
 
       {/* Detail Modal */}
@@ -749,7 +878,7 @@ const ShipmentReports = () => {
                 <div>
                   <h3 className="text-xl font-bold">Detailed Report</h3>
                   <p className="text-blue-100">
-                    Request ID: {selectedReport.id}
+                    Request ID: {selectedReport.request_id}
                   </p>
                 </div>
                 <button
@@ -772,30 +901,26 @@ const ShipmentReports = () => {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-500">Request ID:</span>
-                      <span className="font-medium">{selectedReport.id}</span>
+                      <span className="font-medium">
+                        {selectedReport.request_id}
+                      </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Shipa NO:</span>
+                      <span className="text-gray-500">Formatted ID:</span>
                       <span className="font-medium">
-                        {selectedReport.SHIPA_NO}
+                        {selectedReport.formatted_request_id}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Tracking ID:</span>
                       <span className="font-medium">
-                        {selectedReport.tracking_id || "N/A"}
+                        {selectedReport.tracking_id}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">GR Number:</span>
                       <span className="font-medium">
                         {selectedReport.gr_no}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Requested Price</span>
-                      <span className="font-medium">
-                        {selectedReport.requested_price}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -811,14 +936,14 @@ const ShipmentReports = () => {
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Status:</span>
-                      <span>{getStatusBadge(selectedReport.status)}</span>
+                      <span className="text-gray-500">SHIPA Number:</span>
+                      <span className="font-medium">
+                        {selectedReport.SHIPA_NO}
+                      </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Created Date:</span>
-                      <span className="font-medium">
-                        {formatDate(selectedReport.created_at)}
-                      </span>
+                      <span className="text-gray-500">Status:</span>
+                      <span>{getStatusBadge(selectedReport.status)}</span>
                     </div>
                   </div>
                 </div>
@@ -831,7 +956,7 @@ const ShipmentReports = () => {
                   </h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Customer:</span>
+                      <span className="text-gray-500">Customer Name:</span>
                       <span className="font-medium">
                         {selectedReport.customer_name}
                       </span>
@@ -843,33 +968,27 @@ const ShipmentReports = () => {
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">SHIPA No:</span>
-                      <span className="font-medium">
-                        {selectedReport.SHIPA_NO}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
                       <span className="text-gray-500">Pickup Location:</span>
                       <span className="font-medium">
-                        {selectedReport.pickup_location || "N/A"}
+                        {selectedReport.pickup_location}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Delivery Location:</span>
                       <span className="font-medium">
-                        {selectedReport.delivery_location || "N/A"}
+                        {selectedReport.delivery_location}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Commodity:</span>
                       <span className="font-medium">
-                        {selectedReport.commodity || "N/A"}
+                        {selectedReport.commodity}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Vehicle Type:</span>
                       <span className="font-medium">
-                        {selectedReport.vehicle_type || "N/A"}
+                        {selectedReport.vehicle_type}
                       </span>
                     </div>
                   </div>
@@ -878,21 +997,20 @@ const ShipmentReports = () => {
                 {/* Financial Details */}
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                    <DollarSign className="w-5 h-5 mr-2 text-green-600" />
                     Financial Details
                   </h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-500">Service Charges:</span>
                       <span className="font-medium text-green-600">
-                        ₹
-                        {(selectedReport.requested_price || 0).toLocaleString()}
+                        {formatCurrency(selectedReport.service_charges)}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Vehicle Charges:</span>
                       <span className="font-medium text-orange-600">
-                        ₹
-                        {(selectedReport.vehicle_charges || 0).toLocaleString()}
+                        {formatCurrency(selectedReport.vehicle_charges)}
                       </span>
                     </div>
                     <div className="flex justify-between border-t pt-2">
@@ -901,27 +1019,24 @@ const ShipmentReports = () => {
                       </span>
                       <span
                         className={`font-bold ${
-                          (selectedReport.profit_loss || 0) >= 0
+                          selectedReport.profit_loss >= 0
                             ? "text-green-600"
                             : "text-red-600"
                         }`}
                       >
-                        ₹{(selectedReport.profit_loss || 0).toLocaleString()}
+                        {formatCurrency(selectedReport.profit_loss)}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Profit Margin:</span>
                       <span
                         className={`font-medium ${
-                          (selectedReport.profit_loss_percentage || 0) >= 0
+                          selectedReport.profit_loss_percentage >= 0
                             ? "text-green-600"
                             : "text-red-600"
                         }`}
                       >
-                        {(selectedReport.profit_loss_percentage || 0).toFixed(
-                          2
-                        )}
-                        %
+                        {selectedReport.profit_loss_percentage.toFixed(2)}%
                       </span>
                     </div>
                   </div>
@@ -930,22 +1045,20 @@ const ShipmentReports = () => {
                 {/* Payment Information */}
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                    <CreditCard className="w-5 h-5 mr-2 text-blue-600" />
                     Payment Information
                   </h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-500">Total Paid:</span>
                       <span className="font-medium text-blue-600">
-                        ₹{(selectedReport.total_paid || 0).toLocaleString()}
+                        {formatCurrency(selectedReport.total_paid)}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Outstanding:</span>
                       <span className="font-medium text-red-600">
-                        ₹
-                        {(
-                          selectedReport.outstanding_amount || 0
-                        ).toLocaleString()}
+                        {formatCurrency(selectedReport.outstanding_amount)}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -985,19 +1098,20 @@ const ShipmentReports = () => {
                 {/* Cargo Details */}
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                    <Package className="w-5 h-5 mr-2 text-purple-600" />
                     Cargo Details
                   </h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-500">20ft Containers:</span>
                       <span className="font-medium">
-                        {selectedReport.containers_20ft || 0}
+                        {selectedReport.containers_20ft}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">40ft Containers:</span>
                       <span className="font-medium">
-                        {selectedReport.containers_40ft || 0}
+                        {selectedReport.containers_40ft}
                       </span>
                     </div>
                     <div className="flex justify-between border-t pt-2">
@@ -1027,6 +1141,7 @@ const ShipmentReports = () => {
                 {/* Timeline */}
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                    <Calendar className="w-5 h-5 mr-2 text-indigo-600" />
                     Timeline
                   </h4>
                   <div className="space-y-2 text-sm">
@@ -1045,15 +1160,13 @@ const ShipmentReports = () => {
                     <div className="flex justify-between">
                       <span className="text-gray-500">Expected Pickup:</span>
                       <span className="font-medium">
-                        {formatDate(selectedReport.expected_pickup_date) ||
-                          "N/A"}
+                        {formatDate(selectedReport.expected_pickup_date)}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Expected Delivery:</span>
                       <span className="font-medium">
-                        {formatDate(selectedReport.expected_delivery_date) ||
-                          "N/A"}
+                        {formatDate(selectedReport.expected_delivery_date)}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -1088,7 +1201,7 @@ const ShipmentReports = () => {
                                   Vehicle Number:
                                 </span>
                                 <span className="font-medium">
-                                  {transporter.vehicle_number}
+                                  {transporter.vehicle_number || "N/A"}
                                 </span>
                               </div>
                               <div className="flex justify-between">
@@ -1112,10 +1225,7 @@ const ShipmentReports = () => {
                                   Total Charge:
                                 </span>
                                 <span className="font-medium text-orange-600">
-                                  ₹
-                                  {(
-                                    transporter.total_charge || 0
-                                  ).toLocaleString()}
+                                  {formatCurrency(transporter.total_charge)}
                                 </span>
                               </div>
                               <div className="flex justify-between">
@@ -1123,16 +1233,79 @@ const ShipmentReports = () => {
                                   Additional Charge:
                                 </span>
                                 <span className="font-medium text-orange-600">
-                                  ₹
-                                  {(
-                                    transporter.additional_charges || 0
-                                  ).toLocaleString()}
+                                  {formatCurrency(
+                                    transporter.additional_charges
+                                  )}
                                 </span>
                               </div>
                             </div>
                           </div>
                         )
                       )}
+                    </div>
+                  </div>
+                )}
+
+              {/* Transaction Details */}
+              {selectedReport.transactions &&
+                selectedReport.transactions.length > 0 && (
+                  <div className="mt-8">
+                    <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                      <FileText className="w-5 h-5 mr-2 text-blue-600" />
+                      Transaction Details
+                    </h4>
+                    <div className="bg-white border rounded-lg overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                Transaction ID
+                              </th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                Vehicle
+                              </th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                Charges
+                              </th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                Paid
+                              </th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                Outstanding
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200">
+                            {selectedReport.transactions.map(
+                              (transaction, index) => (
+                                <tr key={index}>
+                                  <td className="px-4 py-2 text-sm font-medium text-gray-900">
+                                    {transaction.id}
+                                  </td>
+                                  <td className="px-4 py-2 text-sm text-gray-500">
+                                    {transaction.vehicle_number || "N/A"}
+                                  </td>
+                                  <td className="px-4 py-2 text-sm font-medium text-orange-600">
+                                    {formatCurrency(
+                                      transaction.transporter_charge
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-2 text-sm font-medium text-blue-600">
+                                    {formatCurrency(transaction.total_paid)}
+                                  </td>
+                                  <td className="px-4 py-2 text-sm font-medium text-red-600">
+                                    {formatCurrency(
+                                      (transaction.transporter_charge || 0) -
+                                        (transaction.total_paid || 0)
+                                    )}
+                                  </td>
+                                </tr>
+                              )
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1166,6 +1339,7 @@ const ShipmentReports = () => {
                     "GR No",
                     "Trip No",
                     "Invoice No",
+                    "Customer Name",
                     "Customer ID",
                     "Pickup Location",
                     "Delivery Location",
@@ -1189,16 +1363,17 @@ const ShipmentReports = () => {
                   ];
 
                   const csvData = singleReportData.map((report) => [
-                    report.id,
-                    report.tracking_id || "",
+                    report.request_id,
+                    report.tracking_id,
                     report.gr_no,
                     report.trip_no,
                     report.invoice_no,
+                    report.customer_name,
                     report.customer_id,
-                    report.pickup_location || "",
-                    report.delivery_location || "",
-                    report.vehicle_type || "",
-                    report.commodity || "",
+                    report.pickup_location,
+                    report.delivery_location,
+                    report.vehicle_type,
+                    report.commodity,
                     report.status,
                     report.service_charges,
                     report.vehicle_charges,
@@ -1207,14 +1382,10 @@ const ShipmentReports = () => {
                     report.total_paid,
                     report.outstanding_amount,
                     report.payment_status,
-                    new Date(report.created_at).toLocaleDateString(),
-                    report.expected_delivery_date
-                      ? new Date(
-                          report.expected_delivery_date
-                        ).toLocaleDateString()
-                      : "",
-                    report.containers_20ft || 0,
-                    report.containers_40ft || 0,
+                    formatDate(report.created_at),
+                    formatDate(report.expected_delivery_date),
+                    report.containers_20ft,
+                    report.containers_40ft,
                     report.total_containers,
                     report.cargo_weight || 0,
                     report.vehicle_count,
@@ -1228,7 +1399,7 @@ const ShipmentReports = () => {
                   const url = window.URL.createObjectURL(blob);
                   const a = document.createElement("a");
                   a.href = url;
-                  a.download = `shipment-report-${selectedReport.id}-${
+                  a.download = `transport-report-${selectedReport.request_id}-${
                     new Date().toISOString().split("T")[0]
                   }.csv`;
                   a.click();
@@ -1247,4 +1418,4 @@ const ShipmentReports = () => {
   );
 };
 
-export default ShipmentReports;
+export default AllReportsPage;

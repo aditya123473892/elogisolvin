@@ -21,7 +21,7 @@ import {
   Download,
 } from "lucide-react";
 
-import api from "../utils/Api";
+import api, { transporterAPI } from "../utils/Api";
 
 import { toast, ToastContainer } from "react-toastify";
 
@@ -98,6 +98,9 @@ export default function CustomerDashboard({
     driverName: "",
   });
 
+  // Add this state near your other state declarations
+  const [containerSearchQuery, setContainerSearchQuery] = useState("");
+
   // Header functions (matching AdminDashboard)
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
@@ -118,14 +121,40 @@ export default function CustomerDashboard({
     navigate("/login");
   };
 
+  // Update the fetchRequests function
   const fetchRequests = async () => {
     setLoading(true);
     try {
       const response = await api.get("/transport-requests/my-requests");
       if (response.data?.success) {
-        console.log("response", response.data.requests);
-        setAllRequests(response.data.requests);
-        updateDisplayedRequests(response.data.requests, 1);
+        // Fetch container details for each request
+        const requestsWithContainers = await Promise.all(
+          response.data.requests.map(async (request) => {
+            try {
+              const containerResponse =
+                await transporterAPI.getContainersByRequestId(request.id);
+              return {
+                ...request,
+                containerDetails:
+                  containerResponse.success && containerResponse.data
+                    ? containerResponse.data
+                    : [],
+              };
+            } catch (error) {
+              console.error(
+                `Error fetching containers for request ${request.id}:`,
+                error
+              );
+              return {
+                ...request,
+                containerDetails: [],
+              };
+            }
+          })
+        );
+
+        setAllRequests(requestsWithContainers);
+        updateDisplayedRequests(requestsWithContainers, 1);
       } else {
         toast.error("Failed to fetch requests");
       }
@@ -137,16 +166,27 @@ export default function CustomerDashboard({
     }
   };
 
-  const updateDisplayedRequests = (requests, page) => {
+  const updateDisplayedRequests = (
+    requests,
+    page,
+    searchQuery = containerSearchQuery
+  ) => {
+    // First filter all requests
+    const filteredRequests = getFilteredRequests(requests);
+
+    // Then paginate the filtered results
     const startIndex = (page - 1) * requestsPerPage;
     const endIndex = startIndex + requestsPerPage;
-    const displayedRequests = requests.slice(startIndex, endIndex);
-    setPastRequests(displayedRequests);
+    const paginatedRequests = filteredRequests.slice(startIndex, endIndex);
+
+    setPastRequests(paginatedRequests);
     setCurrentPage(page);
   };
 
+  // Update getTotalPages to consider filtered results
   const getTotalPages = () => {
-    return Math.ceil(allRequests.length / requestsPerPage);
+    const filteredLength = getFilteredRequests(allRequests).length;
+    return Math.ceil(filteredLength / requestsPerPage);
   };
 
   // In CustomerDashboard.js - Update the handleSubmit function around line 200-250
@@ -409,6 +449,19 @@ export default function CustomerDashboard({
     );
   };
 
+  // Update the getFilteredRequests function to work with all requests
+  const getFilteredRequests = (requests) => {
+    if (!containerSearchQuery) return requests;
+
+    return requests.filter((request) =>
+      request.containerDetails?.some((container) =>
+        container.container_no
+          ?.toLowerCase()
+          .includes(containerSearchQuery.toLowerCase())
+      )
+    );
+  };
+
   // Pagination handlers
   const handlePrevPage = () => {
     if (currentPage > 1) {
@@ -427,6 +480,12 @@ export default function CustomerDashboard({
   useEffect(() => {
     fetchRequests();
   }, []);
+
+  // Update the useEffect for containerSearchQuery
+  useEffect(() => {
+    // When search query changes, reset to first page and update display
+    updateDisplayedRequests(allRequests, 1, containerSearchQuery);
+  }, [containerSearchQuery, allRequests]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -562,7 +621,23 @@ export default function CustomerDashboard({
                 <h3 className="text-sm font-medium text-gray-900">
                   Recent Requests
                 </h3>
+                {/* Add search input */}
+                <div className="mt-2">
+                  <div className="relative rounded-md shadow-sm">
+                    <input
+                      type="text"
+                      value={containerSearchQuery}
+                      onChange={(e) => setContainerSearchQuery(e.target.value)}
+                      placeholder="Search containers..."
+                      className="block w-full rounded-md border-gray-300 pl-3 pr-10 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                    />
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                      <Search className="h-4 w-4 text-gray-400" />
+                    </div>
+                  </div>
+                </div>
               </div>
+
               <div className="p-4">
                 {loading ? (
                   <div className="flex items-center justify-center py-8">
@@ -570,12 +645,16 @@ export default function CustomerDashboard({
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {pastRequests.length === 0 ? (
+                    {getFilteredRequests(pastRequests).length === 0 ? (
                       <div className="text-center py-8 text-gray-500">
-                        <p className="text-sm">No requests found</p>
+                        <p className="text-sm">
+                          {containerSearchQuery
+                            ? "No containers found matching your search"
+                            : "No requests found"}
+                        </p>
                       </div>
                     ) : (
-                      pastRequests.map((request) => (
+                      getFilteredRequests(pastRequests).map((request) => (
                         <div
                           key={request.id}
                           onClick={() => handleRequestClick(request)}
@@ -652,6 +731,43 @@ export default function CustomerDashboard({
                                 })()}
                               </div>
                             </div>
+
+                            {/* Container Details Section */}
+                            {request.containerDetails &&
+                              request.containerDetails.length > 0 && (
+                                <div className="mt-2 text-xs">
+                                  <span className="text-gray-500">
+                                    Containers:
+                                  </span>
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {request.containerDetails.map(
+                                      (container) => (
+                                        <div
+                                          key={container.id}
+                                          className="inline-block px-2 py-1 rounded text-xs bg-gray-50 border border-gray-200 text-gray-700"
+                                        >
+                                          {container.container_no}
+                                        </div>
+                                      )
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                            {/* Fallback for no containers */}
+                            {(!request.containerDetails ||
+                              request.containerDetails.length === 0) && (
+                              <div className="mt-2 text-xs">
+                                <span className="text-gray-500">
+                                  Containers:
+                                </span>
+                                <div className="flex gap-2 mt-1">
+                                  <span className="text-gray-600 bg-gray-50 px-2 py-1 rounded border border-gray-200">
+                                    No containers assigned
+                                  </span>
+                                </div>
+                              </div>
+                            )}
                           </div>
 
                           {request.admin_comment && (

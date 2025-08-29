@@ -27,6 +27,7 @@ import Vindetails from "./Pages/VinDetailsPage";
 import ASNManagement from "./Pages/ASNupload";
 import TransportReports from "./Pages/Reports";
 import VendorController from "./Pages/Vendorcontroller";
+import AllReportsPage from "./Pages/AllAdminreports";
 
 const DashboardLayout = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
@@ -133,7 +134,16 @@ function App() {
               </ProtectedRoute>
             }
           />
-
+          <Route
+            path="/admin/allreports"
+            element={
+              <ProtectedRoute allowedRoles={["Admin"]}>
+                <DashboardLayout>
+                  <AllReportsPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/admin/transport-requests"
             element={

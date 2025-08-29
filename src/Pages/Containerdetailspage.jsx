@@ -3,6 +3,7 @@ import { toast } from "react-toastify";
 import { transporterAPI } from "../utils/Api";
 import { useNavigate } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
+import ResponseModal from "../Components/Responsemodal";
 
 const ContainerDetailsPage = () => {
   const navigate = useNavigate();
@@ -14,6 +15,8 @@ const ContainerDetailsPage = () => {
   const [existingTransporterData, setExistingTransporterData] = useState([]); // Store existing transporter data
   const [groupedContainers, setGroupedContainers] = useState({});
   const [expandedVehicle, setExpandedVehicle] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [modalData, setModalData] = useState(null);
 
   // Initialize with data from sessionStorage
   useEffect(() => {
@@ -381,11 +384,32 @@ const ContainerDetailsPage = () => {
 
     const errors = validateContainers();
     if (errors.length > 0) {
-      toast.error(`Please fix the following errors:\n${errors.join("\n")}`);
+      toast.error(
+        <div className="flex flex-col">
+          <span className="font-bold text-lg mb-1">Validation Failed</span>
+          <ul className="list-disc pl-4">
+            {errors.map((error, index) => (
+              <li key={index} className="text-sm">
+                {error}
+              </li>
+            ))}
+          </ul>
+        </div>,
+        {
+          position: "top-center",
+          autoClose: 5000,
+        }
+      );
       return;
     }
 
     setIsSubmitting(true);
+
+    // Single loading toast
+    const loadingId = toast.loading("Updating container details...", {
+      position: "top-center",
+    });
+
     try {
       // Group containers by vehicle number for processing
       const containersByVehicle = {};
@@ -402,13 +426,18 @@ const ContainerDetailsPage = () => {
       for (const [vehicleNumber, vehicleContainers] of Object.entries(
         containersByVehicle
       )) {
-        // Get existing transporter data for this vehicle
         const existingData = getExistingTransporterData(vehicleNumber);
 
-        // If no existing transporter data, show error
         if (!existingData) {
+          toast.dismiss(loadingId);
+          toast.error(
+            `No transporter data found for vehicle ${vehicleNumber}`,
+            {
+              position: "top-center",
+            }
+          );
           throw new Error(
-            `No transporter data found for vehicle ${vehicleNumber}. Please add transporter details first.`
+            `No transporter data found for vehicle ${vehicleNumber}`
           );
         }
 
@@ -491,33 +520,105 @@ const ContainerDetailsPage = () => {
 
       const results = await Promise.all(updatePromises);
 
-      // Check results and show appropriate messages
-      const successResults = results.filter((r) => r.success);
-      const failedResults = results.filter((r) => !r.success);
+      // Dismiss loading toast before showing results
+      toast.dismiss(loadingId);
 
-      if (failedResults.length > 0) {
-        // Show errors for failed operations
-        failedResults.forEach((result) => {
-          toast.error(result.message);
-        });
-      }
+      // Show single success/error toast based on results
+      const successCount = results.filter((r) => r.success).length;
+      const failureCount = results.filter((r) => !r.success).length;
 
-      if (successResults.length > 0) {
-        // Show success message
+      if (successCount > 0) {
         toast.success(
-          `Successfully updated ${successResults.length} container entries`
-        );
+          <div className="flex flex-col space-y-2">
+            <div className="font-bold text-lg border-b pb-2">
+              Container Update Successful
+            </div>
 
-        // Refresh data
-        await fetchExistingTransporterData();
-        await loadContainerData();
+            {results
+              .filter((result) => result.success)
+              .map((result, index) => (
+                <div key={index} className="space-y-2">
+                  <div className="font-medium">
+                    Container: {result.data.containerDetails.container_no}
+                  </div>
+
+                  {/* Container Details */}
+                  <div className="text-sm space-y-1">
+                    <div>
+                      Vehicle: {result.data.containerDetails.vehicle_number}
+                    </div>
+                    <div>Line: {result.data.containerDetails.line}</div>
+                    <div>
+                      Size: {result.data.containerDetails.container_size}'
+                    </div>
+                    <div>
+                      Type: {result.data.containerDetails.container_type}
+                    </div>
+                  </div>
+
+                  {/* Warning Message if container was previously used */}
+                  {result.data.containerAlreadyUsed && (
+                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-2 mt-2">
+                      <div className="text-yellow-700 text-sm">
+                        <span className="font-bold">⚠️ Warning: </span>
+                        Previously used in Request #
+                        {result.data.lastUsedIn.request_id}
+                        <br />
+                        <span className="text-xs">
+                          Total previous uses: {result.data.totalPreviousUses}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+          </div>,
+          {
+            position: "top-center",
+            autoClose: 8000, // Increased duration to allow reading
+            style: {
+              backgroundColor: "#ffffff",
+              color: "#000000",
+              minWidth: "380px",
+              maxWidth: "500px",
+            },
+            className: "custom-toast",
+          }
+        );
       }
+
+      if (failureCount > 0) {
+        toast.error(
+          <div className="flex flex-col">
+            <span className="font-bold text-lg mb-1">Update Failed</span>
+            <p className="text-sm">
+              {failureCount} containers failed to update
+            </p>
+          </div>,
+          {
+            position: "top-center",
+            autoClose: 3000,
+          }
+        );
+      }
+
+      // Refresh data
+      await fetchExistingTransporterData();
     } catch (error) {
-      console.error("Error updating container details:", error);
+      // Dismiss loading toast before showing error
+      toast.dismiss(loadingId);
+
       toast.error(
-        error.response?.data?.message ||
-          error.message ||
-          "Failed to update container details"
+        <div className="flex flex-col">
+          <span className="font-bold text-lg mb-1">Error</span>
+          <p className="text-sm">
+            {error.message || "Failed to update container details"}
+          </p>
+        </div>,
+        {
+          position: "top-center",
+          autoClose: 3000,
+        }
       );
     } finally {
       setIsSubmitting(false);
@@ -601,100 +702,11 @@ const ContainerDetailsPage = () => {
     }
   };
   // Load existing container data
-  // Load existing container data
-  const loadContainerData = async () => {
-    if (!transportRequestId) {
-      toast.error("Transport request ID is missing");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      // Get all containers for this request
-      const allContainersResponse =
-        await transporterAPI.getContainersByRequestId(transportRequestId);
-
-      if (
-        allContainersResponse.success &&
-        allContainersResponse.data &&
-        allContainersResponse.data.length > 0
-      ) {
-        // Map the API response to our container format
-        const loadedContainers = allContainersResponse.data.map(
-          (container, index) => ({
-            id: container.id,
-            containerNo: container.container_no || "",
-            numberOfContainers:
-              container.number_of_containers?.toString() || "",
-            containerType: container.container_type || "",
-            containerSize: container.container_size || "",
-            line: container.line || "",
-            seal1: container.seal1 || container.seal_no || "",
-            seal2: container.seal2 || "",
-            containerTotalWeight:
-              container.container_total_weight?.toString() || "",
-            cargoTotalWeight: container.cargo_total_weight?.toString() || "",
-            remarks: container.remarks || "",
-            vehicleNumber: container.vehicle_number || "",
-            vehicleIndex: index + 1, // Ensure unique index
-          })
-        );
-
-        // Log the processed containers
-        console.log("Processed containers:", loadedContainers);
-
-        setContainers(loadedContainers);
-
-        // Also update vehicleDataList to include all unique vehicles
-        const uniqueVehicles = [];
-        const vehicleMap = {};
-
-        loadedContainers.forEach((container) => {
-          if (container.vehicleNumber && !vehicleMap[container.vehicleNumber]) {
-            vehicleMap[container.vehicleNumber] = true;
-            uniqueVehicles.push({
-              vehicleNumber: container.vehicleNumber,
-              transporterName: "", // You might want to fetch this from transporter data if needed
-            });
-          }
-        });
-
-        setVehicleDataList((prevList) => {
-          // Merge with existing list, avoiding duplicates
-          const existingVehicleMap = {};
-          prevList.forEach((v) => {
-            existingVehicleMap[v.vehicleNumber] = true;
-          });
-
-          const newVehicles = uniqueVehicles.filter(
-            (v) => !existingVehicleMap[v.vehicleNumber]
-          );
-          return [...prevList, ...newVehicles];
-        });
-
-        // Update sessionStorage with loaded data
-        sessionStorage.setItem(
-          "containerData",
-          JSON.stringify(loadedContainers)
-        );
-        toast.success("Container data loaded successfully");
-      } else {
-        // If no containers found, show a message but don't reset the containers array
-        toast.info("No container data found for this request");
-      }
-    } catch (error) {
-      console.error("Error loading container data:", error);
-      toast.error("Failed to load existing container data");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // Load data on component mount if transportRequestId exists
   useEffect(() => {
     if (transportRequestId) {
       fetchExistingTransporterData();
-      loadContainerData();
     }
   }, [transportRequestId]);
 
@@ -712,15 +724,26 @@ const ContainerDetailsPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <ToastContainer
-        position="top-right"
+        position="top-center"
         autoClose={5000}
         hideProgressBar={false}
-        newestOnTop
+        newestOnTop={true}
         closeOnClick
         rtl={false}
         pauseOnFocusLoss
         draggable
         pauseOnHover
+        theme="light"
+        style={{
+          width: "400px",
+        }}
+        toastStyle={{
+          borderRadius: "8px",
+          padding: "16px",
+          marginBottom: "16px",
+          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+          fontSize: "14px",
+        }}
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
@@ -1253,6 +1276,12 @@ const ContainerDetailsPage = () => {
             </form>
           </div>
         </div>
+        {/* Response Modal */}
+        <ResponseModal
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
+          data={modalData}
+        />
       </div>
     </div>
   );

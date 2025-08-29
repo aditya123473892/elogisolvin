@@ -156,8 +156,7 @@ export default function RequestModal({
         <div className="sticky top-0 bg-white px-6 py-4 border-b border-gray-200">
           <div className="flex justify-between items-center">
             <h3 className="text-xl font-semibold text-gray-900">
-              {selectedRequest.formatted_request_id ||
-                `Booking #${selectedRequest.id}`}{" "}
+              {selectedRequest.formatted_request_id || `${selectedRequest.id}`}{" "}
               - Complete Details
             </h3>
             <button

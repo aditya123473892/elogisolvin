@@ -867,12 +867,6 @@ const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
               <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[160px]">
                 Driver Contact *
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[160px]">
-                License Number *
-              </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[160px]">
-                License Expiry *
-              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -973,62 +967,6 @@ const VehicleBasicDetailsTable = ({ vehicleDataList, updateVehicleData }) => {
                       {validationErrors[`${originalIndex}-driverContact`] && (
                         <p className="text-red-500 text-xs mt-1">
                           {validationErrors[`${originalIndex}-driverContact`]}
-                        </p>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-3 py-4 whitespace-nowrap">
-                    <div>
-                      <input
-                        type="text"
-                        className={`w-full min-w-[160px] border ${
-                          validationErrors[`${originalIndex}-licenseNumber`]
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
-                        value={vehicle.licenseNumber}
-                        onChange={(e) =>
-                          handleInputChange(
-                            index,
-                            "licenseNumber",
-                            e.target.value.toUpperCase()
-                          )
-                        }
-                        placeholder="License number"
-                        pattern="[A-Z0-9]{5,}"
-                        title="License number must be at least 5 alphanumeric characters"
-                        required
-                      />
-                      {validationErrors[`${originalIndex}-licenseNumber`] && (
-                        <p className="text-red-500 text-xs mt-1">
-                          {validationErrors[`${originalIndex}-licenseNumber`]}
-                        </p>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-3 py-4 whitespace-nowrap">
-                    <div>
-                      <input
-                        type="date"
-                        className={`w-full min-w-[160px] border ${
-                          validationErrors[`${originalIndex}-licenseExpiry`]
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
-                        value={vehicle.licenseExpiry}
-                        onChange={(e) =>
-                          handleInputChange(
-                            index,
-                            "licenseExpiry",
-                            e.target.value
-                          )
-                        }
-                        min={new Date().toISOString().split("T")[0]}
-                        required
-                      />
-                      {validationErrors[`${originalIndex}-licenseExpiry`] && (
-                        <p className="text-red-500 text-xs mt-1">
-                          {validationErrors[`${originalIndex}-licenseExpiry`]}
                         </p>
                       )}
                     </div>

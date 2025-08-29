@@ -238,12 +238,6 @@ export const TransporterDetails = ({
         `Vehicle ${index + 1}: Driver contact must be a valid 10-digit number`
       );
     }
-    if (!vehicle.licenseNumber.trim()) {
-      errors.push(`Vehicle ${index + 1}: License number is required`);
-    }
-    if (!vehicle.licenseExpiry) {
-      errors.push(`Vehicle ${index + 1}: License expiry date is required`);
-    }
 
     return errors;
   };

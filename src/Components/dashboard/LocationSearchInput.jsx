@@ -34,7 +34,7 @@ const LocationSearchInput = ({
     }
 
     try {
-      const response = await fetch("http://localhost:4000/api/locations");
+      const response = await fetch("/api/locations");
       const data = await response.json();
 
       // Filter saved locations based on search text

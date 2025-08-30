@@ -110,7 +110,7 @@ const ContainerCard = ({
           >
             <option value="">Select Container Type</option>
             <option value="HQ">HQ</option>
-            <option value="DV">DV</option>
+            <option value="DV">D</option>
             <option value="REFER">REFER</option>
           </select>
         </div>

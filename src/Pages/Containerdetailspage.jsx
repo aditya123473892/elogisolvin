@@ -1020,7 +1020,6 @@ const ContainerDetailsPage = () => {
                                           <option value="REFER">REFER</option>
                                         </select>
                                       </div>
-
                                       {/* Container Size */}
                                       <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">

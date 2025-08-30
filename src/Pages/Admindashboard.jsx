@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import * as XLSX from "xlsx";
 import {
   Search,
@@ -14,14 +14,71 @@ import {
   Eye,
   RefreshCw,
   MapPin,
+  FileSpreadsheet,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import api from "../utils/Api";
 import { transporterAPI } from "../utils/Api";
 import { generateInvoice } from "../utils/pdfGenerator";
-import { generateManualInvoice } from "../utils/ManualInvoicegenerator";
 import RequestModal from "../Components/Requestmodal";
-import ManualInvoiceModal from "../Components/Manualinvoice";
+
+// Utility functions for parsing and formatting
+const parseJSON = (data, defaultValue) => {
+  try {
+    return typeof data === "string" ? JSON.parse(data) : data || defaultValue;
+  } catch (e) {
+    console.error("Error parsing JSON:", e);
+    return defaultValue;
+  }
+};
+
+const formatCurrency = (amount) =>
+  amount || amount === 0
+    ? `₹${Number(amount).toLocaleString("en-IN")}`
+    : "Not specified";
+
+const formatDate = (dateString) =>
+  dateString ? new Date(dateString).toLocaleDateString() : "N/A";
+
+const formatDateTime = (dateString) =>
+  dateString ? new Date(dateString).toLocaleString() : "N/A";
+
+// Component for Summary Cards
+const SummaryCard = ({ title, value, color, currency = true }) => (
+  <div className="bg-white p-6 rounded-xl shadow-sm border">
+    <p className="text-sm text-gray-500 font-medium">{title}</p>
+    <p className={`text-2xl font-bold ${color}`}>
+      {currency ? `₹${value.toLocaleString()}` : value}
+    </p>
+  </div>
+);
+
+// Component for Status Badge
+const StatusBadge = ({ status }) => {
+  const statusConfig = {
+    pending: { color: "bg-yellow-100 text-yellow-800", icon: "⏳" },
+    approved: { color: "bg-green-100 text-green-800", icon: "✓" },
+    "in progress": { color: "bg-blue-100 text-blue-800", icon: "🚛" },
+    completed: { color: "bg-purple-100 text-purple-800", icon: "📦" },
+    rejected: { color: "bg-red-100 text-red-800", icon: "✕" },
+  };
+  const config = statusConfig[status?.toLowerCase()] || statusConfig.pending;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${config.color}`}
+    >
+      <span>{config.icon}</span>
+      {status}
+    </span>
+  );
+};
+
+// Component for Profit/Loss Indicator
+const ProfitLossIndicator = ({ profitLoss }) => {
+  if (profitLoss > 0) return <TrendingUp className="w-4 h-4 text-green-500" />;
+  if (profitLoss < 0) return <TrendingDown className="w-4 h-4 text-red-500" />;
+  return <div className="w-4 h-4 bg-gray-300 rounded-full"></div>;
+};
 
 const AdminReportPage = () => {
   const [reports, setReports] = useState([]);
@@ -35,58 +92,13 @@ const AdminReportPage = () => {
   const [transporterDetails, setTransporterDetails] = useState(null);
   const [adminComment, setAdminComment] = useState("");
   const [updating, setUpdating] = useState(false);
-  const [showManualInvoiceModal, setShowManualInvoiceModal] = useState(false);
-  const [manualInvoiceRequest, setManualInvoiceRequest] = useState(null);
   const [exportType, setExportType] = useState("detailed");
 
-  useEffect(() => {
-    fetchReports();
-  }, []);
+  // Cache for transporter details to avoid redundant API calls
+  const transporterCache = useMemo(() => new Map(), []);
 
-  useEffect(() => {
-    filterReports();
-  }, [reports, searchTerm, statusFilter, dateRange]);
-
-  const parseServiceType = (serviceType) => {
-    if (!serviceType) return [];
-    try {
-      const parsed =
-        typeof serviceType === "string" ? JSON.parse(serviceType) : serviceType;
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-      console.error("Error parsing service type:", e);
-      return [];
-    }
-  };
-
-  const parseServicePrices = (servicePrices) => {
-    if (!servicePrices) return {};
-    try {
-      return typeof servicePrices === "string"
-        ? JSON.parse(servicePrices)
-        : servicePrices;
-    } catch (e) {
-      console.error("Error parsing service prices:", e);
-      return {};
-    }
-  };
-
-  const formatCurrency = (amount) => {
-    if (!amount || amount === 0) return "Not specified";
-    return `₹${Number(amount).toLocaleString("en-IN")}`;
-  };
-
-  const calculateRequestTotalAmount = (containerDetails) => {
-    if (!Array.isArray(containerDetails) || containerDetails.length === 0) {
-      return 0;
-    }
-    return containerDetails.reduce((total, detail) => {
-      const vehicleTotal = parseFloat(detail.total_charge || 0);
-      return total + vehicleTotal;
-    }, 0);
-  };
-
-  const fetchReports = async () => {
+  // Fetch and process reports
+  const fetchReports = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await api.get("/transport-requests/all");
@@ -94,140 +106,104 @@ const AdminReportPage = () => {
 
       const reportsWithDetails = await Promise.all(
         shipments.map(async (shipment) => {
-          try {
-            let transporterDetails = [];
-            let vehicleCharges = 0;
-            let vehicleCount = 0;
+          let transporterDetails = [];
+          let vehicleCharges = 0;
+          let vehicleCount = 0;
 
-            try {
+          try {
+            if (transporterCache.has(shipment.id)) {
+              transporterDetails = transporterCache.get(shipment.id);
+            } else {
               const transporterResponse =
                 await transporterAPI.getTransporterByRequestId(shipment.id);
               if (transporterResponse.success) {
                 const details = Array.isArray(transporterResponse.data)
                   ? transporterResponse.data
                   : [transporterResponse.data];
-                const uniqueVehicles = [];
-                const vehicleMap = new Map();
-                details.forEach((detail) => {
-                  if (
-                    detail.vehicle_number &&
-                    !vehicleMap.has(detail.vehicle_number)
-                  ) {
-                    vehicleMap.set(detail.vehicle_number, detail);
-                    uniqueVehicles.push(detail);
-                  }
-                });
+                const uniqueVehicles = [
+                  ...new Map(
+                    details.map((d) => [d.vehicle_number, d])
+                  ).values(),
+                ];
                 transporterDetails = uniqueVehicles;
-                vehicleCharges = calculateRequestTotalAmount(uniqueVehicles);
-                vehicleCount = uniqueVehicles.length;
+                transporterCache.set(shipment.id, uniqueVehicles);
               }
-            } catch (error) {
-              console.log(
-                `No transporter details found for shipment ${shipment.id}`
-              );
             }
-
-            let transactionData = null;
-            let totalPaid = 0;
-            let grNumber = `GR-${shipment.id}`;
-
-            try {
-              const transactionResponse = await api.get(
-                `/transactions/request/${shipment.id}`
-              );
-              if (
-                transactionResponse.data.success &&
-                transactionResponse.data.data.length > 0
-              ) {
-                transactionData = transactionResponse.data.data[0];
-                totalPaid = parseFloat(transactionData.total_paid || 0);
-                grNumber = transactionData.gr_no || grNumber;
-              }
-            } catch (error) {
-              console.log(
-                `No transaction data found for shipment ${shipment.id}`
-              );
-            }
-
-            const serviceCharges = parseFloat(shipment.requested_price || 0);
-            const profitLoss = serviceCharges - vehicleCharges;
-            const profitLossPercentage =
-              serviceCharges > 0 ? (profitLoss / serviceCharges) * 100 : 0;
-
-            const paymentStatus =
-              totalPaid >= serviceCharges
-                ? "Fully Paid"
-                : totalPaid > 0
-                ? "Partially Paid"
-                : "Unpaid";
-            const outstandingAmount = Math.max(0, serviceCharges - totalPaid);
-
-            return {
-              ...shipment,
-              gr_no: grNumber,
-              trip_no: `TRIP-${shipment.id}`,
-              invoice_no: `INV-${new Date(
-                shipment.created_at
-              ).getFullYear()}-${String(shipment.id).padStart(4, "0")}`,
-              service_charges: serviceCharges,
-              vehicle_charges: vehicleCharges,
-              profit_loss: profitLoss,
-              profit_loss_percentage: profitLossPercentage,
-              total_paid: totalPaid,
-              outstanding_amount: outstandingAmount,
-              payment_status: paymentStatus,
-              vehicle_count: vehicleCount,
-              transporter_details: transporterDetails,
-              transaction_data: transactionData,
-              customer_name:
-                shipment.customer_name || `Customer ${shipment.customer_id}`,
-              total_containers:
-                (shipment.containers_20ft || 0) +
-                (shipment.containers_40ft || 0),
-              service_types: parseServiceType(shipment.service_type),
-              service_prices: parseServicePrices(shipment.service_prices),
-              formatted_request_id:
-                shipment.formatted_request_id || `Booking #${shipment.id}`,
-            };
+            vehicleCharges = transporterDetails.reduce(
+              (sum, detail) => sum + parseFloat(detail.total_charge || 0),
+              0
+            );
+            vehicleCount = transporterDetails.length;
           } catch (error) {
-            console.error(`Error processing shipment ${shipment.id}:`, error);
-            const serviceCharges = parseFloat(shipment.requested_price || 0);
-            const profitLoss = serviceCharges;
-            const profitLossPercentage = 100;
-
-            return {
-              ...shipment,
-              gr_no: `GR-${shipment.id}`,
-              trip_no: `TRIP-${shipment.id}`,
-              invoice_no: `INV-${new Date(
-                shipment.created_at
-              ).getFullYear()}-${String(shipment.id).padStart(4, "0")}`,
-              service_charges: serviceCharges,
-              vehicle_charges: 0,
-              profit_loss: profitLoss,
-              profit_loss_percentage: profitLossPercentage,
-              total_paid: 0,
-              outstanding_amount: serviceCharges,
-              payment_status: "Unpaid",
-              vehicle_count: shipment.no_of_vehicles || 1,
-              transporter_details: [],
-              transaction_data: null,
-              customer_name:
-                shipment.customer_name || `Customer ${shipment.customer_id}`,
-              total_containers:
-                (shipment.containers_20ft || 0) +
-                (shipment.containers_40ft || 0),
-              service_types: parseServiceType(shipment.service_type),
-              service_prices: parseServicePrices(shipment.service_prices),
-              formatted_request_id:
-                shipment.formatted_request_id || `Booking #${shipment.id}`,
-            };
+            console.log(`No transporter details for shipment ${shipment.id}`);
           }
+
+          let transactionData = null;
+          let totalPaid = 0;
+          let grNumber = `GR-${shipment.id}`;
+
+          try {
+            const transactionResponse = await api.get(
+              `/transactions/request/${shipment.id}`
+            );
+            if (
+              transactionResponse.data.success &&
+              transactionResponse.data.data.length > 0
+            ) {
+              transactionData = transactionResponse.data.data[0];
+              totalPaid = parseFloat(transactionData.total_paid || 0);
+              grNumber = transactionData.gr_no || grNumber;
+            }
+          } catch (error) {
+            console.log(`No transaction data for shipment ${shipment.id}`);
+          }
+
+          const serviceCharges = parseFloat(shipment.requested_price || 0);
+          const profitLoss = serviceCharges - vehicleCharges;
+          const profitLossPercentage =
+            serviceCharges > 0 ? (profitLoss / serviceCharges) * 100 : 0;
+          const paymentStatus =
+            totalPaid >= serviceCharges
+              ? "Fully Paid"
+              : totalPaid > 0
+              ? "Partially Paid"
+              : "Unpaid";
+          const outstandingAmount = Math.max(0, serviceCharges - totalPaid);
+
+          return {
+            ...shipment,
+            gr_no: grNumber,
+            trip_no: `TRIP-${shipment.id}`,
+            invoice_no: `INV-${new Date(
+              shipment.created_at
+            ).getFullYear()}-${String(shipment.id).padStart(4, "0")}`,
+            shipa_no: shipment.SHIPA_NO || "N/A",
+            container_numbers: transporterDetails
+              .map((t) => t.container_no || "N/A")
+              .join(", "),
+            service_charges: serviceCharges,
+            vehicle_charges: vehicleCharges,
+            profit_loss: profitLoss,
+            profit_loss_percentage: profitLossPercentage,
+            total_paid: totalPaid,
+            outstanding_amount: outstandingAmount,
+            payment_status: paymentStatus,
+            vehicle_count: vehicleCount,
+            transporter_details: transporterDetails,
+            transaction_data: transactionData,
+            customer_name:
+              shipment.customer_name || `Customer ${shipment.customer_id}`,
+            total_containers:
+              (shipment.containers_20ft || 0) + (shipment.containers_40ft || 0),
+            service_types: parseJSON(shipment.service_type, []),
+            service_prices: parseJSON(shipment.service_prices, {}),
+            formatted_request_id:
+              shipment.formatted_request_id || `Booking #${shipment.id}`,
+          };
         })
       );
 
       setReports(reportsWithDetails);
-      console.log("Processed reports with real data:", reportsWithDetails);
     } catch (error) {
       console.error("Error fetching reports:", error);
       toast.error("Failed to fetch admin reports");
@@ -235,54 +211,51 @@ const AdminReportPage = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [transporterCache]);
 
-  const fetchTransporterDetails = async (requestId) => {
-    try {
-      const response = await api.get(
-        `/transport-requests/${requestId}/transporter`
-      );
-      if (response.data.success) {
-        setTransporterDetails(
-          Array.isArray(response.data.data)
-            ? response.data.data
-            : [response.data.data]
+  // Fetch transporter details for modal
+  const fetchTransporterDetails = useCallback(
+    async (requestId) => {
+      try {
+        if (transporterCache.has(requestId)) {
+          setTransporterDetails(transporterCache.get(requestId));
+          return;
+        }
+        const response = await api.get(
+          `/transport-requests/${requestId}/transporter`
         );
-      } else {
+        if (response.data.success) {
+          const details = Array.isArray(response.data.data)
+            ? response.data.data
+            : [response.data.data];
+          setTransporterDetails(details);
+          transporterCache.set(requestId, details);
+        } else {
+          setTransporterDetails(null);
+        }
+      } catch (error) {
+        console.log("No transporter details found for request:", requestId);
         setTransporterDetails(null);
       }
-    } catch (error) {
-      console.log("No transporter details found for request:", requestId);
-      setTransporterDetails(null);
-    }
-  };
+    },
+    [transporterCache]
+  );
 
-  const filterReports = () => {
-    let filtered = reports.filter((report) => {
-      const matchesSearch =
-        String(report.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
-        String(report.gr_no).toLowerCase().includes(searchTerm.toLowerCase()) ||
-        String(report.trip_no)
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        String(report.customer_name)
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        String(report.customer_email || "")
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        String(report.pickup_location || "")
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        String(report.delivery_location || "")
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        String(report.tracking_id || "")
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        String(report.commodity || "")
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase());
+  // Filter reports based on search, status, and date range
+  const filterReports = useCallback(() => {
+    const filtered = reports.filter((report) => {
+      const matchesSearch = [
+        String(report.id),
+        report.gr_no,
+        report.trip_no,
+        report.customer_name,
+        report.customer_email || "",
+        report.pickup_location || "",
+        report.delivery_location || "",
+        report.tracking_id || "",
+        report.commodity || "",
+        report.shipa_no || "",
+      ].some((field) => field.toLowerCase().includes(searchTerm.toLowerCase()));
 
       const matchesStatus =
         statusFilter === "all" || report.status === statusFilter;
@@ -299,14 +272,16 @@ const AdminReportPage = () => {
     });
 
     setFilteredReports(filtered);
-  };
+  }, [reports, searchTerm, statusFilter, dateRange]);
 
+  // Refresh data
   const refreshData = () => {
     setIsLoading(true);
     fetchReports();
     toast.success("Reports data refreshed successfully");
   };
 
+  // Handle status update
   const handleStatusUpdate = async (requestId, status) => {
     try {
       setUpdating(true);
@@ -314,7 +289,7 @@ const AdminReportPage = () => {
         status,
         adminComment: adminComment.trim(),
       });
-      handleModalClose();
+      setShowDetailModal(false);
       fetchReports();
       toast.success(`Request ${status} successfully`);
     } catch (error) {
@@ -325,6 +300,7 @@ const AdminReportPage = () => {
     }
   };
 
+  // Handle invoice download
   const handleDownloadInvoice = async (report) => {
     try {
       const loadingToast = toast.loading("Generating invoice...");
@@ -335,12 +311,9 @@ const AdminReportPage = () => {
         ? response.data.data
         : null;
       const doc = generateInvoice(report, transporterDetails);
-      if (!doc) {
-        throw new Error("Failed to generate PDF document");
-      }
+      if (!doc) throw new Error("Failed to generate PDF document");
       const timestamp = new Date().toISOString().split("T")[0];
-      const filename = `invoice-${report.id}-${timestamp}.pdf`;
-      doc.save(filename);
+      doc.save(`invoice-${report.id}-${timestamp}.pdf`);
       toast.dismiss(loadingToast);
       toast.success("Invoice downloaded successfully!");
     } catch (error) {
@@ -349,33 +322,7 @@ const AdminReportPage = () => {
     }
   };
 
-  const handleManualInvoice = (report) => {
-    setManualInvoiceRequest(report);
-    setShowManualInvoiceModal(true);
-  };
-
-  const handleGenerateManualInvoice = async (invoiceData) => {
-    try {
-      const loadingToast = toast.loading("Generating manual invoice...");
-      const doc = generateManualInvoice(invoiceData);
-      if (!doc) {
-        throw new Error("Failed to generate manual invoice PDF");
-      }
-      const timestamp = new Date().toISOString().split("T")[0];
-      const filename = `manual-invoice-${
-        invoiceData.originalRequest?.id || "custom"
-      }-${timestamp}.pdf`;
-      doc.save(filename);
-      toast.dismiss(loadingToast);
-      toast.success("Manual invoice generated successfully!");
-      setShowManualInvoiceModal(false);
-      setManualInvoiceRequest(null);
-    } catch (error) {
-      console.error("Manual invoice generation error:", error);
-      toast.error("Failed to generate manual invoice. Please try again.");
-    }
-  };
-
+  // Handle view report
   const handleViewReport = async (report) => {
     setSelectedReport(report);
     setAdminComment(report.admin_comment || "");
@@ -383,59 +330,25 @@ const AdminReportPage = () => {
     setShowDetailModal(true);
   };
 
-  const handleModalClose = () => {
-    setSelectedReport(null);
-    setTransporterDetails(null);
-    setAdminComment("");
-    setShowDetailModal(false);
-  };
-
-  const getStatusBadge = (status) => {
-    const statusConfig = {
-      pending: { color: "bg-yellow-100 text-yellow-800", icon: "⏳" },
-      approved: { color: "bg-green-100 text-green-800", icon: "✓" },
-      "in progress": { color: "bg-blue-100 text-blue-800", icon: "🚛" },
-      completed: { color: "bg-purple-100 text-purple-800", icon: "📦" },
-      rejected: { color: "bg-red-100 text-red-800", icon: "✕" },
-    };
-    const config = statusConfig[status?.toLowerCase()] || statusConfig.pending;
-    return (
-      <span
-        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${config.color}`}
-      >
-        <span>{config.icon}</span>
-        {status}
-      </span>
-    );
-  };
-
-  const getProfitLossIndicator = (profitLoss) => {
-    if (profitLoss > 0) {
-      return <TrendingUp className="w-4 h-4 text-green-500" />;
-    } else if (profitLoss < 0) {
-      return <TrendingDown className="w-4 h-4 text-red-500" />;
-    }
-    return <div className="w-4 h-4 bg-gray-300 rounded-full"></div>;
-  };
-
-  const exportToExcel = () => {
-    let data;
-    let sheetName;
-    let fileNameSuffix;
+  // Export to Excel
+  const exportToExcel = useCallback(() => {
+    let data, sheetName, fileNameSuffix;
 
     if (exportType === "detailed") {
       data = filteredReports.map((report) => ({
         "Request ID": report.id,
-        "Tracking ID": report.tracking_id || "",
+        "Tracking ID": report.tracking_id || "N/A",
         "GR No": report.gr_no,
         "Trip No": report.trip_no,
         "Invoice No": report.invoice_no,
+        "SHIPA No": report.shipa_no,
+        "Container Numbers": report.container_numbers,
         "Customer Name": report.customer_name,
-        "Customer Email": report.customer_email || "",
-        "Pickup Location": report.pickup_location || "",
-        "Delivery Location": report.delivery_location || "",
-        "Vehicle Type": report.vehicle_type || "",
-        Commodity: report.commodity || "",
+        "Customer Email": report.customer_email || "N/A",
+        "Pickup Location": report.pickup_location || "N/A",
+        "Delivery Location": report.delivery_location || "N/A",
+        "Vehicle Type": report.vehicle_type || "N/A",
+        Commodity: report.commodity || "N/A",
         Status: report.status,
         "Service Charges": report.service_charges,
         "Vehicle Charges": report.vehicle_charges,
@@ -444,10 +357,8 @@ const AdminReportPage = () => {
         "Total Paid": report.total_paid,
         Outstanding: report.outstanding_amount,
         "Payment Status": report.payment_status,
-        "Created Date": new Date(report.created_at).toLocaleDateString(),
-        "Delivery Date": report.expected_delivery_date
-          ? new Date(report.expected_delivery_date).toLocaleDateString()
-          : "",
+        "Created Date": formatDate(report.created_at),
+        "Delivery Date": formatDate(report.expected_delivery_date),
         "Containers 20ft": report.containers_20ft || 0,
         "Containers 40ft": report.containers_40ft || 0,
         "Total Containers": report.total_containers,
@@ -459,18 +370,16 @@ const AdminReportPage = () => {
     } else {
       const grouped = {};
       filteredReports.forEach((report) => {
-        let key;
         const dt = new Date(report.created_at);
-        if (exportType === "daily") {
-          key = dt.toLocaleDateString();
-        } else if (exportType === "monthly") {
+        let key;
+        if (exportType === "daily") key = dt.toLocaleDateString();
+        else if (exportType === "monthly")
           key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(
             2,
             "0"
           )}`;
-        } else if (exportType === "yearly") {
-          key = dt.getFullYear().toString();
-        }
+        else key = dt.getFullYear().toString();
+
         if (!grouped[key]) {
           grouped[key] = {
             Period: key,
@@ -507,56 +416,149 @@ const AdminReportPage = () => {
         new Date().toISOString().split("T")[0]
       }.xlsx`
     );
-  };
+  }, [exportType, filteredReports]);
 
-  const getSummaryStats = () => {
-    const totalRevenue = filteredReports.reduce(
-      (sum, report) => sum + (report.service_charges || 0),
-      0
-    );
-    const totalCosts = filteredReports.reduce(
-      (sum, report) => sum + (report.vehicle_charges || 0),
-      0
-    );
-    const totalProfit = totalRevenue - totalCosts;
-    const totalOutstanding = filteredReports.reduce(
-      (sum, report) => sum + (report.outstanding_amount || 0),
-      0
-    );
-    const totalPaid = filteredReports.reduce(
-      (sum, report) => sum + (report.total_paid || 0),
-      0
-    );
-
-    return {
-      totalRevenue,
-      totalCosts,
-      totalProfit,
-      totalOutstanding,
-      totalPaid,
-    };
-  };
-
-  const { totalRevenue, totalCosts, totalProfit, totalOutstanding, totalPaid } =
-    getSummaryStats();
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
+  // Export detailed day-wise report
+  const exportDetailedDayWiseReport = useCallback(async () => {
     try {
-      return new Date(dateString).toLocaleDateString();
-    } catch {
-      return "N/A";
-    }
-  };
+      const groupedByDay = {};
+      for (const report of filteredReports) {
+        const dt = new Date(report.created_at);
+        const date = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(
+          2,
+          "0"
+        )}-${String(dt.getDate()).padStart(2, "0")}`;
+        if (!groupedByDay[date]) groupedByDay[date] = [];
 
-  const formatDateTime = (dateString) => {
-    if (!dateString) return "N/A";
-    try {
-      return new Date(dateString).toLocaleString();
-    } catch {
-      return "N/A";
+        let transporterDetails = transporterCache.get(report.id) || [];
+        if (!transporterDetails.length) {
+          try {
+            const response = await api.get(
+              `/transport-requests/${report.id}/transporter`
+            );
+            if (response.data.success) {
+              transporterDetails = Array.isArray(response.data.data)
+                ? response.data.data
+                : [response.data.data];
+              transporterCache.set(report.id, transporterDetails);
+            }
+          } catch (error) {
+            console.log(`No transporter details for request ${report.id}`);
+          }
+        }
+
+        groupedByDay[date].push({
+          "Request ID": report.id,
+          "Tracking ID": report.tracking_id || "N/A",
+          "GR No": report.gr_no,
+          "Trip No": report.trip_no,
+          "Invoice No": report.invoice_no,
+          "SHIPA No": report.shipa_no,
+          "Container Numbers": transporterDetails
+            .map((t) => t.container_no || "N/A")
+            .join(", "),
+          "Customer Name": report.customer_name,
+          "Customer Email": report.customer_email || "N/A",
+          Consignee: report.consignee || "N/A",
+          Consigner: report.consigner || "N/A",
+          "Pickup Location": report.pickup_location || "N/A",
+          "Stuffing Location": report.stuffing_location || "N/A",
+          "Delivery Location": report.delivery_location || "N/A",
+          "Vehicle Type": report.vehicle_type || "N/A",
+          "Vehicle Size": report.vehicle_size || "N/A",
+          Commodity: report.commodity || "N/A",
+          "Cargo Type": report.cargo_type || "N/A",
+          "Cargo Weight": report.cargo_weight || "N/A",
+          Status: report.status,
+          "Service Charges": report.service_charges || 0,
+          "Vehicle Charges": report.vehicle_charges || 0,
+          "Profit/Loss": report.profit_loss || 0,
+          "Profit %": report.profit_loss_percentage.toFixed(2),
+          "Total Paid": report.total_paid || 0,
+          Outstanding: report.outstanding_amount || 0,
+          "Payment Status": report.payment_status,
+          "Created Date": formatDate(report.created_at),
+          "Created Time": new Date(report.created_at).toLocaleTimeString(),
+          "Updated Date": formatDate(report.updated_at),
+          "Updated Time": new Date(report.updated_at).toLocaleTimeString(),
+          "Expected Pickup Date": formatDate(report.expected_pickup_date),
+          "Expected Pickup Time": report.expected_pickup_time || "N/A",
+          "Expected Delivery Date": formatDate(report.expected_delivery_date),
+          "Expected Delivery Time": report.expected_delivery_time || "N/A",
+          "Actual Delivery Date":
+            formatDate(report.actual_delivery_date) || "Pending",
+          "Containers 20ft": report.containers_20ft || 0,
+          "Containers 40ft": report.containers_40ft || 0,
+          "Total Containers": report.total_containers || 0,
+          "Vehicle Count": report.vehicle_count || 0,
+          "Service Types": report.service_types.join(", ") || "None",
+          "Service Prices": JSON.stringify(report.service_prices) || "{}",
+          "Special Instructions": report.special_instructions || "N/A",
+          "Admin Comment": report.admin_comment || "N/A",
+          "Transaction ID": report.transaction_data?.id || "N/A",
+          "Payment Method": report.transaction_data?.payment_method || "N/A",
+          "Container Numbers (Detailed)": transporterDetails
+            .map((t) => t.container_no || "N/A")
+            .join(", "),
+          "Vehicle Numbers": transporterDetails
+            .map((t) => t.vehicle_number || "N/A")
+            .join(", "),
+          "Driver Names": transporterDetails
+            .map((t) => t.driver_name || "N/A")
+            .join(", "),
+          "Driver Phones": transporterDetails
+            .map((t) => t.driver_phone || "N/A")
+            .join(", "),
+          "Transporter Charges": transporterDetails
+            .map((t) => `₹${(t.total_charge || 0).toLocaleString()}`)
+            .join(", "),
+          "Additional Charges": transporterDetails
+            .map((t) => `₹${(t.additional_charges || 0).toLocaleString()}`)
+            .join(", "),
+        });
+      }
+
+      const wb = XLSX.utils.book_new();
+      Object.keys(groupedByDay)
+        .sort()
+        .forEach((date) => {
+          const ws = XLSX.utils.json_to_sheet(groupedByDay[date]);
+          XLSX.utils.book_append_sheet(wb, ws, date);
+        });
+
+      XLSX.writeFile(
+        wb,
+        `detailed-day-wise-reports-${
+          new Date().toISOString().split("T")[0]
+        }.xlsx`
+      );
+      toast.success("Detailed day-wise report exported successfully!");
+    } catch (error) {
+      console.error("Error exporting detailed day-wise report:", error);
+      toast.error("Failed to export detailed day-wise report");
     }
-  };
+  }, [filteredReports, transporterCache]);
+
+  // Calculate summary stats
+  const summaryStats = filteredReports.reduce(
+    (acc, report) => ({
+      totalRevenue: acc.totalRevenue + (report.service_charges || 0),
+      totalCosts: acc.totalCosts + (report.vehicle_charges || 0),
+      totalPaid: acc.totalPaid + (report.total_paid || 0),
+      totalOutstanding: acc.totalOutstanding + (report.outstanding_amount || 0),
+    }),
+    { totalRevenue: 0, totalCosts: 0, totalPaid: 0, totalOutstanding: 0 }
+  );
+  summaryStats.totalProfit =
+    summaryStats.totalRevenue - summaryStats.totalCosts;
+
+  useEffect(() => {
+    fetchReports();
+  }, [fetchReports]);
+
+  useEffect(() => {
+    filterReports();
+  }, [filterReports]);
 
   if (isLoading) {
     return (
@@ -573,34 +575,39 @@ const AdminReportPage = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="py-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">
-                  Admin Reports
-                </h1>
-                <p className="mt-1 text-sm text-gray-500">
-                  Comprehensive view of all transport requests with financial
-                  and operational insights
-                </p>
-              </div>
-              <div className="flex space-x-3">
-                <button
-                  onClick={refreshData}
-                  className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Refresh
-                </button>
-                <button
-                  onClick={exportToExcel}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Export to Excel
-                </button>
-              </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                Admin Reports
+              </h1>
+              <p className="mt-1 text-sm text-gray-500">
+                Comprehensive view of all transport requests with financial and
+                operational insights
+              </p>
+            </div>
+            <div className="flex space-x-3">
+              <button
+                onClick={refreshData}
+                className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Refresh
+              </button>
+              <button
+                onClick={exportToExcel}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export to Excel
+              </button>
+              <button
+                onClick={exportDetailedDayWiseReport}
+                className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Detailed Day-Wise Report
+              </button>
             </div>
           </div>
         </div>
@@ -609,40 +616,33 @@ const AdminReportPage = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-xl shadow-sm border">
-            <p className="text-sm text-gray-500 font-medium">Total Revenue</p>
-            <p className="text-2xl font-bold text-green-600">
-              ₹{totalRevenue.toLocaleString()}
-            </p>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border">
-            <p className="text-sm text-gray-500 font-medium">Total Costs</p>
-            <p className="text-2xl font-bold text-orange-600">
-              ₹{totalCosts.toLocaleString()}
-            </p>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border">
-            <p className="text-sm text-gray-500 font-medium">Net Profit</p>
-            <p
-              className={`text-2xl font-bold ${
-                totalProfit >= 0 ? "text-green-600" : "text-red-600"
-              }`}
-            >
-              ₹{totalProfit.toLocaleString()}
-            </p>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border">
-            <p className="text-sm text-gray-500 font-medium">Total Paid</p>
-            <p className="text-2xl font-bold text-blue-600">
-              ₹{totalPaid.toLocaleString()}
-            </p>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border">
-            <p className="text-sm text-gray-500 font-medium">Outstanding</p>
-            <p className="text-2xl font-bold text-red-600">
-              ₹{totalOutstanding.toLocaleString()}
-            </p>
-          </div>
+          <SummaryCard
+            title="Total Revenue"
+            value={summaryStats.totalRevenue}
+            color="text-green-600"
+          />
+          <SummaryCard
+            title="Total Costs"
+            value={summaryStats.totalCosts}
+            color="text-orange-600"
+          />
+          <SummaryCard
+            title="Net Profit"
+            value={summaryStats.totalProfit}
+            color={
+              summaryStats.totalProfit >= 0 ? "text-green-600" : "text-red-600"
+            }
+          />
+          <SummaryCard
+            title="Total Paid"
+            value={summaryStats.totalPaid}
+            color="text-blue-600"
+          />
+          <SummaryCard
+            title="Outstanding"
+            value={summaryStats.totalOutstanding}
+            color="text-red-600"
+          />
         </div>
 
         {/* Filters */}
@@ -652,7 +652,7 @@ const AdminReportPage = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search by ID, GR No, Customer, Email, Location..."
+                placeholder="Search by ID, GR No, Customer, Email, Location, SHIPA No..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -741,6 +741,9 @@ const AdminReportPage = () => {
                           {report.formatted_request_id}
                         </div>
                         <div className="text-xs text-gray-500">
+                          SHIPA No: {report.shipa_no}
+                        </div>
+                        <div className="text-xs text-gray-500">
                           Tracking: {report.tracking_id || "N/A"}
                         </div>
                         <div className="text-xs text-gray-500">
@@ -773,8 +776,8 @@ const AdminReportPage = () => {
                     <td className="px-6 py-4">
                       <div className="space-y-1">
                         <div className="text-sm font-medium text-gray-900">
-                          {report.vehicle_type || "N/A"}
-                          {report.vehicle_size && ` (${report.vehicle_size})`}
+                          {report.vehicle_type || "N/A"}{" "}
+                          {report.vehicle_size && `(${report.vehicle_size})`}
                         </div>
                         <div className="text-xs text-gray-500">
                           Commodity: {report.commodity || "N/A"}
@@ -810,40 +813,42 @@ const AdminReportPage = () => {
                             Revenue:
                           </span>
                           <span className="text-sm font-medium text-green-600">
-                            ₹{(report.service_charges || 0).toLocaleString()}
+                            {formatCurrency(report.service_charges)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-500">Costs:</span>
                           <span className="text-sm font-medium text-orange-600">
-                            ₹{(report.vehicle_charges || 0).toLocaleString()}
+                            {formatCurrency(report.vehicle_charges)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between border-t pt-2">
                           <div className="flex items-center gap-1">
-                            {getProfitLossIndicator(report.profit_loss || 0)}
+                            <ProfitLossIndicator
+                              profitLoss={report.profit_loss || 0}
+                            />
                             <span className="text-xs text-gray-500">P&L:</span>
                           </div>
                           <span
                             className={`text-sm font-bold ${
-                              (report.profit_loss || 0) >= 0
+                              report.profit_loss >= 0
                                 ? "text-green-600"
                                 : "text-red-600"
                             }`}
                           >
-                            ₹{(report.profit_loss || 0).toLocaleString()}
+                            {formatCurrency(report.profit_loss)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-500">Margin:</span>
                           <span
                             className={`text-xs font-medium ${
-                              (report.profit_loss_percentage || 0) >= 0
+                              report.profit_loss_percentage >= 0
                                 ? "text-green-600"
                                 : "text-red-600"
                             }`}
                           >
-                            {(report.profit_loss_percentage || 0).toFixed(1)}%
+                            {report.profit_loss_percentage.toFixed(1)}%
                           </span>
                         </div>
                       </div>
@@ -853,7 +858,7 @@ const AdminReportPage = () => {
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-500">Paid:</span>
                           <span className="text-sm font-medium text-blue-600">
-                            ₹{(report.total_paid || 0).toLocaleString()}
+                            {formatCurrency(report.total_paid)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
@@ -861,7 +866,7 @@ const AdminReportPage = () => {
                             Outstanding:
                           </span>
                           <span className="text-sm font-medium text-red-600">
-                            ₹{(report.outstanding_amount || 0).toLocaleString()}
+                            {formatCurrency(report.outstanding_amount)}
                           </span>
                         </div>
                         <span
@@ -878,7 +883,7 @@ const AdminReportPage = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(report.status)}
+                      <StatusBadge status={report.status} />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-col space-y-2">
@@ -890,22 +895,13 @@ const AdminReportPage = () => {
                           View Details
                         </button>
                         {report.status?.toLowerCase() === "approved" && (
-                          <>
-                            <button
-                              onClick={() => handleDownloadInvoice(report)}
-                              className="inline-flex items-center px-3 py-2 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors"
-                            >
-                              <Download className="w-3 h-3 mr-1" />
-                              Invoice
-                            </button>
-                            <button
-                              onClick={() => handleManualInvoice(report)}
-                              className="inline-flex items-center px-3 py-2 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors"
-                            >
-                              <Download className="w-3 h-3 mr-1" />
-                              Manual Invoice
-                            </button>
-                          </>
+                          <button
+                            onClick={() => handleDownloadInvoice(report)}
+                            className="inline-flex items-center px-3 py-2 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors"
+                          >
+                            <Download className="w-3 h-3 mr-1" />
+                            Invoice
+                          </button>
                         )}
                       </div>
                     </td>
@@ -938,7 +934,7 @@ const AdminReportPage = () => {
                   </p>
                 </div>
                 <button
-                  onClick={handleModalClose}
+                  onClick={() => setShowDetailModal(false)}
                   className="p-2 hover:bg-white/10 rounded-full transition-colors"
                 >
                   ✕
@@ -958,6 +954,12 @@ const AdminReportPage = () => {
                       <span className="text-gray-500">Request ID:</span>
                       <span className="font-medium">
                         {selectedReport.formatted_request_id}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">SHIPA No:</span>
+                      <span className="font-medium">
+                        {selectedReport.shipa_no}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -986,7 +988,9 @@ const AdminReportPage = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Status:</span>
-                      <span>{getStatusBadge(selectedReport.status)}</span>
+                      <span>
+                        <StatusBadge status={selectedReport.status} />
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Created Date:</span>
@@ -1063,9 +1067,9 @@ const AdminReportPage = () => {
                     <div className="flex justify-between">
                       <span className="text-gray-500">Vehicle Type:</span>
                       <span className="font-medium">
-                        {selectedReport.vehicle_type || "N/A"}
+                        {selectedReport.vehicle_type || "N/A"}{" "}
                         {selectedReport.vehicle_size &&
-                          ` (${selectedReport.vehicle_size})`}
+                          `(${selectedReport.vehicle_size})`}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -1110,15 +1114,13 @@ const AdminReportPage = () => {
                     <div className="flex justify-between">
                       <span className="text-gray-500">Service Charges:</span>
                       <span className="font-medium text-green-600">
-                        ₹
-                        {(selectedReport.service_charges || 0).toLocaleString()}
+                        {formatCurrency(selectedReport.service_charges)}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Vehicle Charges:</span>
                       <span className="font-medium text-orange-600">
-                        ₹
-                        {(selectedReport.vehicle_charges || 0).toLocaleString()}
+                        {formatCurrency(selectedReport.vehicle_charges)}
                       </span>
                     </div>
                     <div className="flex justify-between border-t pt-2">
@@ -1127,27 +1129,24 @@ const AdminReportPage = () => {
                       </span>
                       <span
                         className={`font-bold ${
-                          (selectedReport.profit_loss || 0) >= 0
+                          selectedReport.profit_loss >= 0
                             ? "text-green-600"
                             : "text-red-600"
                         }`}
                       >
-                        ₹{(selectedReport.profit_loss || 0).toLocaleString()}
+                        {formatCurrency(selectedReport.profit_loss)}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Profit Margin:</span>
                       <span
                         className={`font-medium ${
-                          (selectedReport.profit_loss_percentage || 0) >= 0
+                          selectedReport.profit_loss_percentage >= 0
                             ? "text-green-600"
                             : "text-red-600"
                         }`}
                       >
-                        {(selectedReport.profit_loss_percentage || 0).toFixed(
-                          2
-                        )}
-                        %
+                        {selectedReport.profit_loss_percentage.toFixed(2)}%
                       </span>
                     </div>
                   </div>
@@ -1163,16 +1162,13 @@ const AdminReportPage = () => {
                     <div className="flex justify-between">
                       <span className="text-gray-500">Total Paid:</span>
                       <span className="font-medium text-blue-600">
-                        ₹{(selectedReport.total_paid || 0).toLocaleString()}
+                        {formatCurrency(selectedReport.total_paid)}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Outstanding:</span>
                       <span className="font-medium text-red-600">
-                        ₹
-                        {(
-                          selectedReport.outstanding_amount || 0
-                        ).toLocaleString()}
+                        {formatCurrency(selectedReport.outstanding_amount)}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -1217,6 +1213,12 @@ const AdminReportPage = () => {
                   </h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
+                      <span className="text-gray-500">Container Numbers:</span>
+                      <span className="font-medium">
+                        {selectedReport.container_numbers || "N/A"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
                       <span className="text-gray-500">20ft Containers:</span>
                       <span className="font-medium">
                         {selectedReport.containers_20ft || 0}
@@ -1240,7 +1242,7 @@ const AdminReportPage = () => {
                       <span className="text-gray-500">Cargo Weight:</span>
                       <span className="font-medium">
                         {selectedReport.cargo_weight || "N/A"}{" "}
-                        {selectedReport.cargo_weight ? "kg" : ""}
+                        {selectedReport.cargo_weight ? "kg	resource: kg" : ""}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -1274,19 +1276,15 @@ const AdminReportPage = () => {
                     <div className="flex justify-between">
                       <span className="text-gray-500">Expected Pickup:</span>
                       <span className="font-medium">
-                        {formatDate(selectedReport.expected_pickup_date) ||
-                          "N/A"}
-                        {selectedReport.expected_pickup_time &&
-                          ` ${selectedReport.expected_pickup_time}`}
+                        {formatDate(selectedReport.expected_pickup_date)}{" "}
+                        {selectedReport.expected_pickup_time || ""}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Expected Delivery:</span>
                       <span className="font-medium">
-                        {formatDate(selectedReport.expected_delivery_date) ||
-                          "N/A"}
-                        {selectedReport.expected_delivery_time &&
-                          ` ${selectedReport.expected_delivery_time}`}
+                        {formatDate(selectedReport.expected_delivery_date)}{" "}
+                        {selectedReport.expected_delivery_time || ""}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -1369,6 +1367,14 @@ const AdminReportPage = () => {
                             </span>
                           </div>
                           <div className="flex justify-between">
+                            <span className="text-gray-500">
+                              Container Number:
+                            </span>
+                            <span className="font-medium">
+                              {transporter.container_no || "N/A"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
                             <span className="text-gray-500">Driver Name:</span>
                             <span className="font-medium">
                               {transporter.driver_name || "N/A"}
@@ -1383,8 +1389,7 @@ const AdminReportPage = () => {
                           <div className="flex justify-between">
                             <span className="text-gray-500">Total Charge:</span>
                             <span className="font-medium text-orange-600">
-                              ₹
-                              {(transporter.total_charge || 0).toLocaleString()}
+                              {formatCurrency(transporter.total_charge)}
                             </span>
                           </div>
                           <div className="flex justify-between">
@@ -1392,10 +1397,7 @@ const AdminReportPage = () => {
                               Additional Charge:
                             </span>
                             <span className="font-medium text-orange-600">
-                              ₹
-                              {(
-                                transporter.additional_charges || 0
-                              ).toLocaleString()}
+                              {formatCurrency(transporter.additional_charges)}
                             </span>
                           </div>
                         </div>
@@ -1419,7 +1421,7 @@ const AdminReportPage = () => {
             </div>
             <div className="border-t bg-gray-50 px-6 py-4 flex justify-end space-x-3">
               <button
-                onClick={handleModalClose}
+                onClick={() => setShowDetailModal(false)}
                 className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Close
@@ -1429,17 +1431,22 @@ const AdminReportPage = () => {
                   const data = [
                     {
                       "Request ID": selectedReport.id,
-                      "Tracking ID": selectedReport.tracking_id || "",
+                      "Tracking ID": selectedReport.tracking_id || "N/A",
                       "GR No": selectedReport.gr_no,
                       "Trip No": selectedReport.trip_no,
                       "Invoice No": selectedReport.invoice_no,
+                      "SHIPA No": selectedReport.shipa_no,
+                      "Container Numbers": selectedReport.container_numbers,
                       "Customer Name": selectedReport.customer_name,
-                      "Customer Email": selectedReport.customer_email || "",
-                      "Pickup Location": selectedReport.pickup_location || "",
+                      "Customer Email": selectedReport.customer_email || "N/A",
+                      Consignee: selectedReport.consignee || "N/A",
+                      Consigner: selectedReport.consigner || "N/A",
+                      "Pickup Location":
+                        selectedReport.pickup_location || "N/A",
                       "Delivery Location":
-                        selectedReport.delivery_location || "",
-                      "Vehicle Type": selectedReport.vehicle_type || "",
-                      Commodity: selectedReport.commodity || "",
+                        selectedReport.delivery_location || "N/A",
+                      "Vehicle Type": selectedReport.vehicle_type || "N/A",
+                      Commodity: selectedReport.commodity || "N/A",
                       Status: selectedReport.status,
                       "Service Charges": selectedReport.service_charges,
                       "Vehicle Charges": selectedReport.vehicle_charges,
@@ -1449,14 +1456,10 @@ const AdminReportPage = () => {
                       "Total Paid": selectedReport.total_paid,
                       Outstanding: selectedReport.outstanding_amount,
                       "Payment Status": selectedReport.payment_status,
-                      "Created Date": new Date(
-                        selectedReport.created_at
-                      ).toLocaleDateString(),
-                      "Delivery Date": selectedReport.expected_delivery_date
-                        ? new Date(
-                            selectedReport.expected_delivery_date
-                          ).toLocaleDateString()
-                        : "",
+                      "Created Date": formatDate(selectedReport.created_at),
+                      "Delivery Date": formatDate(
+                        selectedReport.expected_delivery_date
+                      ),
                       "Containers 20ft": selectedReport.containers_20ft || 0,
                       "Containers 40ft": selectedReport.containers_40ft || 0,
                       "Total Containers": selectedReport.total_containers,
@@ -1483,17 +1486,6 @@ const AdminReportPage = () => {
           </div>
         </div>
       )}
-
-      {/* Manual Invoice Modal */}
-      <ManualInvoiceModal
-        isOpen={showManualInvoiceModal}
-        onClose={() => {
-          setShowManualInvoiceModal(false);
-          setManualInvoiceRequest(null);
-        }}
-        selectedRequest={manualInvoiceRequest}
-        onGenerateInvoice={handleGenerateManualInvoice}
-      />
     </div>
   );
 };

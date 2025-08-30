@@ -997,8 +997,7 @@ const ContainerDetailsPage = () => {
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                           Container Type
                                         </label>
-                                        <input
-                                          type="text"
+                                        <select
                                           className="w-full h-10 text-sm border border-gray-300 rounded-md px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                           value={container.containerType}
                                           onChange={(e) =>
@@ -1012,8 +1011,14 @@ const ContainerDetailsPage = () => {
                                               e.target.value
                                             )
                                           }
-                                          placeholder="Container Type"
-                                        />
+                                        >
+                                          <option value="">
+                                            Select Container Type
+                                          </option>
+                                          <option value="HQ">HQ</option>
+                                          <option value="DV">DV</option>
+                                          <option value="REFER">REFER</option>
+                                        </select>
                                       </div>
 
                                       {/* Container Size */}

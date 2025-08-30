@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { toast } from "react-toastify";
 import { transporterAPI, transporterListAPI } from "../utils/Api";
 import VehicleBasicDetailsTable from "../Components/dashboard/Vehiclebasicdetailstable";
@@ -8,7 +8,7 @@ import ModalChecklist from "../Components/dashboard/ModalChecklist";
 
 export const TransporterDetails = ({
   transportRequestId,
-  onBack,
+  numberOfVehicles,
   selectedServices = [],
   transporterData,
   setTransporterData,
@@ -18,169 +18,155 @@ export const TransporterDetails = ({
   const [isLoading, setIsLoading] = useState(false);
   const [vehicleDataList, setVehicleDataList] = useState([]);
   const [transportersList, setTransportersList] = useState([]);
-  const [services, setServices] = useState(selectedServices);
-  const [vehicleCount, setVehicleCount] = useState(1); // Initialize with 1 vehicle
+  const [services, setServices] = useState([]);
+  const [vehicleCount, setVehicleCount] = useState(numberOfVehicles || 1);
 
+  // Parse selected services
   useEffect(() => {
-    let servicesArray = [];
-    if (typeof selectedServices === "string") {
-      try {
-        servicesArray = JSON.parse(selectedServices);
-      } catch (e) {
-        servicesArray = [selectedServices];
-      }
-    } else if (Array.isArray(selectedServices)) {
-      servicesArray = selectedServices;
-    }
+    const servicesArray = Array.isArray(selectedServices)
+      ? selectedServices
+      : typeof selectedServices === "string"
+      ? JSON.parse(selectedServices || "[]")
+      : [];
     setServices(servicesArray);
   }, [selectedServices]);
 
-  const initializeVehicleData = (numVehicles) => {
-    const defaultVehicleData = {
-      transporterName: "",
-      vehicleNumber: "",
-      driverName: "",
-      driverContact: "",
-      licenseNumber: "",
-      licenseExpiry: "",
-      baseCharge: "0",
-      additionalCharges: "",
-      totalCharge: 0,
-      serviceCharges: {},
-      containerNo: "",
-      line: "",
-      sealNo: "",
-      numberOfContainers: "",
-      seal1: "",
-      seal2: "",
-      containerTotalWeight: "",
-      cargoTotalWeight: "",
-      containerType: "",
-      containerSize: "",
-      vehicleType: transporterData?.vehicle_type || "",
-    };
+  // Initialize vehicle data
+  const initializeVehicleData = useCallback(
+    (numVehicles) => {
+      const defaultVehicleData = {
+        id: null,
+        vehicleIndex: 0,
+        transporterName: "",
+        vehicleNumber: "",
+        driverName: "",
+        driverContact: "",
+        licenseNumber: "",
+        licenseExpiry: "",
+        baseCharge: "0",
+        additionalCharges: "",
+        totalCharge: 0,
+        serviceCharges: services.reduce(
+          (acc, service) => ({ ...acc, [service]: "0" }),
+          {}
+        ),
+        containerNo: "",
+        line: "",
+        sealNo: "",
+        numberOfContainers: "",
+        seal1: "",
+        seal2: "",
+        containerTotalWeight: "",
+        cargoTotalWeight: "",
+        containerType: "",
+        containerSize: "",
+        vehicleType: vehicleType || "",
+      };
 
-    const initialServiceCharges = {};
-    services.forEach((service) => {
-      initialServiceCharges[service] = "0";
-    });
+      return Array.from({ length: numVehicles }, (_, index) => ({
+        ...defaultVehicleData,
+        vehicleIndex: index + 1,
+      }));
+    },
+    [services, vehicleType]
+  );
 
-    return Array.from({ length: numVehicles }, (_, index) => ({
-      ...defaultVehicleData,
-      serviceCharges: initialServiceCharges,
-      vehicleIndex: index + 1,
-      id: null,
-    }));
-  };
-
+  // Sync vehicle count and initialize data
   useEffect(() => {
-    // Initialize or update vehicleDataList when vehicleCount changes
+    setVehicleCount(numberOfVehicles || 1);
     setVehicleDataList((prevList) => {
-      if (prevList.length === vehicleCount) {
-        return prevList;
-      }
-
-      const newList = initializeVehicleData(vehicleCount);
-
-      // Preserve existing data for vehicles that already exist
-      for (let i = 0; i < Math.min(prevList.length, vehicleCount); i++) {
-        newList[i] = { ...prevList[i], vehicleIndex: i + 1 };
-      }
-
-      return newList;
+      if (prevList.length === numberOfVehicles) return prevList;
+      const newList = initializeVehicleData(numberOfVehicles);
+      return prevList.length > 0
+        ? prevList.map((vehicle, i) => ({
+            ...(newList[i] || initializeVehicleData(1)[0]),
+            ...vehicle,
+            vehicleIndex: i + 1,
+          }))
+        : newList;
     });
-  }, [vehicleCount, services]);
+  }, [numberOfVehicles, initializeVehicleData]);
 
-  const loadTransporterDetails = async () => {
-    if (!transportRequestId) return;
+  // Fetch transporter details
+  const loadTransporterDetails = useCallback(async () => {
+    if (!transportRequestId) {
+      setVehicleDataList(initializeVehicleData(vehicleCount));
+      return;
+    }
 
     setIsLoading(true);
     try {
       const response = await transporterAPI.getTransporterByRequestId(
         transportRequestId
       );
-
-      if (response.success) {
-        const details = Array.isArray(response.data)
-          ? response.data
-          : [response.data];
-
-        // Update vehicleCount based on fetched data
-        setVehicleCount(details.length || 1);
-
-        const mappedData = details.map((existingDetail, i) => {
-          let serviceCharges = {};
-          if (existingDetail.service_charges) {
-            try {
-              serviceCharges = JSON.parse(existingDetail.service_charges);
-            } catch (e) {
-              console.error("Error parsing service charges:", e);
-            }
-          }
-
-          services.forEach((service) => {
-            if (!serviceCharges[service]) {
-              serviceCharges[service] = "0";
-            }
-          });
-
-          return {
-            id: existingDetail.id,
-            vehicleIndex: i + 1,
-            transporterName: existingDetail.transporter_name || "",
-            vehicleNumber: existingDetail.vehicle_number || "",
-            driverName: existingDetail.driver_name || "",
-            driverContact: existingDetail.driver_contact || "",
-            licenseNumber: existingDetail.license_number || "",
-            licenseExpiry: existingDetail.license_expiry
-              ? existingDetail.license_expiry.split("T")[0]
-              : "",
-            baseCharge: existingDetail.base_charge || "0",
-            additionalCharges: existingDetail.additional_charges || "",
-            totalCharge: existingDetail.total_charge || 0,
-            serviceCharges: serviceCharges,
-            containerNo: existingDetail.container_no || "",
-            line: existingDetail.line || "",
-            sealNo: existingDetail.seal_no || "",
-            numberOfContainers: existingDetail.number_of_containers || "",
-            seal1: existingDetail.seal1 || "",
-            seal2: existingDetail.seal2 || "",
-            containerTotalWeight: existingDetail.container_total_weight || "",
-            cargoTotalWeight: existingDetail.cargo_total_weight || "",
-            containerType: existingDetail.container_type || "",
-            containerSize: existingDetail.container_size || "",
-            vehicleType: transporterData?.vehicle_type || "",
-          };
-        });
-
-        setVehicleDataList(mappedData);
-        toast.info(`Loaded details for ${details.length} vehicle(s)`);
+      if (!response?.success || !response?.data) {
+        throw new Error("Invalid or empty response from API");
       }
+
+      const details = Array.isArray(response.data)
+        ? response.data
+        : [response.data];
+      setVehicleCount(details.length || vehicleCount);
+
+      const mappedData = details.map((detail, i) => {
+        const serviceCharges = detail.service_charges
+          ? JSON.parse(detail.service_charges)
+          : services.reduce((acc, service) => ({ ...acc, [service]: "0" }), {});
+
+        return {
+          id: detail.id || null,
+          vehicleIndex: i + 1,
+          transporterName: detail.transporter_name || "",
+          vehicleNumber: detail.vehicle_number || "",
+          driverName: detail.driver_name || "",
+          driverContact: detail.driver_contact || "",
+          licenseNumber: detail.license_number || "",
+          licenseExpiry: detail.license_expiry?.split("T")[0] || "",
+          baseCharge: detail.base_charge || "0",
+          additionalCharges: detail.additional_charges || "",
+          totalCharge: detail.total_charge || 0,
+          serviceCharges,
+          containerNo: detail.container_no || "",
+          line: detail.line || "",
+          sealNo: detail.seal_no || "",
+          numberOfContainers: detail.number_of_containers || "",
+          seal1: detail.seal1 || "",
+          seal2: detail.seal2 || "",
+          containerTotalWeight: detail.container_total_weight || "",
+          cargoTotalWeight: detail.cargo_total_weight || "",
+          containerType: detail.container_type || "",
+          containerSize: detail.container_size || "",
+          vehicleType: detail.vehicle_type || vehicleType || "",
+        };
+      });
+
+      setVehicleDataList(mappedData);
+      toast.info(`Loaded details for ${mappedData.length} vehicle(s)`);
     } catch (error) {
-      if (error.status === 404 || error.message?.includes("not found")) {
-        console.log("No existing transporter details found");
-        setVehicleDataList(initializeVehicleData(vehicleCount));
-      } else {
-        console.error("Error loading transporter details:", error);
-        toast.error(error.message || "Error loading transporter details");
-        setVehicleDataList(initializeVehicleData(vehicleCount));
-      }
+      console.error("Error loading transporter details:", error);
+      toast.error(error.message || "Failed to load vehicle details");
+      setVehicleDataList(initializeVehicleData(vehicleCount));
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [
+    transportRequestId,
+    vehicleCount,
+    services,
+    vehicleType,
+    initializeVehicleData,
+  ]);
 
   useEffect(() => {
-    if (transportRequestId) {
-      loadTransporterDetails();
-    }
-  }, [transportRequestId]);
+    loadTransporterDetails();
+  }, [loadTransporterDetails]);
 
+  // Fetch transporters list
   useEffect(() => {
     const fetchTransporters = async () => {
       try {
         const response = await transporterListAPI.getAllTransporters();
-        if (response) {
+        if (Array.isArray(response)) {
           setTransportersList(
             response
               .filter((t) => t.status === "Active")
@@ -192,24 +178,21 @@ export const TransporterDetails = ({
         }
       } catch (error) {
         console.error("Error fetching transporters:", error);
+        toast.error("Failed to fetch transporters list");
       }
     };
-
     fetchTransporters();
   }, []);
 
   const updateVehicleData = (vehicleIndex, field, value) => {
     setVehicleDataList((prevList) =>
-      prevList.map((vehicle, index) => {
-        if (index === vehicleIndex) {
+      prevList.map((vehicle) => {
+        if (vehicle.vehicleIndex === vehicleIndex + 1) {
           const updatedVehicle = { ...vehicle, [field]: value };
-
-          // Calculate totalCharge excluding additionalCharges
           if (field === "serviceCharges") {
             const serviceChargesTotal = Object.values(
               updatedVehicle.serviceCharges || {}
             ).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
-
             updatedVehicle.totalCharge = serviceChargesTotal;
           }
           return updatedVehicle;
@@ -221,24 +204,19 @@ export const TransporterDetails = ({
 
   const validateVehicleData = (vehicle, index) => {
     const errors = [];
-
-    if (!vehicle.transporterName.trim()) {
-      errors.push(`Vehicle ${index + 1}: Transporter name is required`);
-    }
-    if (!vehicle.vehicleNumber.trim()) {
-      errors.push(`Vehicle ${index + 1}: Vehicle number is required`);
-    }
-    if (!vehicle.driverName.trim()) {
-      errors.push(`Vehicle ${index + 1}: Driver name is required`);
-    }
+    if (!vehicle.transporterName.trim())
+      errors.push(`Vehicle ${index + 1}: Transporter name required`);
+    if (!vehicle.vehicleNumber.trim())
+      errors.push(`Vehicle ${index + 1}: Vehicle number required`);
+    if (!vehicle.driverName.trim())
+      errors.push(`Vehicle ${index + 1}: Driver name required`);
     if (!vehicle.driverContact.trim()) {
-      errors.push(`Vehicle ${index + 1}: Driver contact is required`);
+      errors.push(`Vehicle ${index + 1}: Driver contact required`);
     } else if (!/^\d{10}$/.test(vehicle.driverContact.replace(/\D/g, ""))) {
       errors.push(
         `Vehicle ${index + 1}: Driver contact must be a valid 10-digit number`
       );
     }
-
     return errors;
   };
 
@@ -246,12 +224,9 @@ export const TransporterDetails = ({
 
   const handleOpenModal = (e) => {
     e.preventDefault();
-    const allErrors = [];
-    vehicleDataList.forEach((vehicle, index) => {
-      const vehicleErrors = validateVehicleData(vehicle, index);
-      allErrors.push(...vehicleErrors);
-    });
-
+    const allErrors = vehicleDataList.flatMap((vehicle, index) =>
+      validateVehicleData(vehicle, index)
+    );
     if (allErrors.length > 0) {
       toast.error(`Please fix the following errors:\n${allErrors.join("\n")}`);
       return;
@@ -259,9 +234,7 @@ export const TransporterDetails = ({
     setIsModalOpen(true);
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-  };
+  const handleCloseModal = () => setIsModalOpen(false);
 
   const handleVerifyAndProceed = () => {
     setIsModalOpen(false);
@@ -275,11 +248,8 @@ export const TransporterDetails = ({
     }
 
     setIsSubmitting(true);
-
     try {
-      const promises = vehicleDataList.map(async (vehicle, index) => {
-        const serviceChargesJson = JSON.stringify(vehicle.serviceCharges || {});
-
+      const promises = vehicleDataList.map(async (vehicle) => {
         const payload = {
           transport_request_id: transportRequestId,
           transporter_name: vehicle.transporterName.trim(),
@@ -287,17 +257,15 @@ export const TransporterDetails = ({
           driver_name: vehicle.driverName.trim(),
           driver_contact: vehicle.driverContact.trim(),
           license_number: vehicle.licenseNumber.trim(),
-          license_expiry: vehicle.licenseExpiry,
+          license_expiry: vehicle.licenseExpiry || null,
           base_charge: 0,
           additional_charges: parseFloat(vehicle.additionalCharges) || 0,
-          service_charges: serviceChargesJson,
+          service_charges: JSON.stringify(vehicle.serviceCharges || {}),
           total_charge: parseFloat(vehicle.totalCharge) || 0,
-          container_no: vehicle.containerNo.trim() || null,
-          line: vehicle.line.trim() || null,
-          seal_no: "1",
-          number_of_containers: vehicle.numberOfContainers
-            ? parseInt(vehicle.numberOfContainers)
-            : null,
+          container_no: vehicle.containerNo?.trim() || null,
+          line: vehicle.line?.trim() || null,
+          seal_no: vehicle.sealNo?.trim() || "1",
+          number_of_containers: parseInt(vehicle.numberOfContainers) || null,
           seal1: vehicle.seal1?.trim() || null,
           seal2: vehicle.seal2?.trim() || null,
           container_total_weight:
@@ -307,63 +275,46 @@ export const TransporterDetails = ({
           container_size: vehicle.containerSize?.trim() || null,
         };
 
-        try {
-          const response = vehicle.id
-            ? await transporterAPI.updateTransporter(vehicle.id, payload)
-            : await transporterAPI.createTransporter(
-                transportRequestId,
-                payload
-              );
-          return response;
-        } catch (error) {
-          console.error(`Error saving vehicle ${index + 1}:`, error);
-          throw error;
-        }
+        return vehicle.id
+          ? transporterAPI.updateTransporter(vehicle.id, payload)
+          : transporterAPI.createTransporter(transportRequestId, payload);
       });
 
       const responses = await Promise.all(promises);
-
       const updatedVehicleList = vehicleDataList.map((vehicle, index) => {
         const response = responses[index];
-        if (response.success && response.data) {
-          return {
-            ...vehicle,
-            id: response.data.id,
-            totalCharge: response.data.total_charge || vehicle.totalCharge,
-          };
-        }
-        return vehicle;
+        return response.success && response.data
+          ? {
+              ...vehicle,
+              id: response.data.id,
+              totalCharge: response.data.total_charge || vehicle.totalCharge,
+            }
+          : vehicle;
       });
 
       setVehicleDataList(updatedVehicleList);
-
       const successCount = responses.filter((r) => r.success).length;
-      const failedCount = responses.length - successCount;
-
       if (successCount === responses.length) {
         toast.success(
           `All ${successCount} vehicle details saved successfully!`
         );
         await loadTransporterDetails();
-      } else if (successCount > 0) {
-        toast.warning(
-          `${successCount} vehicle(s) saved successfully, ${failedCount} failed`
-        );
       } else {
-        toast.error("Failed to save vehicle details");
+        toast.warning(
+          `${successCount} vehicle(s) saved, ${
+            responses.length - successCount
+          } failed`
+        );
       }
     } catch (error) {
       console.error("Error saving transporter details:", error);
-      toast.error(error.message || "Error saving transporter details");
+      toast.error(error.message || "Failed to save vehicle details");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const addVehicle = () => {
-    setVehicleCount((prev) => prev + 1);
-  };
-
+  const addVehicle = () => setVehicleCount((prev) => prev + 1);
   const removeVehicle = () => {
     if (vehicleCount > 1) {
       setVehicleCount((prev) => prev - 1);
@@ -381,13 +332,12 @@ export const TransporterDetails = ({
       <div className="bg-white rounded-lg shadow mt-6">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-medium text-gray-900">
-            Transporter Details
-            {vehicleCount > 1 ? "s" : ""})
+            Transporter Details {vehicleCount > 1 ? "s" : ""}
           </h3>
         </div>
         <div className="p-6 flex justify-center items-center">
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600"></div>
-          <span className="ml-3">Loading transporter details...</span>
+          <span className="ml-3">Loading...</span>
         </div>
       </div>
     );
@@ -398,8 +348,7 @@ export const TransporterDetails = ({
       <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
         <div>
           <h3 className="text-lg font-medium text-gray-900">
-            Transporter Details
-            {vehicleCount > 1 ? "s" : ""})
+            Transporter Details {vehicleCount > 1 ? "s" : ""}
           </h3>
           {transportRequestId && (
             <p className="text-sm text-gray-600 mt-1">
@@ -411,7 +360,7 @@ export const TransporterDetails = ({
           <button
             type="button"
             onClick={addVehicle}
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200"
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
           >
             Add Vehicle
           </button>
@@ -419,7 +368,7 @@ export const TransporterDetails = ({
             type="button"
             onClick={removeVehicle}
             disabled={vehicleCount <= 1}
-            className={`px-4 py-2 rounded-md text-white transition-colors duration-200 ${
+            className={`px-4 py-2 rounded-md text-white ${
               vehicleCount <= 1
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-red-600 hover:bg-red-700"
@@ -429,7 +378,6 @@ export const TransporterDetails = ({
           </button>
         </div>
       </div>
-
       <div className="p-6">
         <form onSubmit={handleOpenModal} className="space-y-8">
           <VehicleBasicDetailsTable
@@ -441,6 +389,12 @@ export const TransporterDetails = ({
             services={services}
             updateVehicleData={updateVehicleData}
           />
+          <ContainerDetailsTable
+            vehicleDataList={vehicleDataList}
+            updateVehicleData={updateVehicleData}
+            transportRequestId={transportRequestId}
+            tripType={vehicleType}
+          />
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-200">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -448,7 +402,7 @@ export const TransporterDetails = ({
                   Summary
                 </div>
                 <div className="space-y-1 text-sm text-gray-600">
-                  <div>Request ID: {transportRequestId}</div>
+                  <div>Request ID: {transportRequestId || "N/A"}</div>
                   <div>Total Vehicles: {vehicleCount}</div>
                 </div>
               </div>
@@ -467,29 +421,23 @@ export const TransporterDetails = ({
           <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
             <button
               type="button"
-              onClick={onBack}
-              className="px-6 py-3 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors duration-200 font-medium"
+              className="px-6 py-3 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className={`
-                px-8 py-3 rounded-md text-white font-medium transition-all duration-200
-                ${
-                  isSubmitting
-                    ? "bg-blue-400 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-700 hover:shadow-lg focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                }
-                flex items-center
-              `}
+              className={`px-8 py-3 rounded-md text-white ${
+                isSubmitting
+                  ? "bg-blue-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700"
+              } flex items-center`}
             >
               {isSubmitting ? (
                 <>
                   <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white mr-3"></div>
-                  Saving {vehicleCount} Vehicle
-                  {vehicleCount > 1 ? "s" : ""}...
+                  Saving {vehicleCount} Vehicle{vehicleCount > 1 ? "s" : ""}...
                 </>
               ) : (
                 <>
@@ -507,22 +455,10 @@ export const TransporterDetails = ({
                     />
                   </svg>
                   Save All Transporter Details
-                  {vehicleCount > 1 ? "s" : ""})
                 </>
               )}
             </button>
           </div>
-          <ContainerDetailsTable
-            vehicleDataList={vehicleDataList}
-            updateVehicleData={updateVehicleData}
-            transportRequestId={transportRequestId}
-            tripType={
-              vehicleType ||
-              (vehicleDataList.length > 0 && vehicleDataList[0].vehicleType
-                ? vehicleDataList[0].vehicleType
-                : "")
-            }
-          />
         </form>
       </div>
       <ModalChecklist

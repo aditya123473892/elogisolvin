@@ -1,337 +1,291 @@
 import React, { useState, useEffect } from "react";
+import * as XLSX from "xlsx";
 import {
-  DollarSign,
-  TrendingUp,
-  TrendingDown,
-  Truck,
-  FileText,
-  Calendar,
-  MapPin,
-  User,
-  CreditCard,
-  AlertCircle,
-  CheckCircle,
-  Download,
-  RefreshCw,
-  Building,
-  Package,
   Search,
   Filter,
+  Download,
+  Calendar,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Package,
+  Truck,
+  FileText,
   Eye,
-  BarChart3,
-  Users,
+  RefreshCw,
+  MapPin,
 } from "lucide-react";
-import api from "../utils/Api.jsx";
+import { toast } from "react-toastify";
+import api from "../utils/Api";
+import { transporterAPI } from "../utils/Api";
+import { generateInvoice } from "../utils/pdfGenerator";
+import { generateManualInvoice } from "../utils/ManualInvoicegenerator";
+import RequestModal from "../Components/Requestmodal";
+import ManualInvoiceModal from "../Components/Manualinvoice";
 
-const AllReportsPage = () => {
-  const [allTransactions, setAllTransactions] = useState([]);
-  const [allRequests, setAllRequests] = useState([]);
-  const [reportData, setReportData] = useState([]);
+const AdminReportPage = () => {
+  const [reports, setReports] = useState([]);
   const [filteredReports, setFilteredReports] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [profitabilityFilter, setProfitabilityFilter] = useState("all");
   const [dateRange, setDateRange] = useState({ from: "", to: "" });
-  const [sortBy, setSortBy] = useState("request_id");
-  const [sortOrder, setSortOrder] = useState("desc");
   const [selectedReport, setSelectedReport] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-
-  const fetchAllData = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Fetch all transactions using shared api instance
-      const transactionsResp = await api.get("/transactions/all");
-      const transactionsData = transactionsResp?.data || {};
-
-      if (transactionsData.success === false) {
-        throw new Error(
-          transactionsData.message || "Failed to fetch transactions"
-        );
-      }
-
-      // Fetch all transport requests using shared api instance
-      let requestsData = { data: [] };
-      try {
-        const requestsResp = await api.get("/transport-requests/all");
-        requestsData = requestsResp?.data || { data: [] };
-      } catch (reqErr) {
-        // keep requestsData as empty if endpoint fails
-        console.warn("Failed to fetch transport requests:", reqErr);
-      }
-
-      setAllTransactions(transactionsData.data || []);
-      setAllRequests(requestsData.data || []);
-
-      // Process and combine data (now async because we fetch transporter details)
-      await processReportData(
-        transactionsData.data || [],
-        requestsData.data || []
-      );
-    } catch (err) {
-      console.error("Error fetching data:", err);
-      setError(err.message || "Failed to fetch data");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const processReportData = async (transactions, requests) => {
-    // Group transactions by request_id
-    const transactionsByRequest = transactions.reduce((acc, transaction) => {
-      const requestId = transaction.request_id;
-      if (!acc[requestId]) {
-        acc[requestId] = [];
-      }
-      acc[requestId].push(transaction);
-      return acc;
-    }, {});
-
-    // Create a map of requests for quick lookup
-    const requestsMap = requests.reduce((acc, request) => {
-      acc[request.id] = request;
-      return acc;
-    }, {});
-
-    // Generate report data
-    const reports = await Promise.all(
-      Object.keys(transactionsByRequest).map(async (requestId) => {
-        // fetch transporter details for this request from API
-        let transporterArray = [];
-        try {
-          const transporterResp = await api.get(
-            `/transport-requests/${requestId}/transporter`
-          );
-          const tdata = transporterResp?.data;
-          if (tdata) {
-            // support both { success, data } and raw array responses
-            if (Array.isArray(tdata)) transporterArray = tdata;
-            else if (tdata.success && Array.isArray(tdata.data))
-              transporterArray = tdata.data;
-            else if (Array.isArray(tdata.data)) transporterArray = tdata.data;
-          }
-        } catch (e) {
-          console.warn(
-            `Failed to fetch transporter for request ${requestId}`,
-            e
-          );
-        }
-
-        // Group transporter entries by vehicle_number + transporter_name and collect containers
-        const vehicleMap = new Map();
-        transporterArray.forEach((t) => {
-          const key = `${t.vehicle_number || "UNKNOWN"}_${
-            t.transporter_name || t.transporter || "UNKNOWN"
-          }`;
-          const containerEntry = t.container_no
-            ? {
-                container_no: t.container_no,
-                line: t.line,
-                seal_no: t.seal_no,
-                id: t.id,
-                container_type: t.container_type,
-                container_size: t.container_size,
-                container_total_weight: t.container_total_weight,
-              }
-            : null;
-
-          if (!vehicleMap.has(key)) {
-            vehicleMap.set(key, {
-              transporter_name:
-                t.transporter_name || t.transporter || t.vendor_name || null,
-              vehicle_number: t.vehicle_number || null,
-              driver_name: t.driver_name || null,
-              driver_contact: t.driver_contact || t.driver_phone || null,
-              driver_phone: t.driver_phone || t.driver_contact || null,
-              license_number: t.license_number || null,
-              license_expiry: t.license_expiry || null,
-              total_charge: Number(t.total_charge || 0),
-              additional_charges: Number(t.additional_charges || 0),
-              base_charge: Number(t.base_charge || 0),
-              vehicle_sequence: t.vehicle_sequence,
-              vin_no: t.vin_no,
-              containers: containerEntry ? [containerEntry] : [],
-            });
-          } else if (containerEntry) {
-            vehicleMap.get(key).containers.push(containerEntry);
-          }
-        });
-
-        const transporterDetails = Array.from(vehicleMap.values());
-
-        // Continue building report using transactions + request data
-        const requestTransactions = transactionsByRequest[requestId];
-        const request = requestsMap[requestId] || {};
-
-        // safe numeric helpers
-        const safeNum = (v) => {
-          const n = Number(v);
-          return Number.isFinite(n) ? n : 0;
-        };
-
-        // Calculate financial metrics
-        const totalRevenue =
-          safeNum(request.requested_price) ||
-          safeNum(requestTransactions[0]?.requested_price) ||
-          0;
-        const totalVehicleCharges = transporterDetails.reduce(
-          (sum, v) => sum + safeNum(v.total_charge),
-          0
-        );
-        const totalPaid = requestTransactions.reduce(
-          (sum, tx) => sum + safeNum(tx.total_paid),
-          0
-        );
-        const grossProfit = totalRevenue - totalVehicleCharges;
-        const outstandingAmount = totalRevenue - totalPaid;
-        const profitMargin =
-          totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
-
-        const firstTransaction = requestTransactions[0] || {};
-
-        const paymentStatus =
-          totalPaid >= totalRevenue
-            ? "Fully Paid"
-            : totalPaid > 0
-            ? "Partially Paid"
-            : "Unpaid";
-
-        // Prefer transporter name from fetched transporter array (if present)
-        const reportTransporterName =
-          (transporterArray[0] &&
-            (transporterArray[0].transporter_name ||
-              transporterArray[0].transporter ||
-              transporterArray[0].vendor_name)) ||
-          request.transporter_name ||
-          `CUST-${requestId}`;
-
-        // fallback expected dates from transaction if missing on request
-        const expectedPickupDate =
-          request.expected_pickup_date ||
-          firstTransaction.expected_pickup_date ||
-          firstTransaction.pickup_date ||
-          null;
-        const expectedDeliveryDate =
-          request.expected_delivery_date ||
-          firstTransaction.expected_delivery_date ||
-          firstTransaction.delivery_date ||
-          null;
-
-        return {
-          request_id: parseInt(requestId),
-          id: parseInt(requestId),
-          formatted_request_id:
-            request.formatted_request_id || `REQ-${requestId}`,
-          tracking_id: request.tracking_id || `TR-${requestId}`,
-          gr_no: `GR-${requestId}`,
-          trip_no: `TRIP-${requestId}`,
-          invoice_no: `INV-${new Date(
-            request.created_at || Date.now()
-          ).getFullYear()}-${String(requestId).padStart(4, "0")}`,
-          SHIPA_NO: request.SHIPA_NO || `SHIPA-${requestId}`,
-          customer_name:
-            request.customer_name ||
-            firstTransaction.consigner ||
-            "Not specified",
-          transporter_name: reportTransporterName,
-          pickup_location:
-            request.pickup_location ||
-            firstTransaction.pickup_location ||
-            "Not specified",
-          delivery_location:
-            request.delivery_location ||
-            firstTransaction.delivery_location ||
-            "Not specified",
-          commodity:
-            request.commodity || firstTransaction.commodity || "General Cargo",
-          vehicle_type:
-            request.vehicle_type || firstTransaction.vehicle_type || "Standard",
-          status: request.status || "completed",
-          created_at: request.created_at || firstTransaction.created_at,
-          updated_at: request.updated_at || firstTransaction.updated_at,
-          expected_pickup_date: expectedPickupDate,
-          expected_delivery_date: expectedDeliveryDate,
-          actual_delivery_date: request.actual_delivery_date,
-          vehicle_count:
-            transporterDetails.length || requestTransactions.length || 0,
-          no_of_vehicles:
-            request.no_of_vehicles || requestTransactions.length || 0,
-          containers_20ft: request.containers_20ft || 0,
-          containers_40ft: request.containers_40ft || 0,
-          total_containers:
-            (request.containers_20ft || 0) + (request.containers_40ft || 0),
-          cargo_weight: request.cargo_weight,
-          special_instructions: request.special_instructions,
-          total_revenue: totalRevenue,
-          requested_price: totalRevenue,
-          service_charges: totalRevenue,
-          total_vehicle_charges: totalVehicleCharges,
-          vehicle_charges: totalVehicleCharges,
-          gross_profit: grossProfit,
-          profit_loss: grossProfit,
-          profit_margin: profitMargin,
-          profit_loss_percentage: profitMargin,
-          total_paid: totalPaid,
-          outstanding_amount: outstandingAmount,
-          payment_status: paymentStatus,
-          is_profitable: grossProfit > 0,
-          transactions: requestTransactions,
-          request_details: request,
-          transporter_details: transporterDetails,
-          transaction_data: firstTransaction || null,
-        };
-      })
-    );
-
-    setReportData(reports);
-    setFilteredReports(reports);
-  };
+  const [transporterDetails, setTransporterDetails] = useState(null);
+  const [adminComment, setAdminComment] = useState("");
+  const [updating, setUpdating] = useState(false);
+  const [showManualInvoiceModal, setShowManualInvoiceModal] = useState(false);
+  const [manualInvoiceRequest, setManualInvoiceRequest] = useState(null);
+  const [exportType, setExportType] = useState("detailed");
 
   useEffect(() => {
-    fetchAllData();
+    fetchReports();
   }, []);
 
   useEffect(() => {
     filterReports();
-  }, [reportData, searchTerm, statusFilter, profitabilityFilter, dateRange]);
+  }, [reports, searchTerm, statusFilter, dateRange]);
+
+  const parseServiceType = (serviceType) => {
+    if (!serviceType) return [];
+    try {
+      const parsed =
+        typeof serviceType === "string" ? JSON.parse(serviceType) : serviceType;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.error("Error parsing service type:", e);
+      return [];
+    }
+  };
+
+  const parseServicePrices = (servicePrices) => {
+    if (!servicePrices) return {};
+    try {
+      return typeof servicePrices === "string"
+        ? JSON.parse(servicePrices)
+        : servicePrices;
+    } catch (e) {
+      console.error("Error parsing service prices:", e);
+      return {};
+    }
+  };
+
+  const formatCurrency = (amount) => {
+    if (!amount || amount === 0) return "Not specified";
+    return `₹${Number(amount).toLocaleString("en-IN")}`;
+  };
+
+  const calculateRequestTotalAmount = (containerDetails) => {
+    if (!Array.isArray(containerDetails) || containerDetails.length === 0) {
+      return 0;
+    }
+    return containerDetails.reduce((total, detail) => {
+      const vehicleTotal = parseFloat(detail.total_charge || 0);
+      return total + vehicleTotal;
+    }, 0);
+  };
+
+  const fetchReports = async () => {
+    try {
+      setIsLoading(true);
+      const response = await api.get("/transport-requests/all");
+      const shipments = response.data.requests;
+
+      const reportsWithDetails = await Promise.all(
+        shipments.map(async (shipment) => {
+          try {
+            let transporterDetails = [];
+            let vehicleCharges = 0;
+            let vehicleCount = 0;
+
+            try {
+              const transporterResponse =
+                await transporterAPI.getTransporterByRequestId(shipment.id);
+              if (transporterResponse.success) {
+                const details = Array.isArray(transporterResponse.data)
+                  ? transporterResponse.data
+                  : [transporterResponse.data];
+                const uniqueVehicles = [];
+                const vehicleMap = new Map();
+                details.forEach((detail) => {
+                  if (
+                    detail.vehicle_number &&
+                    !vehicleMap.has(detail.vehicle_number)
+                  ) {
+                    vehicleMap.set(detail.vehicle_number, detail);
+                    uniqueVehicles.push(detail);
+                  }
+                });
+                transporterDetails = uniqueVehicles;
+                vehicleCharges = calculateRequestTotalAmount(uniqueVehicles);
+                vehicleCount = uniqueVehicles.length;
+              }
+            } catch (error) {
+              console.log(
+                `No transporter details found for shipment ${shipment.id}`
+              );
+            }
+
+            let transactionData = null;
+            let totalPaid = 0;
+            let grNumber = `GR-${shipment.id}`;
+
+            try {
+              const transactionResponse = await api.get(
+                `/transactions/request/${shipment.id}`
+              );
+              if (
+                transactionResponse.data.success &&
+                transactionResponse.data.data.length > 0
+              ) {
+                transactionData = transactionResponse.data.data[0];
+                totalPaid = parseFloat(transactionData.total_paid || 0);
+                grNumber = transactionData.gr_no || grNumber;
+              }
+            } catch (error) {
+              console.log(
+                `No transaction data found for shipment ${shipment.id}`
+              );
+            }
+
+            const serviceCharges = parseFloat(shipment.requested_price || 0);
+            const profitLoss = serviceCharges - vehicleCharges;
+            const profitLossPercentage =
+              serviceCharges > 0 ? (profitLoss / serviceCharges) * 100 : 0;
+
+            const paymentStatus =
+              totalPaid >= serviceCharges
+                ? "Fully Paid"
+                : totalPaid > 0
+                ? "Partially Paid"
+                : "Unpaid";
+            const outstandingAmount = Math.max(0, serviceCharges - totalPaid);
+
+            return {
+              ...shipment,
+              gr_no: grNumber,
+              trip_no: `TRIP-${shipment.id}`,
+              invoice_no: `INV-${new Date(
+                shipment.created_at
+              ).getFullYear()}-${String(shipment.id).padStart(4, "0")}`,
+              service_charges: serviceCharges,
+              vehicle_charges: vehicleCharges,
+              profit_loss: profitLoss,
+              profit_loss_percentage: profitLossPercentage,
+              total_paid: totalPaid,
+              outstanding_amount: outstandingAmount,
+              payment_status: paymentStatus,
+              vehicle_count: vehicleCount,
+              transporter_details: transporterDetails,
+              transaction_data: transactionData,
+              customer_name:
+                shipment.customer_name || `Customer ${shipment.customer_id}`,
+              total_containers:
+                (shipment.containers_20ft || 0) +
+                (shipment.containers_40ft || 0),
+              service_types: parseServiceType(shipment.service_type),
+              service_prices: parseServicePrices(shipment.service_prices),
+              formatted_request_id:
+                shipment.formatted_request_id || `Booking #${shipment.id}`,
+            };
+          } catch (error) {
+            console.error(`Error processing shipment ${shipment.id}:`, error);
+            const serviceCharges = parseFloat(shipment.requested_price || 0);
+            const profitLoss = serviceCharges;
+            const profitLossPercentage = 100;
+
+            return {
+              ...shipment,
+              gr_no: `GR-${shipment.id}`,
+              trip_no: `TRIP-${shipment.id}`,
+              invoice_no: `INV-${new Date(
+                shipment.created_at
+              ).getFullYear()}-${String(shipment.id).padStart(4, "0")}`,
+              service_charges: serviceCharges,
+              vehicle_charges: 0,
+              profit_loss: profitLoss,
+              profit_loss_percentage: profitLossPercentage,
+              total_paid: 0,
+              outstanding_amount: serviceCharges,
+              payment_status: "Unpaid",
+              vehicle_count: shipment.no_of_vehicles || 1,
+              transporter_details: [],
+              transaction_data: null,
+              customer_name:
+                shipment.customer_name || `Customer ${shipment.customer_id}`,
+              total_containers:
+                (shipment.containers_20ft || 0) +
+                (shipment.containers_40ft || 0),
+              service_types: parseServiceType(shipment.service_type),
+              service_prices: parseServicePrices(shipment.service_prices),
+              formatted_request_id:
+                shipment.formatted_request_id || `Booking #${shipment.id}`,
+            };
+          }
+        })
+      );
+
+      setReports(reportsWithDetails);
+      console.log("Processed reports with real data:", reportsWithDetails);
+    } catch (error) {
+      console.error("Error fetching reports:", error);
+      toast.error("Failed to fetch admin reports");
+      setReports([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchTransporterDetails = async (requestId) => {
+    try {
+      const response = await api.get(
+        `/transport-requests/${requestId}/transporter`
+      );
+      if (response.data.success) {
+        setTransporterDetails(
+          Array.isArray(response.data.data)
+            ? response.data.data
+            : [response.data.data]
+        );
+      } else {
+        setTransporterDetails(null);
+      }
+    } catch (error) {
+      console.log("No transporter details found for request:", requestId);
+      setTransporterDetails(null);
+    }
+  };
 
   const filterReports = () => {
-    let filtered = reportData.filter((report) => {
+    let filtered = reports.filter((report) => {
       const matchesSearch =
-        String(report.request_id)
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        String(report.formatted_request_id)
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        String(report.tracking_id)
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
+        String(report.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
         String(report.gr_no).toLowerCase().includes(searchTerm.toLowerCase()) ||
+        String(report.trip_no)
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
         String(report.customer_name)
           .toLowerCase()
           .includes(searchTerm.toLowerCase()) ||
-        String(report.pickup_location)
+        String(report.customer_email || "")
           .toLowerCase()
           .includes(searchTerm.toLowerCase()) ||
-        String(report.delivery_location)
+        String(report.pickup_location || "")
           .toLowerCase()
           .includes(searchTerm.toLowerCase()) ||
-        String(report.commodity)
+        String(report.delivery_location || "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        String(report.tracking_id || "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        String(report.commodity || "")
           .toLowerCase()
           .includes(searchTerm.toLowerCase());
 
       const matchesStatus =
         statusFilter === "all" || report.status === statusFilter;
-
-      const matchesProfitability =
-        profitabilityFilter === "all" ||
-        (profitabilityFilter === "profitable" && report.is_profitable) ||
-        (profitabilityFilter === "loss" && !report.is_profitable);
 
       let matchesDate = true;
       if (dateRange.from && dateRange.to) {
@@ -341,85 +295,109 @@ const AllReportsPage = () => {
         matchesDate = reportDate >= fromDate && reportDate <= toDate;
       }
 
-      return (
-        matchesSearch && matchesStatus && matchesProfitability && matchesDate
-      );
-    });
-
-    // Sort filtered data
-    filtered.sort((a, b) => {
-      let aValue = a[sortBy];
-      let bValue = b[sortBy];
-
-      if (typeof aValue === "string") {
-        aValue = aValue.toLowerCase();
-        bValue = bValue.toLowerCase();
-      }
-
-      if (sortOrder === "asc") {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-      }
+      return matchesSearch && matchesStatus && matchesDate;
     });
 
     setFilteredReports(filtered);
   };
 
-  const formatCurrency = (amount) => {
-    if (!amount && amount !== 0) return "₹0";
-    return `₹${Number(amount).toLocaleString("en-IN")}`;
+  const refreshData = () => {
+    setIsLoading(true);
+    fetchReports();
+    toast.success("Reports data refreshed successfully");
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
+  const handleStatusUpdate = async (requestId, status) => {
     try {
-      return new Date(dateString).toLocaleDateString("en-IN");
-    } catch {
-      return "N/A";
+      setUpdating(true);
+      await api.put(`/transport-requests/${requestId}/status`, {
+        status,
+        adminComment: adminComment.trim(),
+      });
+      handleModalClose();
+      fetchReports();
+      toast.success(`Request ${status} successfully`);
+    } catch (error) {
+      console.error("Error updating status:", error);
+      toast.error(error.message || "Failed to update request status");
+    } finally {
+      setUpdating(false);
     }
   };
 
-  const formatDateTime = (dateString) => {
-    if (!dateString) return "N/A";
+  const handleDownloadInvoice = async (report) => {
     try {
-      return new Date(dateString).toLocaleString("en-IN");
-    } catch {
-      return "N/A";
+      const loadingToast = toast.loading("Generating invoice...");
+      const response = await api.get(
+        `/transport-requests/${report.id}/transporter`
+      );
+      const transporterDetails = response.data.success
+        ? response.data.data
+        : null;
+      const doc = generateInvoice(report, transporterDetails);
+      if (!doc) {
+        throw new Error("Failed to generate PDF document");
+      }
+      const timestamp = new Date().toISOString().split("T")[0];
+      const filename = `invoice-${report.id}-${timestamp}.pdf`;
+      doc.save(filename);
+      toast.dismiss(loadingToast);
+      toast.success("Invoice downloaded successfully!");
+    } catch (error) {
+      console.error("Invoice download error:", error);
+      toast.error("Failed to generate invoice. Please try again.");
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case "approved":
-        return "bg-green-100 text-green-800";
-      case "rejected":
-        return "bg-red-100 text-red-800";
-      case "in progress":
-      case "in transit":
-        return "bg-blue-100 text-blue-800";
-      case "completed":
-      case "delivered":
-        return "bg-purple-100 text-purple-800";
-      case "cancelled":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-yellow-100 text-yellow-800";
+  const handleManualInvoice = (report) => {
+    setManualInvoiceRequest(report);
+    setShowManualInvoiceModal(true);
+  };
+
+  const handleGenerateManualInvoice = async (invoiceData) => {
+    try {
+      const loadingToast = toast.loading("Generating manual invoice...");
+      const doc = generateManualInvoice(invoiceData);
+      if (!doc) {
+        throw new Error("Failed to generate manual invoice PDF");
+      }
+      const timestamp = new Date().toISOString().split("T")[0];
+      const filename = `manual-invoice-${
+        invoiceData.originalRequest?.id || "custom"
+      }-${timestamp}.pdf`;
+      doc.save(filename);
+      toast.dismiss(loadingToast);
+      toast.success("Manual invoice generated successfully!");
+      setShowManualInvoiceModal(false);
+      setManualInvoiceRequest(null);
+    } catch (error) {
+      console.error("Manual invoice generation error:", error);
+      toast.error("Failed to generate manual invoice. Please try again.");
     }
+  };
+
+  const handleViewReport = async (report) => {
+    setSelectedReport(report);
+    setAdminComment(report.admin_comment || "");
+    await fetchTransporterDetails(report.id);
+    setShowDetailModal(true);
+  };
+
+  const handleModalClose = () => {
+    setSelectedReport(null);
+    setTransporterDetails(null);
+    setAdminComment("");
+    setShowDetailModal(false);
   };
 
   const getStatusBadge = (status) => {
     const statusConfig = {
       pending: { color: "bg-yellow-100 text-yellow-800", icon: "⏳" },
-      approved: { color: "bg-blue-100 text-blue-800", icon: "✓" },
-      "in progress": { color: "bg-purple-100 text-purple-800", icon: "🚛" },
-      "in transit": { color: "bg-purple-100 text-purple-800", icon: "🚛" },
-      delivered: { color: "bg-green-100 text-green-800", icon: "📦" },
-      completed: { color: "bg-green-100 text-green-800", icon: "📦" },
-      cancelled: { color: "bg-red-100 text-red-800", icon: "✕" },
+      approved: { color: "bg-green-100 text-green-800", icon: "✓" },
+      "in progress": { color: "bg-blue-100 text-blue-800", icon: "🚛" },
+      completed: { color: "bg-purple-100 text-purple-800", icon: "📦" },
       rejected: { color: "bg-red-100 text-red-800", icon: "✕" },
     };
-
     const config = statusConfig[status?.toLowerCase()] || statusConfig.pending;
     return (
       <span
@@ -440,340 +418,152 @@ const AllReportsPage = () => {
     return <div className="w-4 h-4 bg-gray-300 rounded-full"></div>;
   };
 
-  const refreshData = () => {
-    fetchAllData();
+  const exportToExcel = () => {
+    let data;
+    let sheetName;
+    let fileNameSuffix;
+
+    if (exportType === "detailed") {
+      data = filteredReports.map((report) => ({
+        "Request ID": report.id,
+        "Tracking ID": report.tracking_id || "",
+        "GR No": report.gr_no,
+        "Trip No": report.trip_no,
+        "Invoice No": report.invoice_no,
+        "Customer Name": report.customer_name,
+        "Customer Email": report.customer_email || "",
+        "Pickup Location": report.pickup_location || "",
+        "Delivery Location": report.delivery_location || "",
+        "Vehicle Type": report.vehicle_type || "",
+        Commodity: report.commodity || "",
+        Status: report.status,
+        "Service Charges": report.service_charges,
+        "Vehicle Charges": report.vehicle_charges,
+        "Profit/Loss": report.profit_loss,
+        "Profit %": report.profit_loss_percentage.toFixed(2),
+        "Total Paid": report.total_paid,
+        Outstanding: report.outstanding_amount,
+        "Payment Status": report.payment_status,
+        "Created Date": new Date(report.created_at).toLocaleDateString(),
+        "Delivery Date": report.expected_delivery_date
+          ? new Date(report.expected_delivery_date).toLocaleDateString()
+          : "",
+        "Containers 20ft": report.containers_20ft || 0,
+        "Containers 40ft": report.containers_40ft || 0,
+        "Total Containers": report.total_containers,
+        "Cargo Weight": report.cargo_weight || 0,
+        "Vehicle Count": report.vehicle_count,
+      }));
+      sheetName = "Detailed Reports";
+      fileNameSuffix = "detailed";
+    } else {
+      const grouped = {};
+      filteredReports.forEach((report) => {
+        let key;
+        const dt = new Date(report.created_at);
+        if (exportType === "daily") {
+          key = dt.toLocaleDateString();
+        } else if (exportType === "monthly") {
+          key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(
+            2,
+            "0"
+          )}`;
+        } else if (exportType === "yearly") {
+          key = dt.getFullYear().toString();
+        }
+        if (!grouped[key]) {
+          grouped[key] = {
+            Period: key,
+            Revenue: 0,
+            Costs: 0,
+            Profit: 0,
+            Paid: 0,
+            Outstanding: 0,
+            Requests: 0,
+          };
+        }
+        grouped[key].Revenue += report.service_charges || 0;
+        grouped[key].Costs += report.vehicle_charges || 0;
+        grouped[key].Profit += report.profit_loss || 0;
+        grouped[key].Paid += report.total_paid || 0;
+        grouped[key].Outstanding += report.outstanding_amount || 0;
+        grouped[key].Requests += 1;
+      });
+      data = Object.values(grouped).sort((a, b) =>
+        a.Period.localeCompare(b.Period)
+      );
+      sheetName = `${
+        exportType.charAt(0).toUpperCase() + exportType.slice(1)
+      } Summary`;
+      fileNameSuffix = exportType;
+    }
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    XLSX.writeFile(
+      wb,
+      `admin-reports-${fileNameSuffix}-${
+        new Date().toISOString().split("T")[0]
+      }.xlsx`
+    );
   };
 
-  const exportPaymentSheet = () => {
-    const headers = [
-      "S.NO",
-      "Loading Date",
-      "Cust.NAME",
-      "Vehicle No.",
-      "CONTAINER",
-      "LINE",
-      "SIZE",
-      "Vendor Name PAYMENT A/C",
-      "BOOKING RATE",
-      "Advance",
-      "Balance",
-      "PAID DATE",
-      "NEFT NO.",
-    ];
-
-    let serialNo = 1;
-    const paymentData = [];
-
-    filteredReports.forEach((report) => {
-      if (report.transactions && report.transactions.length > 0) {
-        report.transactions.forEach((transaction) => {
-          const loadingDate = formatDate(report.created_at);
-          const customerName = report.customer_name;
-          const vehicleNo = transaction.vehicle_number || "N/A";
-
-          // Collect container numbers and lines
-          const containerNos = [];
-          const containerLines = [];
-          if (transaction.container_no) {
-            containerNos.push(transaction.container_no);
-          }
-          if (transaction.line) {
-            containerLines.push(transaction.line);
-          }
-
-          if (report.transporter_details && report.transporter_details.length) {
-            // try to find matching transporter by vehicle number
-            const matching = report.transporter_details.find(
-              (t) =>
-                (t.vehicle_number || "").toString().toLowerCase() ===
-                (vehicleNo || "").toString().toLowerCase()
-            );
-            if (matching && Array.isArray(matching.containers)) {
-              matching.containers.forEach((c) => {
-                if (c.container_no) containerNos.push(c.container_no);
-                if (c.line) containerLines.push(c.line);
-              });
-            }
-            // if still empty, aggregate all containers/lines from transporter_details
-            if (containerNos.length === 0 || containerLines.length === 0) {
-              report.transporter_details.forEach((t) => {
-                if (Array.isArray(t.containers)) {
-                  t.containers.forEach((c) => {
-                    if (c.container_no) containerNos.push(c.container_no);
-                    if (c.line) containerLines.push(c.line);
-                  });
-                }
-              });
-            }
-          }
-
-          const containerInfo = containerNos.length
-            ? [...new Set(containerNos)].join("; ")
-            : "-";
-          const lineInfo = containerLines.length
-            ? [...new Set(containerLines)].join("; ")
-            : transaction.line || report.request_details?.line || "-";
-
-          const size =
-            transaction.container_size ||
-            (report.containers_40ft
-              ? "40"
-              : report.containers_20ft
-              ? "20"
-              : "N/A");
-
-          // Use transporter name as vendor if available
-          const vendorName =
-            transaction.transporter_name ||
-            report.transporter_name ||
-            transaction.driver_name ||
-            customerName;
-
-          const bookingRate = transaction.transporter_charge || 0;
-          const advancePaid = transaction.total_paid || 0;
-          const balance = bookingRate - advancePaid;
-          const paidDate = transaction.payment_date
-            ? formatDate(transaction.payment_date)
-            : "";
-          const neftNo = transaction.reference_number || "";
-
-          paymentData.push([
-            serialNo++,
-            loadingDate,
-            customerName,
-            vehicleNo,
-            containerInfo,
-            lineInfo,
-            size,
-            vendorName,
-            bookingRate,
-            advancePaid,
-            balance,
-            paidDate,
-            neftNo,
-          ]);
-        });
-      } else {
-        const loadingDate = formatDate(report.created_at);
-        const customerName = report.customer_name;
-        const vehicleNo = "N/A";
-
-        // Aggregate container numbers and lines from transporter_details if available
-        let containerNos = [];
-        let containerLines = [];
-        if (report.transporter_details && report.transporter_details.length) {
-          report.transporter_details.forEach((t) => {
-            if (Array.isArray(t.containers)) {
-              t.containers.forEach((c) => {
-                if (c.container_no) containerNos.push(c.container_no);
-                if (c.line) containerLines.push(c.line);
-              });
-            }
-          });
-        }
-        const containerInfo = containerNos.length
-          ? [...new Set(containerNos)].join("; ")
-          : "-";
-        const lineInfo = containerLines.length
-          ? [...new Set(containerLines)].join("; ")
-          : report.request_details?.line || "-";
-
-        const size = report.containers_40ft
-          ? "40"
-          : report.containers_20ft
-          ? "20"
-          : "N/A";
-        const vendorName = report.transporter_name || customerName;
-        const bookingRate = report.total_vehicle_charges || 0;
-        const advancePaid = report.total_paid || 0;
-
-        const balance = bookingRate - advancePaid;
-        const paidDate = "";
-        const neftNo = "";
-
-        paymentData.push([
-          serialNo++,
-          loadingDate,
-          customerName,
-          vehicleNo,
-          containerInfo,
-          lineInfo,
-          size,
-          vendorName,
-          bookingRate,
-          advancePaid,
-          balance,
-          paidDate,
-          neftNo,
-        ]);
-      }
-    });
-
-    const totalAdvanceToBePaid = paymentData.reduce(
-      (sum, row) => sum + (Number(row[9]) || 0),
+  const getSummaryStats = () => {
+    const totalRevenue = filteredReports.reduce(
+      (sum, report) => sum + (report.service_charges || 0),
+      0
+    );
+    const totalCosts = filteredReports.reduce(
+      (sum, report) => sum + (report.vehicle_charges || 0),
+      0
+    );
+    const totalProfit = totalRevenue - totalCosts;
+    const totalOutstanding = filteredReports.reduce(
+      (sum, report) => sum + (report.outstanding_amount || 0),
+      0
+    );
+    const totalPaid = filteredReports.reduce(
+      (sum, report) => sum + (report.total_paid || 0),
       0
     );
 
-    const summaryRows = [
-      ["", "", "", "", "", "", "", "", "", "", "", "", ""],
-      [
-        "Date of Requisition",
-        formatDate(new Date()),
-        "",
-        "",
-        "",
-        "",
-        "",
-        "Total Advance to be paid",
-        totalAdvanceToBePaid,
-        "",
-        "",
-        "",
-        "",
-      ],
-      ["", "", "", "", "", "", "", "", "", "", "", "", ""],
-    ];
-
-    const csvContent = [...summaryRows, headers, ...paymentData]
-      .map((row) => row.map((cell) => `"${cell}"`).join(","))
-      .join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `payment-sheet-${new Date().toISOString().split("T")[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+    return {
+      totalRevenue,
+      totalCosts,
+      totalProfit,
+      totalOutstanding,
+      totalPaid,
+    };
   };
 
-  const exportToCSV = () => {
-    const headers = [
-      "Request ID",
-      "Tracking ID",
-      "GR No",
-      "Trip No",
-      "Invoice No",
-      "Customer Name",
-      "Customer ID",
-      "Line",
-      "Pickup Location",
-      "Delivery Location",
-      "Vehicle Type",
-      "Commodity",
-      "Status",
-      "Service Charges",
-      "Vehicle Charges",
-      "Profit/Loss",
-      "Profit %",
-      "Total Paid",
-      "Outstanding",
-      "Payment Status",
-      "Created Date",
-      "Delivery Date",
-      "Containers 20ft",
-      "Containers 40ft",
-      "Total Containers",
-      "Cargo Weight",
-      "Vehicle Count",
-    ];
+  const { totalRevenue, totalCosts, totalProfit, totalOutstanding, totalPaid } =
+    getSummaryStats();
 
-    const csvData = filteredReports.map((report) => {
-      // compute line value: prefer request_details.line, else collect unique lines from transporter_details containers or transporter.line
-      let lineVal = "";
-      if (report.request_details?.line) {
-        lineVal = report.request_details.line;
-      } else if (
-        report.transporter_details &&
-        report.transporter_details.length
-      ) {
-        const lines = [];
-        report.transporter_details.forEach((t) => {
-          if (Array.isArray(t.containers)) {
-            t.containers.forEach((c) => {
-              if (c.line) lines.push(c.line);
-            });
-          }
-          if (t.line) lines.push(t.line);
-        });
-        lineVal = lines.length ? [...new Set(lines)].join("; ") : "";
-      }
-
-      return [
-        report.request_id,
-        report.tracking_id || "",
-        report.gr_no,
-        report.trip_no,
-        report.invoice_no,
-        report.customer_name,
-        report.transporter_name,
-        lineVal,
-        report.pickup_location || "",
-        report.delivery_location || "",
-        report.vehicle_type || "",
-        report.commodity || "",
-        report.status,
-        report.service_charges,
-        report.vehicle_charges,
-        report.profit_loss,
-        report.profit_loss_percentage.toFixed(2),
-        report.total_paid,
-        report.outstanding_amount,
-        report.payment_status,
-        formatDate(report.created_at),
-        formatDate(report.expected_delivery_date),
-        report.containers_20ft || 0,
-        report.containers_40ft || 0,
-        report.total_containers,
-        report.cargo_weight || 0,
-        report.vehicle_count,
-      ];
-    });
-
-    const csvContent = [headers, ...csvData]
-      .map((row) => row.map((cell) => `"${cell}"`).join(","))
-      .join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `all-reports-${new Date().toISOString().split("T")[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch {
+      return "N/A";
+    }
   };
 
-  // Calculate summary statistics
-  const totalRequests = filteredReports.length;
-  const profitableRequests = filteredReports.filter(
-    (r) => r.is_profitable
-  ).length;
-  const totalRevenue = filteredReports.reduce(
-    (sum, r) => sum + r.total_revenue,
-    0
-  );
-  const totalCosts = filteredReports.reduce(
-    (sum, r) => sum + r.total_vehicle_charges,
-    0
-  );
-  const totalProfit = filteredReports.reduce(
-    (sum, r) => sum + r.gross_profit,
-    0
-  );
-  const totalOutstanding = filteredReports.reduce(
-    (sum, r) => sum + r.outstanding_amount,
-    0
-  );
-  const totalPaid = filteredReports.reduce((sum, r) => sum + r.total_paid, 0);
-  const overallProfitMargin =
-    totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+  const formatDateTime = (dateString) => {
+    if (!dateString) return "N/A";
+    try {
+      return new Date(dateString).toLocaleString();
+    } catch {
+      return "N/A";
+    }
+  };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading all reports...</p>
+          <p className="mt-4 text-gray-600">Loading reports...</p>
         </div>
       </div>
     );
@@ -788,36 +578,27 @@ const AllReportsPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">
-                  All Transport Reports
+                  Admin Reports
                 </h1>
                 <p className="mt-1 text-sm text-gray-500">
-                  Comprehensive P&L analysis for all transport requests
+                  Comprehensive view of all transport requests with financial
+                  and operational insights
                 </p>
               </div>
               <div className="flex space-x-3">
                 <button
                   onClick={refreshData}
-                  disabled={loading}
-                  className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-400 transition-colors"
+                  className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
                 >
-                  <RefreshCw
-                    className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`}
-                  />
-                  {loading ? "Refreshing..." : "Refresh"}
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh
                 </button>
                 <button
-                  onClick={exportToCSV}
+                  onClick={exportToExcel}
                   className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   <Download className="w-4 h-4 mr-2" />
-                  Export Reports
-                </button>
-                <button
-                  onClick={exportPaymentSheet}
-                  className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  <FileText className="w-4 h-4 mr-2" />
-                  Payment Sheet
+                  Export to Excel
                 </button>
               </div>
             </div>
@@ -826,117 +607,57 @@ const AllReportsPage = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center gap-2 text-red-700">
-              <AlertCircle className="h-5 w-5" />
-              <span>{error}</span>
-            </div>
-          </div>
-        )}
-
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <div className="bg-white p-6 rounded-xl shadow-sm border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 font-medium">
-                  Total Requests
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {totalRequests}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {profitableRequests} profitable (
-                  {totalRequests > 0
-                    ? ((profitableRequests / totalRequests) * 100).toFixed(1)
-                    : 0}
-                  %)
-                </p>
-              </div>
-              <FileText className="h-8 w-8 text-blue-600" />
-            </div>
+            <p className="text-sm text-gray-500 font-medium">Total Revenue</p>
+            <p className="text-2xl font-bold text-green-600">
+              ₹{totalRevenue.toLocaleString()}
+            </p>
           </div>
-
           <div className="bg-white p-6 rounded-xl shadow-sm border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 font-medium">
-                  Total Revenue
-                </p>
-                <p className="text-2xl font-bold text-green-600">
-                  {formatCurrency(totalRevenue)}
-                </p>
-              </div>
-              <DollarSign className="h-8 w-8 text-green-600" />
-            </div>
+            <p className="text-sm text-gray-500 font-medium">Total Costs</p>
+            <p className="text-2xl font-bold text-orange-600">
+              ₹{totalCosts.toLocaleString()}
+            </p>
           </div>
-
           <div className="bg-white p-6 rounded-xl shadow-sm border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 font-medium">Total Costs</p>
-                <p className="text-2xl font-bold text-orange-600">
-                  {formatCurrency(totalCosts)}
-                </p>
-              </div>
-              <Truck className="h-8 w-8 text-orange-600" />
-            </div>
+            <p className="text-sm text-gray-500 font-medium">Net Profit</p>
+            <p
+              className={`text-2xl font-bold ${
+                totalProfit >= 0 ? "text-green-600" : "text-red-600"
+              }`}
+            >
+              ₹{totalProfit.toLocaleString()}
+            </p>
           </div>
-
           <div className="bg-white p-6 rounded-xl shadow-sm border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 font-medium">Net Profit</p>
-                <p
-                  className={`text-2xl font-bold ${
-                    totalProfit >= 0 ? "text-green-600" : "text-red-600"
-                  }`}
-                >
-                  {formatCurrency(totalProfit)}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {overallProfitMargin.toFixed(1)}% margin
-                </p>
-              </div>
-              <BarChart3
-                className={`h-8 w-8 ${
-                  totalProfit >= 0 ? "text-green-600" : "text-red-600"
-                }`}
-              />
-            </div>
+            <p className="text-sm text-gray-500 font-medium">Total Paid</p>
+            <p className="text-2xl font-bold text-blue-600">
+              ₹{totalPaid.toLocaleString()}
+            </p>
           </div>
-
           <div className="bg-white p-6 rounded-xl shadow-sm border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 font-medium">Outstanding</p>
-                <p className="text-2xl font-bold text-red-600">
-                  {formatCurrency(totalOutstanding)}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Paid: {formatCurrency(totalPaid)}
-                </p>
-              </div>
-              <CreditCard className="h-8 w-8 text-red-600" />
-            </div>
+            <p className="text-sm text-gray-500 font-medium">Outstanding</p>
+            <p className="text-2xl font-bold text-red-600">
+              ₹{totalOutstanding.toLocaleString()}
+            </p>
           </div>
         </div>
 
         {/* Filters */}
         <div className="bg-white p-6 rounded-xl shadow-sm border mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search requests..."
+                placeholder="Search by ID, GR No, Customer, Email, Location..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -949,17 +670,6 @@ const AllReportsPage = () => {
               <option value="completed">Completed</option>
               <option value="rejected">Rejected</option>
             </select>
-
-            <select
-              value={profitabilityFilter}
-              onChange={(e) => setProfitabilityFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All</option>
-              <option value="profitable">Profitable</option>
-              <option value="loss">Loss Making</option>
-            </select>
-
             <div className="flex gap-2">
               <input
                 type="date"
@@ -967,7 +677,7 @@ const AllReportsPage = () => {
                 onChange={(e) =>
                   setDateRange((prev) => ({ ...prev, from: e.target.value }))
                 }
-                className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="From Date"
               />
               <input
@@ -976,10 +686,20 @@ const AllReportsPage = () => {
                 onChange={(e) =>
                   setDateRange((prev) => ({ ...prev, to: e.target.value }))
                 }
-                className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="To Date"
               />
             </div>
+            <select
+              value={exportType}
+              onChange={(e) => setExportType(e.target.value)}
+              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="detailed">Detailed Reports</option>
+              <option value="daily">Daily Summary</option>
+              <option value="monthly">Monthly Summary</option>
+              <option value="yearly">Yearly Summary</option>
+            </select>
           </div>
         </div>
 
@@ -990,10 +710,22 @@ const AllReportsPage = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Request Details
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Customer & Route
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Service & Vehicle
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Financial Summary
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Payment Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -1002,14 +734,14 @@ const AllReportsPage = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredReports.map((report) => (
-                  <tr key={report.request_id} className="hover:bg-gray-50">
+                  <tr key={report.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="space-y-1">
                         <div className="text-sm font-medium text-gray-900">
-                          ID: {report.request_id}
+                          {report.formatted_request_id}
                         </div>
                         <div className="text-xs text-gray-500">
-                          Tracking: {report.tracking_id}
+                          Tracking: {report.tracking_id || "N/A"}
                         </div>
                         <div className="text-xs text-gray-500">
                           GR: {report.gr_no}
@@ -1028,16 +760,46 @@ const AllReportsPage = () => {
                           {report.customer_name}
                         </div>
                         <div className="text-xs text-gray-500">
-                          From: {report.pickup_location}
+                          {report.customer_email || "N/A"}
                         </div>
                         <div className="text-xs text-gray-500">
-                          To: {report.delivery_location}
+                          From: {report.pickup_location || "N/A"}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {report.commodity}
+                          To: {report.delivery_location || "N/A"}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="space-y-1">
+                        <div className="text-sm font-medium text-gray-900">
+                          {report.vehicle_type || "N/A"}
+                          {report.vehicle_size && ` (${report.vehicle_size})`}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Commodity: {report.commodity || "N/A"}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Cargo: {report.cargo_type || "N/A"}
                         </div>
                         <div className="text-xs text-blue-600">
                           {report.vehicle_count} vehicles
+                        </div>
+                        <div>
+                          {report.service_types.length > 0 ? (
+                            report.service_types.map((service, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mr-1 mb-1"
+                              >
+                                {service}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full">
+                              No services
+                            </span>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -1048,40 +810,40 @@ const AllReportsPage = () => {
                             Revenue:
                           </span>
                           <span className="text-sm font-medium text-green-600">
-                            {formatCurrency(report.total_revenue)}
+                            ₹{(report.service_charges || 0).toLocaleString()}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-500">Costs:</span>
                           <span className="text-sm font-medium text-orange-600">
-                            {formatCurrency(report.total_vehicle_charges)}
+                            ₹{(report.vehicle_charges || 0).toLocaleString()}
                           </span>
                         </div>
                         <div className="flex items-center justify-between border-t pt-2">
                           <div className="flex items-center gap-1">
-                            {getProfitLossIndicator(report.gross_profit)}
+                            {getProfitLossIndicator(report.profit_loss || 0)}
                             <span className="text-xs text-gray-500">P&L:</span>
                           </div>
                           <span
                             className={`text-sm font-bold ${
-                              report.gross_profit >= 0
+                              (report.profit_loss || 0) >= 0
                                 ? "text-green-600"
                                 : "text-red-600"
                             }`}
                           >
-                            {formatCurrency(report.gross_profit)}
+                            ₹{(report.profit_loss || 0).toLocaleString()}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-500">Margin:</span>
                           <span
                             className={`text-xs font-medium ${
-                              report.profit_margin >= 0
+                              (report.profit_loss_percentage || 0) >= 0
                                 ? "text-green-600"
                                 : "text-red-600"
                             }`}
                           >
-                            {report.profit_margin.toFixed(1)}%
+                            {(report.profit_loss_percentage || 0).toFixed(1)}%
                           </span>
                         </div>
                       </div>
@@ -1091,7 +853,7 @@ const AllReportsPage = () => {
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-500">Paid:</span>
                           <span className="text-sm font-medium text-blue-600">
-                            {formatCurrency(report.total_paid)}
+                            ₹{(report.total_paid || 0).toLocaleString()}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
@@ -1099,7 +861,7 @@ const AllReportsPage = () => {
                             Outstanding:
                           </span>
                           <span className="text-sm font-medium text-red-600">
-                            {formatCurrency(report.outstanding_amount)}
+                            ₹{(report.outstanding_amount || 0).toLocaleString()}
                           </span>
                         </div>
                         <span
@@ -1116,41 +878,51 @@ const AllReportsPage = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <button
-                        onClick={() => {
-                          setSelectedReport(report);
-                          setShowDetailModal(true);
-                        }}
-                        className="inline-flex items-center px-3 py-2 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        <Eye className="w-3 h-3 mr-1" />
-                        View Details
-                      </button>
+                      {getStatusBadge(report.status)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col space-y-2">
+                        <button
+                          onClick={() => handleViewReport(report)}
+                          className="inline-flex items-center px-3 py-2 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <Eye className="w-3 h-3 mr-1" />
+                          View Details
+                        </button>
+                        {report.status?.toLowerCase() === "approved" && (
+                          <>
+                            <button
+                              onClick={() => handleDownloadInvoice(report)}
+                              className="inline-flex items-center px-3 py-2 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors"
+                            >
+                              <Download className="w-3 h-3 mr-1" />
+                              Invoice
+                            </button>
+                            <button
+                              onClick={() => handleManualInvoice(report)}
+                              className="inline-flex items-center px-3 py-2 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors"
+                            >
+                              <Download className="w-3 h-3 mr-1" />
+                              Manual Invoice
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-
           {filteredReports.length === 0 && (
             <div className="text-center py-12">
               <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500">
-                {reportData.length === 0
-                  ? "No transaction data available."
-                  : "No reports match your current filters."}
+                No reports found matching your criteria.
               </p>
             </div>
           )}
         </div>
-
-        {/* Results Count */}
-        {filteredReports.length > 0 && (
-          <div className="mt-4 text-sm text-gray-600 text-center">
-            Showing {filteredReports.length} of {reportData.length} reports
-          </div>
-        )}
       </div>
 
       {/* Detail Modal */}
@@ -1160,20 +932,19 @@ const AllReportsPage = () => {
             <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xl font-bold">Detailed Report</h3>
+                  <h3 className="text-xl font-bold">Detailed Admin Report</h3>
                   <p className="text-blue-100">
-                    Request ID: {selectedReport.request_id}
+                    Request ID: {selectedReport.id}
                   </p>
                 </div>
                 <button
-                  onClick={() => setShowDetailModal(false)}
+                  onClick={handleModalClose}
                   className="p-2 hover:bg-white/10 rounded-full transition-colors"
                 >
                   ✕
                 </button>
               </div>
             </div>
-
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {/* Request Information */}
@@ -1186,19 +957,13 @@ const AllReportsPage = () => {
                     <div className="flex justify-between">
                       <span className="text-gray-500">Request ID:</span>
                       <span className="font-medium">
-                        {selectedReport.request_id}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Formatted ID:</span>
-                      <span className="font-medium">
                         {selectedReport.formatted_request_id}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Tracking ID:</span>
                       <span className="font-medium">
-                        {selectedReport.tracking_id}
+                        {selectedReport.tracking_id || "N/A"}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -1220,14 +985,14 @@ const AllReportsPage = () => {
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">SHIPA Number:</span>
-                      <span className="font-medium">
-                        {selectedReport.SHIPA_NO}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
                       <span className="text-gray-500">Status:</span>
                       <span>{getStatusBadge(selectedReport.status)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Created Date:</span>
+                      <span className="font-medium">
+                        {formatDate(selectedReport.created_at)}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1240,40 +1005,97 @@ const AllReportsPage = () => {
                   </h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Customer Name:</span>
+                      <span className="text-gray-500">Customer:</span>
                       <span className="font-medium">
                         {selectedReport.customer_name}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Customer ID:</span>
+                      <span className="text-gray-500">Customer Email:</span>
                       <span className="font-medium">
-                        {selectedReport.transporter_name}
+                        {selectedReport.customer_email || "N/A"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Consignee:</span>
+                      <span className="font-medium">
+                        {selectedReport.consignee || "N/A"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Consigner:</span>
+                      <span className="font-medium">
+                        {selectedReport.consigner || "N/A"}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Pickup Location:</span>
                       <span className="font-medium">
-                        {selectedReport.pickup_location}
+                        {selectedReport.pickup_location || "N/A"}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Delivery Location:</span>
                       <span className="font-medium">
-                        {selectedReport.delivery_location}
+                        {selectedReport.delivery_location || "N/A"}
+                      </span>
+                    </div>
+                    {selectedReport.stuffing_location && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">
+                          Stuffing Location:
+                        </span>
+                        <span className="font-medium">
+                          {selectedReport.stuffing_location}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Service & Vehicle Details */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                    <Truck className="w-5 h-5 mr-2 text-blue-600" />
+                    Service & Vehicle
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Vehicle Type:</span>
+                      <span className="font-medium">
+                        {selectedReport.vehicle_type || "N/A"}
+                        {selectedReport.vehicle_size &&
+                          ` (${selectedReport.vehicle_size})`}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Commodity:</span>
                       <span className="font-medium">
-                        {selectedReport.commodity}
+                        {selectedReport.commodity || "N/A"}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Vehicle Type:</span>
+                      <span className="text-gray-500">Cargo Type:</span>
                       <span className="font-medium">
-                        {selectedReport.vehicle_type}
+                        {selectedReport.cargo_type || "N/A"}
                       </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Services:</span>
+                      <div>
+                        {selectedReport.service_types.length > 0 ? (
+                          selectedReport.service_types.map((service, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mr-1 mb-1"
+                            >
+                              {service}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-gray-500">None</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1288,19 +1110,15 @@ const AllReportsPage = () => {
                     <div className="flex justify-between">
                       <span className="text-gray-500">Service Charges:</span>
                       <span className="font-medium text-green-600">
-                        {formatCurrency(selectedReport.service_charges)}
+                        ₹
+                        {(selectedReport.service_charges || 0).toLocaleString()}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Vehicle Charges:</span>
                       <span className="font-medium text-orange-600">
-                        {formatCurrency(selectedReport.vehicle_charges)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Transporter Name</span>
-                      <span className="font-medium text-orange-600">
-                        {selectedReport.transporter_name || "Not specified"}
+                        ₹
+                        {(selectedReport.vehicle_charges || 0).toLocaleString()}
                       </span>
                     </div>
                     <div className="flex justify-between border-t pt-2">
@@ -1309,24 +1127,27 @@ const AllReportsPage = () => {
                       </span>
                       <span
                         className={`font-bold ${
-                          selectedReport.profit_loss >= 0
+                          (selectedReport.profit_loss || 0) >= 0
                             ? "text-green-600"
                             : "text-red-600"
                         }`}
                       >
-                        {formatCurrency(selectedReport.profit_loss)}
+                        ₹{(selectedReport.profit_loss || 0).toLocaleString()}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Profit Margin:</span>
                       <span
                         className={`font-medium ${
-                          selectedReport.profit_loss_percentage >= 0
+                          (selectedReport.profit_loss_percentage || 0) >= 0
                             ? "text-green-600"
                             : "text-red-600"
                         }`}
                       >
-                        {selectedReport.profit_loss_percentage.toFixed(2)}%
+                        {(selectedReport.profit_loss_percentage || 0).toFixed(
+                          2
+                        )}
+                        %
                       </span>
                     </div>
                   </div>
@@ -1335,20 +1156,23 @@ const AllReportsPage = () => {
                 {/* Payment Information */}
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                    <CreditCard className="w-5 h-5 mr-2 text-blue-600" />
+                    <DollarSign className="w-5 h-5 mr-2 text-blue-600" />
                     Payment Information
                   </h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-500">Total Paid:</span>
                       <span className="font-medium text-blue-600">
-                        {formatCurrency(selectedReport.total_paid)}
+                        ₹{(selectedReport.total_paid || 0).toLocaleString()}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Outstanding:</span>
                       <span className="font-medium text-red-600">
-                        {formatCurrency(selectedReport.outstanding_amount)}
+                        ₹
+                        {(
+                          selectedReport.outstanding_amount || 0
+                        ).toLocaleString()}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -1395,13 +1219,13 @@ const AllReportsPage = () => {
                     <div className="flex justify-between">
                       <span className="text-gray-500">20ft Containers:</span>
                       <span className="font-medium">
-                        {selectedReport.containers_20ft}
+                        {selectedReport.containers_20ft || 0}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">40ft Containers:</span>
                       <span className="font-medium">
-                        {selectedReport.containers_40ft}
+                        {selectedReport.containers_40ft || 0}
                       </span>
                     </div>
                     <div className="flex justify-between border-t pt-2">
@@ -1431,7 +1255,7 @@ const AllReportsPage = () => {
                 {/* Timeline */}
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                    <Calendar className="w-5 h-5 mr-2 text-indigo-600" />
+                    <Calendar className="w-5 h-5 mr-2 text-blue-600" />
                     Timeline
                   </h4>
                   <div className="space-y-2 text-sm">
@@ -1450,13 +1274,19 @@ const AllReportsPage = () => {
                     <div className="flex justify-between">
                       <span className="text-gray-500">Expected Pickup:</span>
                       <span className="font-medium">
-                        {formatDate(selectedReport.expected_pickup_date)}
+                        {formatDate(selectedReport.expected_pickup_date) ||
+                          "N/A"}
+                        {selectedReport.expected_pickup_time &&
+                          ` ${selectedReport.expected_pickup_time}`}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Expected Delivery:</span>
                       <span className="font-medium">
-                        {formatDate(selectedReport.expected_delivery_date)}
+                        {formatDate(selectedReport.expected_delivery_date) ||
+                          "N/A"}
+                        {selectedReport.expected_delivery_time &&
+                          ` ${selectedReport.expected_delivery_time}`}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -1470,137 +1300,112 @@ const AllReportsPage = () => {
                 </div>
               </div>
 
+              {/* Admin Actions */}
+              <div className="mt-8 bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                  <FileText className="w-5 h-5 mr-2 text-red-600" />
+                  Admin Actions
+                </h4>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Admin Comment
+                    </label>
+                    <textarea
+                      value={adminComment}
+                      onChange={(e) => setAdminComment(e.target.value)}
+                      className="mt-1 block w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500"
+                      rows="4"
+                      placeholder="Enter comments or notes..."
+                    />
+                  </div>
+                  <div className="flex space-x-4">
+                    {["approved", "rejected", "in progress", "completed"].map(
+                      (status) => (
+                        <button
+                          key={status}
+                          onClick={() =>
+                            handleStatusUpdate(selectedReport.id, status)
+                          }
+                          disabled={updating}
+                          className={`px-4 py-2 rounded-lg text-white font-medium ${
+                            status === "approved"
+                              ? "bg-green-600 hover:bg-green-700"
+                              : status === "rejected"
+                              ? "bg-red-600 hover:bg-red-700"
+                              : status === "in progress"
+                              ? "bg-blue-600 hover:bg-blue-700"
+                              : "bg-purple-600 hover:bg-purple-700"
+                          } ${updating ? "opacity-50 cursor-not-allowed" : ""}`}
+                        >
+                          {status.charAt(0).toUpperCase() + status.slice(1)}
+                        </button>
+                      )
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Transporter Details */}
-              {selectedReport.transporter_details &&
-                selectedReport.transporter_details.length > 0 && (
-                  <div className="mt-8">
-                    <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
-                      <Truck className="w-5 h-5 mr-2 text-green-600" />
-                      Transporter Details
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {selectedReport.transporter_details.map(
-                        (transporter, index) => (
-                          <div
-                            key={index}
-                            className="bg-white border rounded-lg p-4"
-                          >
-                            <div className="space-y-2 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">
-                                  Vehicle Number:
-                                </span>
-                                <span className="font-medium">
-                                  {transporter.vehicle_number || "N/A"}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">
-                                  Driver Name:
-                                </span>
-                                <span className="font-medium">
-                                  {transporter.driver_name || "N/A"}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">
-                                  Driver Phone:
-                                </span>
-                                <span className="font-medium">
-                                  {transporter.driver_phone || "N/A"}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">
-                                  Total Charge:
-                                </span>
-                                <span className="font-medium text-orange-600">
-                                  {formatCurrency(transporter.total_charge)}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">
-                                  Additional Charge:
-                                </span>
-                                <span className="font-medium text-orange-600">
-                                  {formatCurrency(
-                                    transporter.additional_charges
-                                  )}
-                                </span>
-                              </div>
-                            </div>
+              {transporterDetails && transporterDetails.length > 0 && (
+                <div className="mt-8">
+                  <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                    <Truck className="w-5 h-5 mr-2 text-green-600" />
+                    Transporter Details
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {transporterDetails.map((transporter, index) => (
+                      <div
+                        key={index}
+                        className="bg-white border rounded-lg p-4"
+                      >
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">
+                              Vehicle Number:
+                            </span>
+                            <span className="font-medium">
+                              {transporter.vehicle_number}
+                            </span>
                           </div>
-                        )
-                      )}
-                    </div>
-                  </div>
-                )}
-
-              {/* Transaction Details */}
-              {selectedReport.transactions &&
-                selectedReport.transactions.length > 0 && (
-                  <div className="mt-8">
-                    <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
-                      <FileText className="w-5 h-5 mr-2 text-blue-600" />
-                      Transaction Details
-                    </h4>
-                    <div className="bg-white border rounded-lg overflow-hidden">
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                                Transaction ID
-                              </th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                                Vehicle
-                              </th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                                Charges
-                              </th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                                Paid
-                              </th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                                Outstanding
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200">
-                            {selectedReport.transactions.map(
-                              (transaction, index) => (
-                                <tr key={index}>
-                                  <td className="px-4 py-2 text-sm font-medium text-gray-900">
-                                    {transaction.id}
-                                  </td>
-                                  <td className="px-4 py-2 text-sm text-gray-500">
-                                    {transaction.vehicle_number || "N/A"}
-                                  </td>
-                                  <td className="px-4 py-2 text-sm font-medium text-orange-600">
-                                    {formatCurrency(
-                                      transaction.transporter_charge
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-2 text-sm font-medium text-blue-600">
-                                    {formatCurrency(transaction.total_paid)}
-                                  </td>
-                                  <td className="px-4 py-2 text-sm font-medium text-red-600">
-                                    {formatCurrency(
-                                      (transaction.transporter_charge || 0) -
-                                        (transaction.total_paid || 0)
-                                    )}
-                                  </td>
-                                </tr>
-                              )
-                            )}
-                          </tbody>
-                        </table>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Driver Name:</span>
+                            <span className="font-medium">
+                              {transporter.driver_name || "N/A"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Driver Phone:</span>
+                            <span className="font-medium">
+                              {transporter.driver_phone || "N/A"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Total Charge:</span>
+                            <span className="font-medium text-orange-600">
+                              ₹
+                              {(transporter.total_charge || 0).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">
+                              Additional Charge:
+                            </span>
+                            <span className="font-medium text-orange-600">
+                              ₹
+                              {(
+                                transporter.additional_charges || 0
+                              ).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
-                )}
+                </div>
+              )}
 
-              {/* Additional Notes */}
+              {/* Special Instructions */}
               {selectedReport.special_instructions && (
                 <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <h4 className="font-semibold text-gray-900 mb-2">
@@ -1612,113 +1417,62 @@ const AllReportsPage = () => {
                 </div>
               )}
             </div>
-
             <div className="border-t bg-gray-50 px-6 py-4 flex justify-end space-x-3">
               <button
-                onClick={() => setShowDetailModal(false)}
+                onClick={handleModalClose}
                 className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Close
               </button>
               <button
                 onClick={() => {
-                  const singleReportData = [selectedReport];
-                  const headers = [
-                    "Request ID",
-                    "Tracking ID",
-                    "GR No",
-                    "Trip No",
-                    "Invoice No",
-                    "Customer Name",
-                    "Customer ID",
-                    "Line",
-                    "Pickup Location",
-                    "Delivery Location",
-                    "Vehicle Type",
-                    "Commodity",
-                    "Status",
-                    "Service Charges",
-                    "Vehicle Charges",
-                    "Profit/Loss",
-                    "Profit %",
-                    "Total Paid",
-                    "Outstanding",
-                    "Payment Status",
-                    "Created Date",
-                    "Delivery Date",
-                    "Containers 20ft",
-                    "Containers 40ft",
-                    "Total Containers",
-                    "Cargo Weight",
-                    "Vehicle Count",
+                  const data = [
+                    {
+                      "Request ID": selectedReport.id,
+                      "Tracking ID": selectedReport.tracking_id || "",
+                      "GR No": selectedReport.gr_no,
+                      "Trip No": selectedReport.trip_no,
+                      "Invoice No": selectedReport.invoice_no,
+                      "Customer Name": selectedReport.customer_name,
+                      "Customer Email": selectedReport.customer_email || "",
+                      "Pickup Location": selectedReport.pickup_location || "",
+                      "Delivery Location":
+                        selectedReport.delivery_location || "",
+                      "Vehicle Type": selectedReport.vehicle_type || "",
+                      Commodity: selectedReport.commodity || "",
+                      Status: selectedReport.status,
+                      "Service Charges": selectedReport.service_charges,
+                      "Vehicle Charges": selectedReport.vehicle_charges,
+                      "Profit/Loss": selectedReport.profit_loss,
+                      "Profit %":
+                        selectedReport.profit_loss_percentage.toFixed(2),
+                      "Total Paid": selectedReport.total_paid,
+                      Outstanding: selectedReport.outstanding_amount,
+                      "Payment Status": selectedReport.payment_status,
+                      "Created Date": new Date(
+                        selectedReport.created_at
+                      ).toLocaleDateString(),
+                      "Delivery Date": selectedReport.expected_delivery_date
+                        ? new Date(
+                            selectedReport.expected_delivery_date
+                          ).toLocaleDateString()
+                        : "",
+                      "Containers 20ft": selectedReport.containers_20ft || 0,
+                      "Containers 40ft": selectedReport.containers_40ft || 0,
+                      "Total Containers": selectedReport.total_containers,
+                      "Cargo Weight": selectedReport.cargo_weight || 0,
+                      "Vehicle Count": selectedReport.vehicle_count,
+                    },
                   ];
-
-                  const csvData = singleReportData.map((report) => {
-                    let lineVal = "";
-                    if (report.request_details?.line) {
-                      lineVal = report.request_details.line;
-                    } else if (
-                      report.transporter_details &&
-                      report.transporter_details.length
-                    ) {
-                      const lines = [];
-                      report.transporter_details.forEach((t) => {
-                        if (Array.isArray(t.containers)) {
-                          t.containers.forEach((c) => {
-                            if (c.line) lines.push(c.line);
-                          });
-                        }
-                        if (t.line) lines.push(t.line);
-                      });
-                      lineVal = lines.length
-                        ? [...new Set(lines)].join("; ")
-                        : "";
-                    }
-
-                    return [
-                      report.request_id,
-                      report.tracking_id,
-                      report.gr_no,
-                      report.trip_no,
-                      report.invoice_no,
-                      report.customer_name,
-                      report.transporter_name,
-                      lineVal,
-                      report.pickup_location,
-                      report.delivery_location,
-                      report.vehicle_type,
-                      report.commodity,
-                      report.status,
-                      report.service_charges,
-                      report.vehicle_charges,
-                      report.profit_loss,
-                      report.profit_loss_percentage.toFixed(2),
-                      report.total_paid,
-                      report.outstanding_amount,
-                      report.payment_status,
-                      formatDate(report.created_at),
-                      formatDate(report.expected_delivery_date),
-                      report.containers_20ft,
-                      report.containers_40ft,
-                      report.total_containers,
-                      report.cargo_weight || 0,
-                      report.vehicle_count,
-                    ];
-                  });
-
-                  const csvContent = [headers, ...csvData]
-                    .map((row) => row.map((cell) => `"${cell}"`).join(","))
-                    .join("\n");
-
-                  const blob = new Blob([csvContent], { type: "text/csv" });
-                  const url = window.URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = `transport-report-${selectedReport.request_id}-${
-                    new Date().toISOString().split("T")[0]
-                  }.csv`;
-                  a.click();
-                  window.URL.revokeObjectURL(url);
+                  const ws = XLSX.utils.json_to_sheet(data);
+                  const wb = XLSX.utils.book_new();
+                  XLSX.utils.book_append_sheet(wb, ws, "Report");
+                  XLSX.writeFile(
+                    wb,
+                    `admin-report-${selectedReport.id}-${
+                      new Date().toISOString().split("T")[0]
+                    }.xlsx`
+                  );
                 }}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
               >
@@ -1729,8 +1483,19 @@ const AllReportsPage = () => {
           </div>
         </div>
       )}
+
+      {/* Manual Invoice Modal */}
+      <ManualInvoiceModal
+        isOpen={showManualInvoiceModal}
+        onClose={() => {
+          setShowManualInvoiceModal(false);
+          setManualInvoiceRequest(null);
+        }}
+        selectedRequest={manualInvoiceRequest}
+        onGenerateInvoice={handleGenerateManualInvoice}
+      />
     </div>
   );
 };
 
-export default AllReportsPage;
+export default AdminReportPage;

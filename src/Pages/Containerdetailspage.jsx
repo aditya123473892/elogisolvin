@@ -211,52 +211,42 @@ const ContainerDetailsPage = () => {
 
   // Remove container
   const removeContainer = async (index) => {
-    if (containers.length > 1) {
-      const containerToRemove = containers[index];
-
-      // If the container has an ID, it exists in the database and needs to be deleted
-      if (containerToRemove.id) {
-        try {
-          setIsLoading(true);
-          const response = await transporterAPI.deleteContainer(
-            containerToRemove.id
-          );
-
-          if (response.success) {
-            toast.success("Container deleted successfully");
-          } else {
-            toast.error("Failed to delete container from database");
-            setIsLoading(false);
-            return; // Don't proceed with removal if database deletion failed
-          }
-        } catch (error) {
-          console.error("Error deleting container:", error);
-          toast.error(error.message || "Failed to delete container");
-          setIsLoading(false);
-          return; // Don't proceed with removal if database deletion failed
-        } finally {
-          setIsLoading(false);
-        }
-      }
-
-      // Remove from local state
-      const updatedContainers = containers.filter((_, i) => i !== index);
-      // Update vehicle indices after removal
-      const reindexedContainers = updatedContainers.map((container, i) => ({
-        ...container,
-        vehicleIndex: i + 1,
-      }));
-      setContainers(reindexedContainers);
-
-      // Update sessionStorage
-      sessionStorage.setItem(
-        "containerData",
-        JSON.stringify(reindexedContainers)
-      );
-      toast.success("Container deleted successfully");
-    } else {
+    if (containers.length <= 1) {
       toast.warning("At least one container entry is required");
+      return;
     }
+
+    const containerToRemove = containers[index];
+    if (containerToRemove.id) {
+      try {
+        setIsLoading(true);
+        const response = await transporterAPI.deleteContainer(
+          containerToRemove.id
+        );
+        if (!response.success) {
+          throw new Error(response.message || "Failed to delete container");
+        }
+      } catch (error) {
+        console.error("Error deleting container:", error);
+        toast.error(error.message || "Failed to delete container");
+        setIsLoading(false);
+        return;
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    const updatedContainers = containers.filter((_, i) => i !== index);
+    const reindexedContainers = updatedContainers.map((container, i) => ({
+      ...container,
+      vehicleIndex: i + 1,
+    }));
+    setContainers(reindexedContainers);
+    sessionStorage.setItem(
+      "containerData",
+      JSON.stringify(reindexedContainers)
+    );
+    toast.success("Container deleted successfully");
   };
 
   // Update container data
@@ -450,21 +440,28 @@ const ContainerDetailsPage = () => {
         );
 
         // Format containers for API
-        const formatContainer = (container) => ({
-          container_no: container.containerNo,
-          line: container.line,
-          seal_no: container.seal1, // Using seal1 as primary seal
-          number_of_containers: parseInt(container.numberOfContainers) || 0,
-          seal1: container.seal1,
-          seal2: container.seal2,
-          container_total_weight:
-            parseFloat(container.containerTotalWeight) || 0,
-          cargo_total_weight: parseFloat(container.cargoTotalWeight) || 0,
-          container_type: container.containerType,
-          container_size: container.containerSize,
-          vehicle_number: container.vehicleNumber,
-          remarks: container.remarks,
-        });
+        const formatContainer = (container) => {
+          if (!container.containerNo || !container.vehicleNumber) {
+            throw new Error(
+              `Invalid container data: missing containerNo or vehicleNumber`
+            );
+          }
+          return {
+            container_no: container.containerNo,
+            line: container.line || "",
+            seal_no: container.seal1 || "",
+            number_of_containers: parseInt(container.numberOfContainers) || 1,
+            seal1: container.seal1 || "",
+            seal2: container.seal2 || "",
+            container_total_weight:
+              parseFloat(container.containerTotalWeight) || 0,
+            cargo_total_weight: parseFloat(container.cargoTotalWeight) || 0,
+            container_type: container.containerType || "",
+            container_size: container.containerSize || "",
+            vehicle_number: container.vehicleNumber,
+            remarks: container.remarks || "",
+          };
+        };
 
         // Update existing containers individually
         for (const container of existingContainers) {

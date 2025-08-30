@@ -80,7 +80,7 @@ const ProfitLossIndicator = ({ profitLoss }) => {
   return <div className="w-4 h-4 bg-gray-300 rounded-full"></div>;
 };
 
-const AdminReportPage = () => {
+const AdminDashboard = () => {
   const [reports, setReports] = useState([]);
   const [filteredReports, setFilteredReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -109,6 +109,7 @@ const AdminReportPage = () => {
           let transporterDetails = [];
           let vehicleCharges = 0;
           let vehicleCount = 0;
+          let vehicleContainerMapping = {};
 
           try {
             if (transporterCache.has(shipment.id)) {
@@ -120,44 +121,51 @@ const AdminReportPage = () => {
                 const details = Array.isArray(transporterResponse.data)
                   ? transporterResponse.data
                   : [transporterResponse.data];
-                const uniqueVehicles = [
-                  ...new Map(
-                    details.map((d) => [d.vehicle_number, d])
-                  ).values(),
-                ];
-                transporterDetails = uniqueVehicles;
-                transporterCache.set(shipment.id, uniqueVehicles);
+                // Group containers by vehicle_number
+                transporterDetails = details;
+                vehicleContainerMapping = details.reduce((acc, detail) => {
+                  const vehicleNum = detail.vehicle_number || "Unknown";
+                  if (!acc[vehicleNum]) {
+                    acc[vehicleNum] = {
+                      containers: [],
+                      container_types: [],
+                      container_sizes: [],
+                      total_charge: 0,
+                    };
+                  }
+                  if (detail.container_no) {
+                    acc[vehicleNum].containers.push(detail.container_no);
+                    acc[vehicleNum].container_types.push(
+                      detail.container_type || "N/A"
+                    );
+                    acc[vehicleNum].container_sizes.push(
+                      detail.container_size || "N/A"
+                    );
+                  }
+                  acc[vehicleNum].total_charge += parseFloat(
+                    detail.total_charge || 0
+                  );
+                  return acc;
+                }, {});
+                transporterCache.set(shipment.id, transporterDetails);
               }
             }
             vehicleCharges = transporterDetails.reduce(
               (sum, detail) => sum + parseFloat(detail.total_charge || 0),
               0
             );
-            vehicleCount = transporterDetails.length;
+            vehicleCount = [
+              ...new Set(transporterDetails.map((d) => d.vehicle_number)),
+            ].length;
           } catch (error) {
             console.log(`No transporter details for shipment ${shipment.id}`);
           }
 
-          let transactionData = null;
-          let totalPaid = 0;
-          let grNumber = `GR-${shipment.id}`;
-
-          try {
-            const transactionResponse = await api.get(
-              `/transactions/request/${shipment.id}`
-            );
-            if (
-              transactionResponse.data.success &&
-              transactionResponse.data.data.length > 0
-            ) {
-              transactionData = transactionResponse.data.data[0];
-              totalPaid = parseFloat(transactionData.total_paid || 0);
-              grNumber = transactionData.gr_no || grNumber;
-            }
-          } catch (error) {
-            console.log(`No transaction data for shipment ${shipment.id}`);
-          }
-
+          const transactionData = await fetchTransactionData(shipment.id);
+          const totalPaid = transactionData
+            ? parseFloat(transactionData.total_paid || 0)
+            : 0;
+          const grNumber = transactionData?.gr_no || `GR-${shipment.id}`;
           const serviceCharges = parseFloat(shipment.requested_price || 0);
           const profitLoss = serviceCharges - vehicleCharges;
           const profitLossPercentage =
@@ -180,6 +188,7 @@ const AdminReportPage = () => {
             shipa_no: shipment.SHIPA_NO || "N/A",
             container_numbers: transporterDetails
               .map((t) => t.container_no || "N/A")
+              .filter(Boolean)
               .join(", "),
             service_charges: serviceCharges,
             vehicle_charges: vehicleCharges,
@@ -190,6 +199,7 @@ const AdminReportPage = () => {
             payment_status: paymentStatus,
             vehicle_count: vehicleCount,
             transporter_details: transporterDetails,
+            vehicle_container_mapping: vehicleContainerMapping,
             transaction_data: transactionData,
             customer_name:
               shipment.customer_name || `Customer ${shipment.customer_id}`,
@@ -212,6 +222,25 @@ const AdminReportPage = () => {
       setIsLoading(false);
     }
   }, [transporterCache]);
+
+  // Helper function to fetch transaction data
+  const fetchTransactionData = async (requestId) => {
+    try {
+      const transactionResponse = await api.get(
+        `/transactions/request/${requestId}`
+      );
+      if (
+        transactionResponse.data.success &&
+        transactionResponse.data.data.length > 0
+      ) {
+        return transactionResponse.data.data[0];
+      }
+      return null;
+    } catch (error) {
+      console.log(`No transaction data for shipment ${requestId}`);
+      return null;
+    }
+  };
 
   // Fetch transporter details for modal
   const fetchTransporterDetails = useCallback(
@@ -332,95 +361,118 @@ const AdminReportPage = () => {
 
   // Export to Excel
   const exportToExcel = useCallback(() => {
-    let data, sheetName, fileNameSuffix;
+    try {
+      const loadingToast = toast.loading("Generating Excel report...");
+      let data, sheetName, fileNameSuffix;
 
-    if (exportType === "detailed") {
-      data = filteredReports.map((report) => ({
-        "Request ID": report.id,
-        "Tracking ID": report.tracking_id || "N/A",
-        "GR No": report.gr_no,
-        "Trip No": report.trip_no,
-        "Invoice No": report.invoice_no,
-        "SHIPA No": report.shipa_no,
-        "Container Numbers": report.container_numbers,
-        "Customer Name": report.customer_name,
-        "Customer Email": report.customer_email || "N/A",
-        "Pickup Location": report.pickup_location || "N/A",
-        "Delivery Location": report.delivery_location || "N/A",
-        "Vehicle Type": report.vehicle_type || "N/A",
-        Commodity: report.commodity || "N/A",
-        Status: report.status,
-        "Service Charges": report.service_charges,
-        "Vehicle Charges": report.vehicle_charges,
-        "Profit/Loss": report.profit_loss,
-        "Profit %": report.profit_loss_percentage.toFixed(2),
-        "Total Paid": report.total_paid,
-        Outstanding: report.outstanding_amount,
-        "Payment Status": report.payment_status,
-        "Created Date": formatDate(report.created_at),
-        "Delivery Date": formatDate(report.expected_delivery_date),
-        "Containers 20ft": report.containers_20ft || 0,
-        "Containers 40ft": report.containers_40ft || 0,
-        "Total Containers": report.total_containers,
-        "Cargo Weight": report.cargo_weight || 0,
-        "Vehicle Count": report.vehicle_count,
-      }));
-      sheetName = "Detailed Reports";
-      fileNameSuffix = "detailed";
-    } else {
-      const grouped = {};
-      filteredReports.forEach((report) => {
-        const dt = new Date(report.created_at);
-        let key;
-        if (exportType === "daily") key = dt.toLocaleDateString();
-        else if (exportType === "monthly")
-          key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(
-            2,
-            "0"
-          )}`;
-        else key = dt.getFullYear().toString();
+      if (exportType === "detailed") {
+        data = filteredReports.map((report) => ({
+          "Request ID": report.id,
+          "Tracking ID": report.tracking_id || "N/A",
+          "GR No": report.gr_no,
+          "Trip No": report.trip_no,
+          "Invoice No": report.invoice_no,
+          "SHIPA No": report.shipa_no,
+          "Container Numbers": report.container_numbers,
+          "Vehicle-Container Mapping":
+            Object.entries(report.vehicle_container_mapping)
+              .map(
+                ([vehicle, info]) =>
+                  `${vehicle}: ${info.containers.join(
+                    ", "
+                  )} [${info.container_types.join(
+                    ", "
+                  )}/${info.container_sizes.join(", ")}]`
+              )
+              .join("; ") || "N/A",
+          "Customer Name": report.customer_name,
+          "Customer Email": report.customer_email || "N/A",
+          "Pickup Location": report.pickup_location || "N/A",
+          "Delivery Location": report.delivery_location || "N/A",
+          "Vehicle Type": report.vehicle_type || "N/A",
+          Commodity: report.commodity || "N/A",
+          Status: report.status,
+          "Service Charges": report.service_charges,
+          "Vehicle Charges": report.vehicle_charges,
+          "Profit/Loss": report.profit_loss,
+          "Profit %": report.profit_loss_percentage.toFixed(2),
+          "Total Paid": report.total_paid,
+          Outstanding: report.outstanding_amount,
+          "Payment Status": report.payment_status,
+          "Created Date": formatDate(report.created_at),
+          "Delivery Date": formatDate(report.expected_delivery_date),
+          "Containers 20ft": report.containers_20ft || 0,
+          "Containers 40ft": report.containers_40ft || 0,
+          "Total Containers": report.total_containers,
+          "Cargo Weight": report.cargo_weight || 0,
+          "Vehicle Count": report.vehicle_count,
+        }));
+        sheetName = "Detailed Reports";
+        fileNameSuffix = "detailed";
+      } else {
+        const grouped = {};
+        filteredReports.forEach((report) => {
+          const dt = new Date(report.created_at);
+          let key;
+          if (exportType === "daily") key = dt.toLocaleDateString();
+          else if (exportType === "monthly")
+            key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(
+              2,
+              "0"
+            )}`;
+          else key = dt.getFullYear().toString();
 
-        if (!grouped[key]) {
-          grouped[key] = {
-            Period: key,
-            Revenue: 0,
-            Costs: 0,
-            Profit: 0,
-            Paid: 0,
-            Outstanding: 0,
-            Requests: 0,
-          };
-        }
-        grouped[key].Revenue += report.service_charges || 0;
-        grouped[key].Costs += report.vehicle_charges || 0;
-        grouped[key].Profit += report.profit_loss || 0;
-        grouped[key].Paid += report.total_paid || 0;
-        grouped[key].Outstanding += report.outstanding_amount || 0;
-        grouped[key].Requests += 1;
-      });
-      data = Object.values(grouped).sort((a, b) =>
-        a.Period.localeCompare(b.Period)
+          if (!grouped[key]) {
+            grouped[key] = {
+              Period: key,
+              Revenue: 0,
+              Costs: 0,
+              Profit: 0,
+              Paid: 0,
+              Outstanding: 0,
+              Requests: 0,
+            };
+          }
+          grouped[key].Revenue += report.service_charges || 0;
+          grouped[key].Costs += report.vehicle_charges || 0;
+          grouped[key].Profit += report.profit_loss || 0;
+          grouped[key].Paid += report.total_paid || 0;
+          grouped[key].Outstanding += report.outstanding_amount || 0;
+          grouped[key].Requests += 1;
+        });
+        data = Object.values(grouped).sort((a, b) =>
+          a.Period.localeCompare(b.Period)
+        );
+        sheetName = `${
+          exportType.charAt(0).toUpperCase() + exportType.slice(1)
+        } Summary`;
+        fileNameSuffix = exportType;
+      }
+
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+      XLSX.writeFile(
+        wb,
+        `admin-reports-${fileNameSuffix}-${
+          new Date().toISOString().split("T")[0]
+        }.xlsx`
       );
-      sheetName = `${
-        exportType.charAt(0).toUpperCase() + exportType.slice(1)
-      } Summary`;
-      fileNameSuffix = exportType;
+      toast.dismiss(loadingToast);
+      toast.success("Report exported successfully!");
+    } catch (error) {
+      console.error("Error exporting report:", error);
+      toast.dismiss();
+      toast.error("Failed to export report");
     }
-
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
-    XLSX.writeFile(
-      wb,
-      `admin-reports-${fileNameSuffix}-${
-        new Date().toISOString().split("T")[0]
-      }.xlsx`
-    );
   }, [exportType, filteredReports]);
 
   // Export detailed day-wise report
   const exportDetailedDayWiseReport = useCallback(async () => {
     try {
+      const loadingToast = toast.loading(
+        "Generating detailed day-wise report..."
+      );
       const groupedByDay = {};
       for (const report of filteredReports) {
         const dt = new Date(report.created_at);
@@ -454,9 +506,18 @@ const AdminReportPage = () => {
           "Trip No": report.trip_no,
           "Invoice No": report.invoice_no,
           "SHIPA No": report.shipa_no,
-          "Container Numbers": transporterDetails
-            .map((t) => t.container_no || "N/A")
-            .join(", "),
+          "Container Numbers": report.container_numbers,
+          "Vehicle-Container Mapping":
+            Object.entries(report.vehicle_container_mapping)
+              .map(
+                ([vehicle, info]) =>
+                  `${vehicle}: ${info.containers.join(
+                    ", "
+                  )} [${info.container_types.join(
+                    ", "
+                  )}/${info.container_sizes.join(", ")}]`
+              )
+              .join("; ") || "N/A",
           "Customer Name": report.customer_name,
           "Customer Email": report.customer_email || "N/A",
           Consignee: report.consignee || "N/A",
@@ -532,9 +593,11 @@ const AdminReportPage = () => {
           new Date().toISOString().split("T")[0]
         }.xlsx`
       );
+      toast.dismiss(loadingToast);
       toast.success("Detailed day-wise report exported successfully!");
     } catch (error) {
       console.error("Error exporting detailed day-wise report:", error);
+      toast.dismiss();
       toast.error("Failed to export detailed day-wise report");
     }
   }, [filteredReports, transporterCache]);
@@ -719,6 +782,9 @@ const AdminReportPage = () => {
                     Service & Vehicle
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Vehicle-Container Mapping
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Financial Summary
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -804,6 +870,19 @@ const AdminReportPage = () => {
                             </span>
                           )}
                         </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="space-y-1 text-xs text-gray-600">
+                        {Object.entries(report.vehicle_container_mapping).map(
+                          ([vehicle, info]) => (
+                            <div key={vehicle}>
+                              {vehicle}: {info.containers.join(", ")} [
+                              {info.container_types.join(", ")}/
+                              {info.container_sizes.join(", ")}]
+                            </div>
+                          )
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -1242,7 +1321,7 @@ const AdminReportPage = () => {
                       <span className="text-gray-500">Cargo Weight:</span>
                       <span className="font-medium">
                         {selectedReport.cargo_weight || "N/A"}{" "}
-                        {selectedReport.cargo_weight ? "kg	resource: kg" : ""}
+                        {selectedReport.cargo_weight ? "kg" : ""}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -1294,6 +1373,28 @@ const AdminReportPage = () => {
                           "Pending"}
                       </span>
                     </div>
+                  </div>
+                </div>
+
+                {/* Vehicle-Container Mapping */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                    <Truck className="w-5 h-5 mr-2 text-green-600" />
+                    Vehicle-Container Mapping
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    {Object.entries(
+                      selectedReport.vehicle_container_mapping
+                    ).map(([vehicle, info]) => (
+                      <div key={vehicle} className="flex justify-between">
+                        <span className="text-gray-500">{vehicle}:</span>
+                        <span className="font-medium">
+                          {info.containers.join(", ")} [
+                          {info.container_types.join(", ")}/
+                          {info.container_sizes.join(", ")}]
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -1437,6 +1538,17 @@ const AdminReportPage = () => {
                       "Invoice No": selectedReport.invoice_no,
                       "SHIPA No": selectedReport.shipa_no,
                       "Container Numbers": selectedReport.container_numbers,
+                      "Vehicle-Container Mapping":
+                        Object.entries(selectedReport.vehicle_container_mapping)
+                          .map(
+                            ([vehicle, info]) =>
+                              `${vehicle}: ${info.containers.join(
+                                ", "
+                              )} [${info.container_types.join(
+                                ", "
+                              )}/${info.container_sizes.join(", ")}]`
+                          )
+                          .join("; ") || "N/A",
                       "Customer Name": selectedReport.customer_name,
                       "Customer Email": selectedReport.customer_email || "N/A",
                       Consignee: selectedReport.consignee || "N/A",
@@ -1489,5 +1601,4 @@ const AdminReportPage = () => {
     </div>
   );
 };
-
-export default AdminReportPage;
+export default AdminDashboard;

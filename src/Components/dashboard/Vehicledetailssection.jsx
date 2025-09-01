@@ -1,4 +1,5 @@
 import React from "react";
+import CustomerSearchInput from "../dashboard/CustomerSearchinput";
 
 const VehicleDetailsSection = ({
   safeRequestData,
@@ -54,19 +55,15 @@ const VehicleDetailsSection = ({
           <label htmlFor="shipa_no" className="block text-sm font-medium mb-2">
             SHIPA NO
           </label>
-          <input
-            type="text"
-            id="shipa_no"
-            name="shipa_no"
+          <CustomerSearchInput
             value={safeRequestData.SHIPA_NO || ""}
-            onChange={(e) =>
+            onChange={(value) =>
               setRequestData((prev) => ({
                 ...prev,
-                SHIPA_NO: e.target.value,
+                SHIPA_NO: value,
               }))
             }
-            className="w-full border rounded-md p-2 focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            placeholder="Enter SHIPA NO (e.g., SHIP20250813001)"
+            placeholder="Search and select SHIPA NO (e.g., SHIP20250813001)"
             required={!safeRequestData.id} // Required for new requests, optional for updates
           />
         </div>

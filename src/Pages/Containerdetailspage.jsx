@@ -368,7 +368,19 @@ const ContainerDetailsPage = () => {
     return matchingData;
   };
 
-  // Handle form submission
+  // New helper function to normalize response data into an array of containers
+  const normalizeContainerData = (data) => {
+    if (Array.isArray(data)) {
+      return data; // Already an array (from batch add)
+    } else if (data && data.containerDetails) {
+      return [data.containerDetails]; // Single container, wrap in array
+    } else if (data) {
+      return [data]; // Fallback: assume it's a single container object
+    }
+    return []; // Empty if undefined/null
+  };
+
+  // Updated handleSubmit
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -468,11 +480,14 @@ const ContainerDetailsPage = () => {
           updatePromises.push(
             transporterAPI
               .updateContainerDetails(container.id, formatContainer(container))
-              .then((response) => ({
-                success: response.success,
-                message: `Updated container ${container.containerNo}`,
-                data: response.data,
-              }))
+              .then((response) => {
+                console.log("Update response:", response); // Debug: Log API response
+                return {
+                  success: response.success,
+                  message: `Updated container ${container.containerNo}`,
+                  data: response.data, // Keep as-is, normalize later
+                };
+              })
               .catch((error) => {
                 console.error("Error updating container:", error);
                 return {
@@ -496,11 +511,14 @@ const ContainerDetailsPage = () => {
                 vehicleNumber,
                 formattedNewContainers
               )
-              .then((response) => ({
-                success: response.success,
-                message: `Added ${formattedNewContainers.length} new containers to vehicle ${vehicleNumber}`,
-                data: response.data,
-              }))
+              .then((response) => {
+                console.log("Add response:", response); // Debug: Log API response
+                return {
+                  success: response.success,
+                  message: `Added ${formattedNewContainers.length} new containers to vehicle ${vehicleNumber}`,
+                  data: response.data, // Keep as-is, normalize later
+                };
+              })
               .catch((error) => {
                 console.error("Error adding containers:", error);
                 return {
@@ -525,6 +543,25 @@ const ContainerDetailsPage = () => {
       const failureCount = results.filter((r) => !r.success).length;
 
       if (successCount > 0) {
+        // Update local containers state with new IDs if added
+        setContainers((prevContainers) =>
+          prevContainers.map((container) => {
+            // Find matching updated/added container in results
+            for (const result of results) {
+              const normalizedData = normalizeContainerData(result.data);
+              const matching = normalizedData.find(
+                (resContainer) =>
+                  resContainer.container_no === container.containerNo &&
+                  resContainer.vehicle_number === container.vehicleNumber
+              );
+              if (matching && matching.id) {
+                return { ...container, id: matching.id };
+              }
+            }
+            return container;
+          })
+        );
+
         toast.success(
           <div className="flex flex-col space-y-2">
             <div className="font-bold text-lg border-b pb-2">
@@ -533,42 +570,54 @@ const ContainerDetailsPage = () => {
 
             {results
               .filter((result) => result.success)
-              .map((result, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="font-medium">
-                    Container: {result.data.containerDetails.container_no}
-                  </div>
-
-                  {/* Container Details */}
-                  <div className="text-sm space-y-1">
-                    <div>
-                      Vehicle: {result.data.containerDetails.vehicle_number}
-                    </div>
-                    <div>Line: {result.data.containerDetails.line}</div>
-                    <div>
-                      Size: {result.data.containerDetails.container_size}'
-                    </div>
-                    <div>
-                      Type: {result.data.containerDetails.container_type}
-                    </div>
-                  </div>
-
-                  {/* Warning Message if container was previously used */}
-                  {result.data.containerAlreadyUsed && (
-                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-2 mt-2">
-                      <div className="text-yellow-700 text-sm">
-                        <span className="font-bold">⚠️ Warning: </span>
-                        Previously used in Request #
-                        {result.data.lastUsedIn.request_id}
-                        <br />
-                        <span className="text-xs">
-                          Total previous uses: {result.data.totalPreviousUses}
-                        </span>
+              .map((result, resultIndex) => {
+                const normalizedContainers = normalizeContainerData(
+                  result.data
+                ); // Normalize to array
+                return normalizedContainers.map(
+                  (containerDetail, containerIndex) => (
+                    <div
+                      key={`${resultIndex}-${containerIndex}`}
+                      className="space-y-2"
+                    >
+                      <div className="font-medium">
+                        Container: {containerDetail.container_no || "N/A"}{" "}
+                        {/* Safe access */}
                       </div>
+
+                      {/* Container Details */}
+                      <div className="text-sm space-y-1">
+                        <div>
+                          Vehicle: {containerDetail.vehicle_number || "N/A"}
+                        </div>
+                        <div>Line: {containerDetail.line || "N/A"}</div>
+                        <div>
+                          Size: {containerDetail.container_size || "N/A"}'
+                        </div>
+                        <div>
+                          Type: {containerDetail.container_type || "N/A"}
+                        </div>
+                      </div>
+
+                      {/* Warning Message if container was previously used */}
+                      {result.data.containerAlreadyUsed && ( // Note: This might need adjustment if in batch
+                        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-2 mt-2">
+                          <div className="text-yellow-700 text-sm">
+                            <span className="font-bold">⚠️ Warning: </span>
+                            Previously used in Request #
+                            {result.data.lastUsedIn.request_id}
+                            <br />
+                            <span className="text-xs">
+                              Total previous uses:{" "}
+                              {result.data.totalPreviousUses}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
+                  )
+                );
+              })}
           </div>,
           {
             position: "top-center",
@@ -621,6 +670,7 @@ const ContainerDetailsPage = () => {
       setIsSubmitting(false);
     }
   };
+
   // Load containers for a specific vehicle
   const loadVehicleContainers = async (vehicleNumber) => {
     if (!transportRequestId || !vehicleNumber) {
@@ -789,7 +839,7 @@ const ContainerDetailsPage = () => {
 
         {/* Warning if no transporter data */}
         {existingTransporterData.length === 0 && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <div className="bg-yellow-50 border border-yellow-200 border rounded-lg p-4 mb-6">
             <div className="flex">
               <div className="flex-shrink-0">
                 <svg

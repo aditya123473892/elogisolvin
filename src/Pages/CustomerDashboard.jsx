@@ -191,7 +191,6 @@ export default function CustomerDashboard({
 
   // In CustomerDashboard.js - Update the handleSubmit function around line 200-250
   // Add SHIPA_NO to the formData object
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -235,9 +234,9 @@ export default function CustomerDashboard({
         return `${timeString.trim()}:00`;
       };
 
-      // Clean form data preparation - FIXED: Added SHIPA_NO field
+      // Clean form data preparation
       const formData = {
-        SHIPA_NO: requestData.SHIPA_NO?.trim() || "", // ADD THIS LINE
+        SHIPA_NO: requestData.SHIPA_NO?.trim() || "",
         consignee: requestData.consignee.trim(),
         consigner: requestData.consigner.trim(),
         vehicle_type: requestData.vehicle_type,
@@ -280,14 +279,90 @@ export default function CustomerDashboard({
         : await api.post(endpoint, formData);
 
       if (response.data.success) {
-        toast.success(
-          isUpdate
-            ? "Request updated successfully!"
-            : "Request created successfully!"
-        );
+        const successMessage = isUpdate
+          ? "Request updated successfully!"
+          : "Request created successfully!";
+
+        toast.success(successMessage);
         console.log("Response:", response.data);
-        handleCancelEdit();
-        fetchRequests(); // Refresh all requests
+
+        // Get the request ID from response
+        const requestId = isUpdate ? requestData.id : response.data.request?.id;
+
+        if (requestId) {
+          // For new requests, load the created request back into the form
+          if (!isUpdate) {
+            try {
+              // Fetch the newly created request to get all its details
+              const fetchResponse = await api.get(
+                `/transport-requests/${requestId}`
+              );
+
+              if (fetchResponse.data.success) {
+                const newRequest = fetchResponse.data.request;
+
+                // Load the new request data into the form
+                setRequestData({
+                  id: newRequest.id,
+                  SHIPA_NO: newRequest.SHIPA_NO || "",
+                  consignee: newRequest.consignee || "",
+                  consigner: newRequest.consigner || "",
+                  vehicle_type: newRequest.vehicle_type || "",
+                  vehicle_size: newRequest.vehicle_size || "",
+                  vehicle_status: newRequest.vehicle_status || "Empty",
+                  no_of_vehicles: newRequest.no_of_vehicles || "1",
+                  pickup_location: newRequest.pickup_location || "",
+                  stuffing_location: newRequest.stuffing_location || "",
+                  delivery_location: newRequest.delivery_location || "",
+                  commodity: newRequest.commodity || "",
+                  cargo_type: newRequest.cargo_type || "",
+                  cargo_weight: parseFloat(newRequest.cargo_weight) || 0,
+                  service_type: Array.isArray(newRequest.service_type)
+                    ? newRequest.service_type
+                    : JSON.parse(newRequest.service_type || "[]"),
+                  service_prices:
+                    typeof newRequest.service_prices === "string"
+                      ? JSON.parse(newRequest.service_prices)
+                      : newRequest.service_prices || {},
+                  containers_20ft: parseInt(newRequest.containers_20ft) || 0,
+                  containers_40ft: parseInt(newRequest.containers_40ft) || 0,
+                  total_containers: parseInt(newRequest.total_containers) || 0,
+                  expected_pickup_date: newRequest.expected_pickup_date
+                    ? newRequest.expected_pickup_date.split("T")[0]
+                    : "",
+                  expected_delivery_date: newRequest.expected_delivery_date
+                    ? newRequest.expected_delivery_date.split("T")[0]
+                    : "",
+                  expected_pickup_time: newRequest.expected_pickup_time
+                    ? newRequest.expected_pickup_time.slice(0, 5)
+                    : "",
+                  expected_delivery_time: newRequest.expected_delivery_time
+                    ? newRequest.expected_delivery_time.slice(0, 5)
+                    : "",
+                  requested_price: parseFloat(newRequest.requested_price) || 0,
+                  status: newRequest.status || "Pending",
+                  admin_comment: newRequest.admin_comment || "",
+                });
+
+                // Show additional success message for new bookings
+                toast.info(`Booking #${requestId} is now loaded for editing`);
+              }
+            } catch (fetchError) {
+              console.error(
+                "Error fetching newly created request:",
+                fetchError
+              );
+              // If we can't fetch the new request, at least update the ID
+              setRequestData((prev) => ({
+                ...prev,
+                id: requestId,
+              }));
+            }
+          }
+        }
+
+        // Refresh the requests list to show the updated/new request
+        fetchRequests();
       } else {
         toast.error(response.data.message || "Failed to submit request");
       }

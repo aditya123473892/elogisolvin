@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import ServicesSelection from "../dashboard/ServiceSelection";
 
 const PricingScheduleSection = ({
@@ -15,6 +15,31 @@ const PricingScheduleSection = ({
   currentTime,
 }) => {
   const currentNoOfVehicles = parseInt(safeRequestData.no_of_vehicles) || 1;
+
+  // Initialize dates on component mount if they're empty
+  useEffect(() => {
+    const needsUpdate = {};
+
+    if (!safeRequestData.expected_pickup_date) {
+      needsUpdate.expected_pickup_date = today;
+    }
+
+    if (!safeRequestData.expected_delivery_date) {
+      needsUpdate.expected_delivery_date = today;
+    }
+
+    if (Object.keys(needsUpdate).length > 0) {
+      setRequestData((prev) => ({
+        ...prev,
+        ...needsUpdate,
+      }));
+    }
+  }, [
+    today,
+    safeRequestData.expected_pickup_date,
+    safeRequestData.expected_delivery_date,
+    setRequestData,
+  ]);
 
   // Calculate total charge from service prices
   const calculateTotalCharge = () => {
@@ -70,10 +95,6 @@ const PricingScheduleSection = ({
                     )}
                   </span>
                 </div>
-                {/* <div className="flex justify-between text-sm">
-                  <span>Number of vehicles:</span>
-                  <span>{currentNoOfVehicles}</span>
-                </div> */}
                 <div className="flex justify-between font-bold text-lg border-t pt-1 mt-1">
                   <span>Total Charge:</span>
                   <span>₹{totalCharge.toFixed(2)}</span>

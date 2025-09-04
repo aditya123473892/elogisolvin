@@ -16,13 +16,11 @@ const LocationSearchInput = ({
   }, [value]);
 
   useEffect(() => {
-    // Click outside handler
     const handleClickOutside = (event) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
         setShowSuggestions(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -32,18 +30,14 @@ const LocationSearchInput = ({
       setSuggestions([]);
       return;
     }
-
     try {
       const response = await fetch(
         "https://running-backendelogisol.onrender.com/api/locations"
       );
       const data = await response.json();
-
-      // Filter saved locations based on search text
       const filteredLocations = data.filter((location) =>
         location.LOCATION_NAME?.toLowerCase().includes(searchText.toLowerCase())
       );
-
       setSuggestions(filteredLocations);
       setShowSuggestions(true);
     } catch (error) {
@@ -57,7 +51,6 @@ const LocationSearchInput = ({
       setSuggestions([]);
       return;
     }
-
     try {
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
@@ -74,26 +67,28 @@ const LocationSearchInput = ({
   };
 
   const handleInputChange = (e) => {
-    const value = e.target.value;
-    setInputValue(value);
-
+    const val = e.target.value;
+    setInputValue(val);
     if (useOpenStreetMap) {
-      searchOpenStreetMap(value);
+      searchOpenStreetMap(val);
     } else {
-      searchSavedLocations(value);
+      searchSavedLocations(val);
+    }
+  };
+
+  // ✅ Handle pressing Enter or leaving input field
+  const handleInputConfirm = () => {
+    if (inputValue.trim()) {
+      onChange(inputValue.trim()); // Send free text upward
+      setSuggestions([]);
+      setShowSuggestions(false);
     }
   };
 
   const handleSuggestionClick = (suggestion) => {
-    let locationString;
-
-    if (useOpenStreetMap) {
-      // For OpenStreetMap API
-      locationString = suggestion.display_name;
-    } else {
-      // For saved locations API
-      locationString = suggestion.LOCATION_NAME;
-    }
+    const locationString = useOpenStreetMap
+      ? suggestion.display_name
+      : suggestion.LOCATION_NAME;
 
     setInputValue(locationString);
     onChange(locationString);
@@ -101,26 +96,19 @@ const LocationSearchInput = ({
     setShowSuggestions(false);
   };
 
-  const renderSuggestion = (suggestion) => {
-    if (useOpenStreetMap) {
-      // Render OpenStreetMap format
-      return (
-        <div className="p-2 hover:bg-gray-100 cursor-pointer text-sm">
-          {suggestion.display_name}
+  const renderSuggestion = (suggestion) =>
+    useOpenStreetMap ? (
+      <div className="p-2 hover:bg-gray-100 cursor-pointer text-sm">
+        {suggestion.display_name}
+      </div>
+    ) : (
+      <div className="p-2 hover:bg-gray-100 cursor-pointer text-sm">
+        <div className="font-medium">{suggestion.LOCATION_NAME}</div>
+        <div className="text-gray-600 text-xs">
+          ID: {suggestion.LOCATION_ID} | Terminal: {suggestion.TERMINAL_ID}
         </div>
-      );
-    } else {
-      // Render saved location format
-      return (
-        <div className="p-2 hover:bg-gray-100 cursor-pointer text-sm">
-          <div className="font-medium">{suggestion.LOCATION_NAME}</div>
-          <div className="text-gray-600 text-xs">
-            ID: {suggestion.LOCATION_ID} | Terminal: {suggestion.TERMINAL_ID}
-          </div>
-        </div>
-      );
-    }
-  };
+      </div>
+    );
 
   return (
     <div ref={wrapperRef} className="relative">
@@ -129,6 +117,10 @@ const LocationSearchInput = ({
         className="w-full border rounded-md p-2"
         value={inputValue}
         onChange={handleInputChange}
+        onBlur={handleInputConfirm} // ✅ confirm on blur
+        onKeyDown={(e) => {
+          if (e.key === "Enter") handleInputConfirm(); // ✅ confirm on Enter
+        }}
         placeholder={placeholder}
         required
       />

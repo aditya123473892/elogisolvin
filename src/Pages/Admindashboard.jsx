@@ -14,7 +14,6 @@ import {
   Eye,
   RefreshCw,
   MapPin,
-  FileSpreadsheet,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import api from "../utils/Api";
@@ -131,6 +130,9 @@ const AdminDashboard = () => {
                       container_types: [],
                       container_sizes: [],
                       total_charge: 0,
+                      additional_charges: 0,
+                      driver_name: detail.driver_name || "N/A",
+                      driver_phone: detail.driver_phone || "N/A",
                     };
                   }
                   if (detail.container_no) {
@@ -145,6 +147,22 @@ const AdminDashboard = () => {
                   acc[vehicleNum].total_charge += parseFloat(
                     detail.total_charge || 0
                   );
+                  acc[vehicleNum].additional_charges += parseFloat(
+                    detail.additional_charges || 0
+                  );
+                  // Update driver info if not set or different (assuming consistent per vehicle)
+                  if (
+                    detail.driver_name &&
+                    !acc[vehicleNum].driver_name.includes(detail.driver_name)
+                  ) {
+                    acc[vehicleNum].driver_name = detail.driver_name || "N/A";
+                  }
+                  if (
+                    detail.driver_phone &&
+                    !acc[vehicleNum].driver_phone.includes(detail.driver_phone)
+                  ) {
+                    acc[vehicleNum].driver_phone = detail.driver_phone || "N/A";
+                  }
                   return acc;
                 }, {});
                 transporterCache.set(shipment.id, transporterDetails);
@@ -467,141 +485,6 @@ const AdminDashboard = () => {
     }
   }, [exportType, filteredReports]);
 
-  // Export detailed day-wise report
-  const exportDetailedDayWiseReport = useCallback(async () => {
-    try {
-      const loadingToast = toast.loading(
-        "Generating detailed day-wise report..."
-      );
-      const groupedByDay = {};
-      for (const report of filteredReports) {
-        const dt = new Date(report.created_at);
-        const date = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(
-          2,
-          "0"
-        )}-${String(dt.getDate()).padStart(2, "0")}`;
-        if (!groupedByDay[date]) groupedByDay[date] = [];
-
-        let transporterDetails = transporterCache.get(report.id) || [];
-        if (!transporterDetails.length) {
-          try {
-            const response = await api.get(
-              `/transport-requests/${report.id}/transporter`
-            );
-            if (response.data.success) {
-              transporterDetails = Array.isArray(response.data.data)
-                ? response.data.data
-                : [response.data.data];
-              transporterCache.set(report.id, transporterDetails);
-            }
-          } catch (error) {
-            console.log(`No transporter details for request ${report.id}`);
-          }
-        }
-
-        groupedByDay[date].push({
-          "Request ID": report.id,
-          "Tracking ID": report.tracking_id || "N/A",
-          "GR No": report.gr_no,
-          "Trip No": report.trip_no,
-          "Invoice No": report.invoice_no,
-          "SHIPA No": report.shipa_no,
-          "Container Numbers": report.container_numbers,
-          "Vehicle-Container Mapping":
-            Object.entries(report.vehicle_container_mapping)
-              .map(
-                ([vehicle, info]) =>
-                  `${vehicle}: ${info.containers.join(
-                    ", "
-                  )} [${info.container_types.join(
-                    ", "
-                  )}/${info.container_sizes.join(", ")}]`
-              )
-              .join("; ") || "N/A",
-          "Customer Name": report.customer_name,
-          "Customer Email": report.customer_email || "N/A",
-          Consignee: report.consignee || "N/A",
-          Consigner: report.consigner || "N/A",
-          "Pickup Location": report.pickup_location || "N/A",
-          "Stuffing Location": report.stuffing_location || "N/A",
-          "Delivery Location": report.delivery_location || "N/A",
-          "Vehicle Type": report.vehicle_type || "N/A",
-          "Vehicle Size": report.vehicle_size || "N/A",
-          Commodity: report.commodity || "N/A",
-          "Cargo Type": report.cargo_type || "N/A",
-          "Cargo Weight": report.cargo_weight || "N/A",
-          Status: report.status,
-          "Service Charges": report.service_charges || 0,
-          "Vehicle Charges": report.vehicle_charges || 0,
-          "Profit/Loss": report.profit_loss || 0,
-          "Profit %": report.profit_loss_percentage.toFixed(2),
-          "Total Paid": report.total_paid || 0,
-          Outstanding: report.outstanding_amount || 0,
-          "Payment Status": report.payment_status,
-          "Created Date": formatDate(report.created_at),
-          "Created Time": new Date(report.created_at).toLocaleTimeString(),
-          "Updated Date": formatDate(report.updated_at),
-          "Updated Time": new Date(report.updated_at).toLocaleTimeString(),
-          "Expected Pickup Date": formatDate(report.expected_pickup_date),
-          "Expected Pickup Time": report.expected_pickup_time || "N/A",
-          "Expected Delivery Date": formatDate(report.expected_delivery_date),
-          "Expected Delivery Time": report.expected_delivery_time || "N/A",
-          "Actual Delivery Date":
-            formatDate(report.actual_delivery_date) || "Pending",
-          "Containers 20ft": report.containers_20ft || 0,
-          "Containers 40ft": report.containers_40ft || 0,
-          "Total Containers": report.total_containers || 0,
-          "Vehicle Count": report.vehicle_count || 0,
-          "Service Types": report.service_types.join(", ") || "None",
-          "Service Prices": JSON.stringify(report.service_prices) || "{}",
-          "Special Instructions": report.special_instructions || "N/A",
-          "Admin Comment": report.admin_comment || "N/A",
-          "Transaction ID": report.transaction_data?.id || "N/A",
-          "Payment Method": report.transaction_data?.payment_method || "N/A",
-          "Container Numbers (Detailed)": transporterDetails
-            .map((t) => t.container_no || "N/A")
-            .join(", "),
-          "Vehicle Numbers": transporterDetails
-            .map((t) => t.vehicle_number || "N/A")
-            .join(", "),
-          "Driver Names": transporterDetails
-            .map((t) => t.driver_name || "N/A")
-            .join(", "),
-          "Driver Phones": transporterDetails
-            .map((t) => t.driver_phone || "N/A")
-            .join(", "),
-          "Transporter Charges": transporterDetails
-            .map((t) => `₹${(t.total_charge || 0).toLocaleString()}`)
-            .join(", "),
-          "Additional Charges": transporterDetails
-            .map((t) => `₹${(t.additional_charges || 0).toLocaleString()}`)
-            .join(", "),
-        });
-      }
-
-      const wb = XLSX.utils.book_new();
-      Object.keys(groupedByDay)
-        .sort()
-        .forEach((date) => {
-          const ws = XLSX.utils.json_to_sheet(groupedByDay[date]);
-          XLSX.utils.book_append_sheet(wb, ws, date);
-        });
-
-      XLSX.writeFile(
-        wb,
-        `detailed-day-wise-reports-${
-          new Date().toISOString().split("T")[0]
-        }.xlsx`
-      );
-      toast.dismiss(loadingToast);
-      toast.success("Detailed day-wise report exported successfully!");
-    } catch (error) {
-      console.error("Error exporting detailed day-wise report:", error);
-      toast.dismiss();
-      toast.error("Failed to export detailed day-wise report");
-    }
-  }, [filteredReports, transporterCache]);
-
   // Calculate summary stats
   const summaryStats = filteredReports.reduce(
     (acc, report) => ({
@@ -663,13 +546,6 @@ const AdminDashboard = () => {
               >
                 <Download className="w-4 h-4 mr-2" />
                 Export to Excel
-              </button>
-              <button
-                onClick={exportDetailedDayWiseReport}
-                className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-              >
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
-                Detailed Day-Wise Report
               </button>
             </div>
           </div>
@@ -791,9 +667,6 @@ const AdminDashboard = () => {
                     Payment Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -807,12 +680,6 @@ const AdminDashboard = () => {
                           {report.formatted_request_id}
                         </div>
                         <div className="text-xs text-gray-500">
-                          SHIPA No: {report.shipa_no}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          Tracking: {report.tracking_id || "N/A"}
-                        </div>
-                        <div className="text-xs text-gray-500">
                           GR: {report.gr_no}
                         </div>
                         <div className="text-xs text-gray-500">
@@ -821,62 +688,49 @@ const AdminDashboard = () => {
                         <div className="text-xs text-gray-500">
                           Invoice: {report.invoice_no}
                         </div>
+                        <div className="text-xs text-gray-500">
+                          SHIPA: {report.shipa_no}
+                        </div>
+                        <StatusBadge status={report.status} />
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        <div className="text-sm font-medium text-gray-900">
+                      <div className="space-y-1 text-sm">
+                        <div className="font-medium">
                           {report.customer_name}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-gray-500">
                           {report.customer_email || "N/A"}
                         </div>
-                        <div className="text-xs text-gray-500">
-                          From: {report.pickup_location || "N/A"}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          To: {report.delivery_location || "N/A"}
+                        <div className="flex items-center text-gray-500 text-xs">
+                          <MapPin className="w-4 h-4 mr-1" />
+                          {report.pickup_location} → {report.delivery_location}
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        <div className="text-sm font-medium text-gray-900">
-                          {report.vehicle_type || "N/A"}{" "}
-                          {report.vehicle_size && `(${report.vehicle_size})`}
+                      <div className="space-y-1 text-sm">
+                        <div className="font-medium">{report.commodity}</div>
+                        <div className="text-gray-500">
+                          {report.vehicle_type} ({report.vehicle_size})
                         </div>
-                        <div className="text-xs text-gray-500">
-                          Commodity: {report.commodity || "N/A"}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          Cargo: {report.cargo_type || "N/A"}
-                        </div>
-                        <div className="text-xs text-blue-600">
-                          {report.vehicle_count} vehicles
-                        </div>
-                        <div>
-                          {report.service_types.length > 0 ? (
-                            report.service_types.map((service, idx) => (
-                              <span
-                                key={idx}
-                                className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mr-1 mb-1"
-                              >
-                                {service}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full">
-                              No services
+                        <div className="flex flex-wrap gap-1">
+                          {report.service_types.map((service, idx) => (
+                            <span
+                              key={idx}
+                              className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full"
+                            >
+                              {service}
                             </span>
-                          )}
+                          ))}
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="space-y-1 text-xs text-gray-600">
+                      <div className="space-y-1 text-sm">
                         {Object.entries(report.vehicle_container_mapping).map(
                           ([vehicle, info]) => (
-                            <div key={vehicle}>
+                            <div key={vehicle} className="text-gray-700">
                               {vehicle}: {info.containers.join(", ")} [
                               {info.container_types.join(", ")}/
                               {info.container_sizes.join(", ")}]
@@ -886,65 +740,45 @@ const AdminDashboard = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">
-                            Revenue:
-                          </span>
-                          <span className="text-sm font-medium text-green-600">
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Service:</span>
+                          <span className="text-green-600">
                             {formatCurrency(report.service_charges)}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">Costs:</span>
-                          <span className="text-sm font-medium text-orange-600">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Vehicle:</span>
+                          <span className="text-orange-600">
                             {formatCurrency(report.vehicle_charges)}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between border-t pt-2">
-                          <div className="flex items-center gap-1">
-                            <ProfitLossIndicator
-                              profitLoss={report.profit_loss || 0}
-                            />
-                            <span className="text-xs text-gray-500">P&L:</span>
-                          </div>
+                        <div className="flex justify-between border-t pt-1">
+                          <span className="text-gray-500">Profit:</span>
                           <span
-                            className={`text-sm font-bold ${
+                            className={`${
                               report.profit_loss >= 0
                                 ? "text-green-600"
                                 : "text-red-600"
                             }`}
                           >
-                            {formatCurrency(report.profit_loss)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">Margin:</span>
-                          <span
-                            className={`text-xs font-medium ${
-                              report.profit_loss_percentage >= 0
-                                ? "text-green-600"
-                                : "text-red-600"
-                            }`}
-                          >
-                            {report.profit_loss_percentage.toFixed(1)}%
+                            {formatCurrency(report.profit_loss)} (
+                            {report.profit_loss_percentage.toFixed(2)}%)
                           </span>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">Paid:</span>
-                          <span className="text-sm font-medium text-blue-600">
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Paid:</span>
+                          <span className="text-blue-600">
                             {formatCurrency(report.total_paid)}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">
-                            Outstanding:
-                          </span>
-                          <span className="text-sm font-medium text-red-600">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Outstanding:</span>
+                          <span className="text-red-600">
                             {formatCurrency(report.outstanding_amount)}
                           </span>
                         </div>
@@ -961,11 +795,8 @@ const AdminDashboard = () => {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <StatusBadge status={report.status} />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex flex-col space-y-2">
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="flex space-x-2 justify-end">
                         <button
                           onClick={() => handleViewReport(report)}
                           className="inline-flex items-center px-3 py-2 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
@@ -1446,14 +1277,17 @@ const AdminDashboard = () => {
               </div>
 
               {/* Transporter Details */}
-              {transporterDetails && transporterDetails.length > 0 && (
+              {Object.keys(selectedReport.vehicle_container_mapping).length >
+                0 && (
                 <div className="mt-8">
                   <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
                     <Truck className="w-5 h-5 mr-2 text-green-600" />
                     Transporter Details
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {transporterDetails.map((transporter, index) => (
+                    {Object.entries(
+                      selectedReport.vehicle_container_mapping
+                    ).map(([vehicle, info], index) => (
                       <div
                         key={index}
                         className="bg-white border rounded-lg p-4"
@@ -1463,34 +1297,48 @@ const AdminDashboard = () => {
                             <span className="text-gray-500">
                               Vehicle Number:
                             </span>
+                            <span className="font-medium">{vehicle}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">
+                              Container Numbers:
+                            </span>
                             <span className="font-medium">
-                              {transporter.vehicle_number}
+                              {info.containers.join(", ") || "N/A"}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-500">
-                              Container Number:
+                              Container Types:
                             </span>
                             <span className="font-medium">
-                              {transporter.container_no || "N/A"}
+                              {info.container_types.join(", ") || "N/A"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">
+                              Container Sizes:
+                            </span>
+                            <span className="font-medium">
+                              {info.container_sizes.join(", ") || "N/A"}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-500">Driver Name:</span>
                             <span className="font-medium">
-                              {transporter.driver_name || "N/A"}
+                              {info.driver_name || "N/A"}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-500">Driver Phone:</span>
                             <span className="font-medium">
-                              {transporter.driver_phone || "N/A"}
+                              {info.driver_phone || "N/A"}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-500">Total Charge:</span>
                             <span className="font-medium text-orange-600">
-                              {formatCurrency(transporter.total_charge)}
+                              {formatCurrency(info.total_charge)}
                             </span>
                           </div>
                           <div className="flex justify-between">
@@ -1498,7 +1346,7 @@ const AdminDashboard = () => {
                               Additional Charge:
                             </span>
                             <span className="font-medium text-orange-600">
-                              {formatCurrency(transporter.additional_charges)}
+                              {formatCurrency(info.additional_charges)}
                             </span>
                           </div>
                         </div>

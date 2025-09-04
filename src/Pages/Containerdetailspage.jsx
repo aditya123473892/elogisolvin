@@ -167,7 +167,10 @@ const ContainerDetailsPage = () => {
             (c) => c.vehicleNumber !== vehicleNumber
           );
           const newContainerList = [...filteredPrev, ...vehicleContainers];
-          sessionStorage.setItem("containerData", JSON.stringify(newContainerList));
+          sessionStorage.setItem(
+            "containerData",
+            JSON.stringify(newContainerList)
+          );
           return newContainerList;
         });
       }
@@ -223,12 +226,16 @@ const ContainerDetailsPage = () => {
       return;
     }
 
-    const containerToRemove = containers.find(c => (c.id || c.clientId) === identifier);
+    const containerToRemove = containers.find(
+      (c) => (c.id || c.clientId) === identifier
+    );
 
     if (containerToRemove && containerToRemove.id) {
       try {
         setIsLoading(true);
-        const response = await transporterAPI.deleteContainer(containerToRemove.id);
+        const response = await transporterAPI.deleteContainer(
+          containerToRemove.id
+        );
         if (!response.success) {
           throw new Error(response.message || "Failed to delete container");
         }
@@ -240,7 +247,9 @@ const ContainerDetailsPage = () => {
       }
     }
 
-    const updatedContainers = containers.filter(c => (c.id || c.clientId) !== identifier);
+    const updatedContainers = containers.filter(
+      (c) => (c.id || c.clientId) !== identifier
+    );
     setContainers(updatedContainers);
     toast.success("Container deleted successfully");
     setIsLoading(false);
@@ -262,7 +271,8 @@ const ContainerDetailsPage = () => {
       }
     }
 
-    setContainers(containers.map((container) => {
+    setContainers(
+      containers.map((container) => {
         const currentIdentifier = container.id || container.clientId;
         if (currentIdentifier === identifier) {
           return { ...container, [field]: value, isDirty: true };
@@ -406,13 +416,13 @@ const ContainerDetailsPage = () => {
       }
 
       // Prepare payload for batch container assignment
-      const containersToSubmit = containers.filter(c => c.isDirty || !c.id);
+      const containersToSubmit = containers.filter((c) => c.isDirty || !c.id);
       const vehicleContainers = vehicleDataList
         .map((vehicle) => ({
           vehicle_number: vehicle.vehicleNumber,
           vehicle_sequence: vehicle.vehicleSequence || 0,
           containers: containersToSubmit
-            .filter(c => c.vehicleNumber === vehicle.vehicleNumber)
+            .filter((c) => c.vehicleNumber === vehicle.vehicleNumber)
             .map((container) => ({
               id: container.id,
               clientId: container.clientId, // Pass clientId for matching response
@@ -424,7 +434,8 @@ const ContainerDetailsPage = () => {
               seal2: container.seal2?.trim() || null,
               container_total_weight:
                 parseFloat(container.containerTotalWeight) || null,
-              cargo_total_weight: parseFloat(container.cargoTotalWeight) || null,
+              cargo_total_weight:
+                parseFloat(container.cargoTotalWeight) || null,
               container_type: container.containerType?.trim() || null,
               container_size: container.containerSize?.trim() || null,
               remarks: container.remarks?.trim() || null,
@@ -464,8 +475,7 @@ const ContainerDetailsPage = () => {
               seal2: container.seal2 || "",
               containerTotalWeight:
                 container.container_total_weight?.toString() || "",
-              cargoTotalWeight:
-                container.cargo_total_weight?.toString() || "",
+              cargoTotalWeight: container.cargo_total_weight?.toString() || "",
               remarks: container.remarks || "",
               vehicleNumber: vc.vehicle_number || "",
               isDirty: false, // Mark as clean
@@ -483,10 +493,12 @@ const ContainerDetailsPage = () => {
             return pc;
           });
 
-          sessionStorage.setItem("containerData", JSON.stringify(newContainers));
+          sessionStorage.setItem(
+            "containerData",
+            JSON.stringify(newContainers)
+          );
           return newContainers;
         });
-
 
         toast.dismiss(loadingId);
         if (response.data.some((vc) => vc.hasWarnings)) {
@@ -516,7 +528,10 @@ const ContainerDetailsPage = () => {
         setShowModal(true);
         setModalData({
           containers: response.data.flatMap((vc) =>
-            vc.containers.map((c) => ({ ...c, vehicle_number: vc.vehicle_number }))
+            vc.containers.map((c) => ({
+              ...c,
+              vehicle_number: vc.vehicle_number,
+            }))
           ),
         });
       } else {
@@ -738,7 +753,8 @@ const ContainerDetailsPage = () => {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {vehicleContainers.map(
                               (container, containerIndex) => {
-                                const identifier = container.id || container.clientId;
+                                const identifier =
+                                  container.id || container.clientId;
                                 return (
                                   <div
                                     key={identifier}
@@ -753,7 +769,9 @@ const ContainerDetailsPage = () => {
                                       {containers.length > 1 && (
                                         <button
                                           type="button"
-                                          onClick={() => removeContainer(identifier)}
+                                          onClick={() =>
+                                            removeContainer(identifier)
+                                          }
                                           className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                                           title="Remove Container"
                                         >

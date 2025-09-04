@@ -43,10 +43,8 @@ export const TransporterDetails = ({
       vehicleNumber: "",
       driverName: "",
       driverContact: "",
-      licenseNumber: "", // Added license number field
-      licenseExpiry: "", // Added license expiry field
       baseCharge: "0",
-      additionalCharges: "0", // Changed from "" to "0"
+      additionalCharges: "",
       totalCharge: 0,
       serviceCharges: {},
       containerNo: "",
@@ -133,12 +131,8 @@ export const TransporterDetails = ({
             vehicleNumber: existingDetail.vehicle_number || "",
             driverName: existingDetail.driver_name || "",
             driverContact: existingDetail.driver_contact || "",
-            licenseNumber: existingDetail.license_number || "",
-            licenseExpiry: existingDetail.license_expiry
-              ? existingDetail.license_expiry.split("T")[0]
-              : "",
             baseCharge: existingDetail.base_charge || "0",
-            additionalCharges: existingDetail.additional_charges || "0",
+            additionalCharges: existingDetail.additional_charges || "",
             totalCharge: existingDetail.total_charge || 0,
             serviceCharges: serviceCharges,
             containerNo: existingDetail.container_no || "",
@@ -207,17 +201,13 @@ export const TransporterDetails = ({
         if (index === vehicleIndex) {
           const updatedVehicle = { ...vehicle, [field]: value };
 
-          // Calculate totalCharge when service charges or additional charges change
-          if (field === "serviceCharges" || field === "additionalCharges") {
+          // Calculate totalCharge excluding additionalCharges
+          if (field === "serviceCharges") {
             const serviceChargesTotal = Object.values(
               updatedVehicle.serviceCharges || {}
             ).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
 
-            const additionalCharges =
-              parseFloat(updatedVehicle.additionalCharges) || 0;
-
-            updatedVehicle.totalCharge =
-              serviceChargesTotal + additionalCharges;
+            updatedVehicle.totalCharge = serviceChargesTotal;
           }
           return updatedVehicle;
         }
@@ -285,18 +275,6 @@ export const TransporterDetails = ({
     handleSubmit();
   };
 
-  // Helper function to format service charges as string
-  const formatServiceChargesAsString = (serviceCharges) => {
-    if (!serviceCharges || typeof serviceCharges !== "object") {
-      return "";
-    }
-
-    return Object.entries(serviceCharges)
-      .filter(([key, value]) => parseFloat(value) > 0)
-      .map(([key, value]) => `${key}: ${value}`)
-      .join(", ");
-  };
-
   const handleSubmit = async () => {
     if (!transportRequestId) {
       toast.error("Transport request ID is required");
@@ -335,71 +313,108 @@ export const TransporterDetails = ({
     );
 
     try {
-      // Format the payload to match the expected API structure
-      const vehiclesPayload = vehicleDataList.map((vehicle, index) => ({
-        transporter_name: vehicle.transporterName.trim(),
-        vehicle_number: vehicle.vehicleNumber.trim(),
-        driver_name: vehicle.driverName.trim(),
-        driver_contact: vehicle.driverContact.trim(),
-        license_number: vehicle.licenseNumber?.trim() || "",
-        license_expiry: vehicle.licenseExpiry || null,
-        additional_charges: parseFloat(vehicle.additionalCharges) || 0,
-        service_charges: formatServiceChargesAsString(vehicle.serviceCharges),
-        total_charge: parseFloat(vehicle.totalCharge) || 0,
-        // Container fields - only include if they have values
-        ...(vehicle.containerNo && {
-          container_no: vehicle.containerNo.trim(),
-        }),
-        ...(vehicle.line && { line: vehicle.line.trim() }),
-        ...(vehicle.sealNo && { seal_no: vehicle.sealNo.trim() }),
-        ...(vehicle.numberOfContainers && {
-          number_of_containers: parseInt(vehicle.numberOfContainers),
-        }),
-        ...(vehicle.seal1 && { seal1: vehicle.seal1.trim() }),
-        ...(vehicle.seal2 && { seal2: vehicle.seal2.trim() }),
-        ...(vehicle.containerTotalWeight && {
-          container_total_weight: parseFloat(vehicle.containerTotalWeight),
-        }),
-        ...(vehicle.cargoTotalWeight && {
-          cargo_total_weight: parseFloat(vehicle.cargoTotalWeight),
-        }),
-        ...(vehicle.containerType && {
-          container_type: vehicle.containerType.trim(),
-        }),
-        ...(vehicle.containerSize && {
-          container_size: vehicle.containerSize.trim(),
-        }),
-        vehicle_sequence: index + 1,
-      }));
-
-      console.log("Formatted vehicles payload:", vehiclesPayload);
-      console.log(
-        "Calling API endpoint:",
-        `/transport-requests/${transportRequestId}/vehicles/batch`
+      const vehiclesToCreate = vehicleDataList.filter(
+        (vehicle) => vehicle.id === null
+      );
+      const vehiclesToUpdate = vehicleDataList.filter(
+        (vehicle) => vehicle.id !== null
       );
 
-      // FIXED: Pass the vehicles array directly, not wrapped in another object
-      // Your createMultipleVehicles function will wrap it as { vehicles }
-      const response = await transporterAPI.createMultipleVehicles(
-        transportRequestId,
-        vehiclesPayload // Pass the array directly
-      );
+      let createdCount = 0;
+      let updatedCount = 0;
 
-      if (response.success) {
-        const updatedVehicleList = response.data.map((result, index) => ({
-          ...vehicleDataList[index],
-          id: result.id,
-          totalCharge:
-            result.total_charge || vehicleDataList[index].totalCharge,
+      // Handle creation of new vehicles
+      if (vehiclesToCreate.length > 0) {
+        const createPayload = vehiclesToCreate.map((vehicle, index) => ({
+          transporter_name: vehicle.transporterName.trim(),
+          vehicle_number: vehicle.vehicleNumber.trim(),
+          driver_name: vehicle.driverName.trim(),
+          driver_contact: vehicle.driverContact.trim(),
+          additional_charges: parseFloat(vehicle.additionalCharges) || 0,
+          service_charges: JSON.stringify(vehicle.serviceCharges || {}),
+          total_charge: parseFloat(vehicle.totalCharge) || 0,
+          container_no: vehicle.containerNo?.trim() || null,
+          line: vehicle.line?.trim() || null,
+          seal_no: vehicle.sealNo?.trim() || null,
+          number_of_containers: parseInt(vehicle.numberOfContainers) || null,
+          seal1: vehicle.seal1?.trim() || null,
+          seal2: vehicle.seal2?.trim() || null,
+          container_total_weight:
+            parseFloat(vehicle.containerTotalWeight) || null,
+          cargo_total_weight: parseFloat(vehicle.cargoTotalWeight) || null,
+          container_type: vehicle.containerType?.trim() || null,
+          container_size: vehicle.containerSize?.trim() || null,
+          vehicle_sequence: index + 1, // This index might need adjustment if not all vehicles are new
         }));
 
-        setVehicleDataList(updatedVehicleList);
-        sessionStorage.setItem(
-          "vehicleData",
-          JSON.stringify(updatedVehicleList)
+        const createResponse = await transporterAPI.createMultipleVehicles(
+          transportRequestId,
+          createPayload
         );
+
+        if (createResponse.success) {
+          createdCount = createResponse.data.length;
+          // Update IDs for newly created vehicles in vehicleDataList
+          setVehicleDataList((prevList) =>
+            prevList.map((vehicle) => {
+              const createdVehicle = createResponse.data.find(
+                (res) =>
+                  res.vehicle_number === vehicle.vehicleNumber.trim() &&
+                  res.driver_contact === vehicle.driverContact.trim()
+              );
+              return createdVehicle ? { ...vehicle, id: createdVehicle.id } : vehicle;
+            })
+          );
+        } else {
+          throw new Error(
+            createResponse.message || "Failed to create new vehicles"
+          );
+        }
+      }
+
+      // Handle updates for existing vehicles
+      if (vehiclesToUpdate.length > 0) {
+        for (const vehicle of vehiclesToUpdate) {
+          const updatePayload = {
+            transporter_name: vehicle.transporterName.trim(),
+            vehicle_number: vehicle.vehicleNumber.trim(),
+            driver_name: vehicle.driverName.trim(),
+            driver_contact: vehicle.driverContact.trim(),
+            additional_charges: parseFloat(vehicle.additionalCharges) || 0,
+            service_charges: JSON.stringify(vehicle.serviceCharges || {}),
+            total_charge: parseFloat(vehicle.totalCharge) || 0,
+            container_no: vehicle.containerNo?.trim() || null,
+            line: vehicle.line?.trim() || null,
+            seal_no: vehicle.sealNo?.trim() || null,
+            number_of_containers: parseInt(vehicle.numberOfContainers) || null,
+            seal1: vehicle.seal1?.trim() || null,
+            seal2: vehicle.seal2?.trim() || null,
+            container_total_weight:
+              parseFloat(vehicle.containerTotalWeight) || null,
+            cargo_total_weight: parseFloat(vehicle.cargoTotalWeight) || null,
+            container_type: vehicle.containerType?.trim() || null,
+            container_size: vehicle.containerSize?.trim() || null,
+            // vehicle_sequence is not typically updated for existing records
+          };
+          const updateResponse = await transporterAPI.updateVehicle(
+            vehicle.id,
+            updatePayload
+          );
+          if (updateResponse.success) {
+            updatedCount++;
+          } else {
+            console.error(
+              `Failed to update vehicle ${vehicle.vehicleNumber}:`,
+              updateResponse.message
+            );
+            // Decide whether to throw an error or continue with other updates
+          }
+        }
+      }
+
+      if (createdCount > 0 || updatedCount > 0) {
         toast.update(loadingId, {
-          render: `All ${response.data.length} vehicle(s) saved successfully!`,
+          render: `Saved ${createdCount} new vehicle(s) and updated ${updatedCount} existing vehicle(s) successfully!`,
           type: "success",
           isLoading: false,
           autoClose: 3000,
@@ -408,21 +423,17 @@ export const TransporterDetails = ({
         // Reload transporter details to ensure consistency
         await loadTransporterDetails();
       } else {
-        throw new Error(response.message || "Failed to save vehicles");
+        toast.update(loadingId, {
+          render: "No new vehicles to save and no existing vehicles to update.",
+          type: "info",
+          isLoading: false,
+          autoClose: 3000,
+        });
       }
     } catch (error) {
       console.error("Error saving vehicles:", error);
-      console.error("Full error object:", error);
-
-      let errorMessage = "Error saving vehicle details";
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
       toast.update(loadingId, {
-        render: errorMessage,
+        render: error.message || "Error saving vehicle details",
         type: "error",
         isLoading: false,
         autoClose: 5000,

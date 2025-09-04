@@ -365,6 +365,14 @@ export const transporterAPI = {
       throw error.response?.data || error.message;
     }
   },
+  updateVehicle: async (id, vehicleData) => {
+    try {
+      const response = await api.put(`/transporter/${id}`, vehicleData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
 };
 
 export const transportRequestAPI = {

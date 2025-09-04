@@ -59,7 +59,7 @@ export default function CustomerDashboard({
     consigner: "",
     vehicle_type: "",
     vehicle_size: "",
-    no_of_vehicles: "1",
+
     containers_20ft: 0,
     containers_40ft: 0,
     total_containers: 0,
@@ -680,7 +680,6 @@ export default function CustomerDashboard({
 
                 <TransporterDetails
                   transportRequestId={requestData.id}
-                  numberOfVehicles={requestData.no_of_vehicles}
                   transporterData={transporterData}
                   setTransporterData={setTransporterData}
                   isEditMode={Boolean(requestData.id)}

@@ -28,29 +28,20 @@ const ResponseModal = ({ isOpen, onClose, data }) => {
                   {data.containers.map((container, index) => (
                     <div key={index} className="border rounded-lg p-4">
                       <div className="font-medium text-gray-900">
-                        Container: {container.containerDetails.container_no}
+                        Container: {container.container_no}
                       </div>
                       <div className="text-sm text-gray-600 mt-2 space-y-1">
-                        <p>
-                          Vehicle: {container.containerDetails.vehicle_number}
-                        </p>
-                        <p>Line: {container.containerDetails.line}</p>
-                        <p>
-                          Size: {container.containerDetails.container_size}'
-                        </p>
-                        <p>Type: {container.containerDetails.container_type}</p>
+                        <p>Vehicle: {container.vehicle_number}</p>
+                        <p>Line: {container.line}</p>
+                        <p>Size: {container.container_size}'</p>
+                        <p>Type: {container.container_type}</p>
                       </div>
 
-                      {container.containerAlreadyUsed && (
+                      {container.message && (
                         <div className="mt-2 bg-yellow-50 border-l-4 border-yellow-400 p-3">
                           <div className="text-yellow-700 text-sm">
                             <span className="font-bold">⚠️ Warning: </span>
-                            Previously used in Request #
-                            {container.lastUsedIn.request_id}
-                            <br />
-                            <span className="text-xs">
-                              Total previous uses: {container.totalPreviousUses}
-                            </span>
+                            {container.message}
                           </div>
                         </div>
                       )}

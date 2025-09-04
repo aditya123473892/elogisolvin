@@ -294,58 +294,6 @@ export const userAPI = {
 };
 
 export const transporterAPI = {
-  // Create transporter details
-  createTransporter: async (requestId, transporterData) => {
-    try {
-      const response = await api.post(
-        `/transport-requests/${requestId}/transporter`,
-        transporterData
-      );
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-
-  // Update transporter details
-  updateTransporter: async (transporterId, transporterData) => {
-    try {
-      const response = await api.put(
-        `/transporter/${transporterId}`,
-        transporterData
-      );
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-
-  // Get transporter details by transport request ID
-  getTransporterByRequestId: async (requestId) => {
-    try {
-      const response = await api.get(
-        `/transport-requests/${requestId}/transporter`
-      );
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-
-  // Add multiple containers to a vehicle
-  addMultipleContainers: async (transporterId, containers) => {
-    try {
-      const response = await api.post(
-        `/transporter/${transporterId}/containers`,
-        { containers }
-      );
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-
-  // Get containers by transport request ID
   getContainersByRequestId: async (requestId) => {
     try {
       const response = await api.get(
@@ -356,8 +304,39 @@ export const transporterAPI = {
       throw error.response?.data || error.message;
     }
   },
+  getTransporterByRequestId: async (requestId) => {
+    try {
+      const response = await api.get(
+        `/transport-requests/${requestId}/transporter`
+      );
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  createMultipleVehicles: async (requestId, vehicles) => {
+    try {
+      const response = await api.post(
+        `/transport-requests/${requestId}/vehicles/batch`,
+        { vehicles }
+      );
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  updateMultipleVehicleContainers: async (requestId, vehicleContainers) => {
+    try {
+      const response = await api.post(
+        `/transport-requests/${requestId}/vehicles/containers/batch`,
+        { vehicleContainers }
+      );
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
 
-  // Get containers by vehicle number for a specific request
   getContainersByVehicleNumber: async (requestId, vehicleNumber) => {
     try {
       const response = await api.get(
@@ -368,40 +347,19 @@ export const transporterAPI = {
       throw error.response?.data || error.message;
     }
   },
-
-  // Add multiple containers to a vehicle
-  addContainersToVehicle: async (requestId, vehicleNumber, containers) => {
-    try {
-      const response = await api.post(
-        `/transport-requests/${requestId}/vehicle/${vehicleNumber}/containers`,
-        { containers }
-      );
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-
-  // Update container details for a specific container ID
-  updateContainerDetails: async (containerId, containerData) => {
-    try {
-      const response = await api.put(
-        `/transporter/${containerId}/container`,
-        containerData
-      );
-      return response.data;
-    } catch (error) {
-      console.error("API Error:", error.response || error);
-      throw error.response?.data || error.message;
-    }
-  },
-
-  // Delete container
   deleteContainer: async (containerId) => {
     try {
       const response = await api.delete(
         `/transporter/container/${containerId}`
       );
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  deleteTransporter: async (id) => {
+    try {
+      const response = await api.delete(`/transporter/${id}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

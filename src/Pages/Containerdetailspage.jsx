@@ -12,55 +12,58 @@ const ContainerDetailsPage = () => {
   const [containers, setContainers] = useState([]);
   const [transportRequestId, setTransportRequestId] = useState("");
   const [vehicleDataList, setVehicleDataList] = useState([]);
-  const [existingTransporterData, setExistingTransporterData] = useState([]); // Store existing transporter data
+  const [existingTransporterData, setExistingTransporterData] = useState([]);
   const [groupedContainers, setGroupedContainers] = useState({});
   const [expandedVehicle, setExpandedVehicle] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [modalData, setModalData] = useState(null);
 
+  // Create empty container with a unique client-side ID
+  const createEmptyContainer = () => ({
+    clientId: `temp-${Date.now()}-${Math.random()}`,
+    id: null,
+    containerNo: "",
+    numberOfContainers: "",
+    containerType: "",
+    containerSize: "",
+    line: "",
+    seal1: "",
+    seal2: "",
+    containerTotalWeight: "",
+    cargoTotalWeight: "",
+    remarks: "",
+    vehicleNumber: "",
+    isDirty: true, // New containers are always dirty
+  });
+
   // Initialize with data from sessionStorage
   useEffect(() => {
     const storedContainerData = sessionStorage.getItem("containerData");
     const storedRequestId = sessionStorage.getItem("transportRequestId");
+    const storedVehicleData = sessionStorage.getItem("vehicleData");
 
     if (storedRequestId) {
       setTransportRequestId(storedRequestId);
     }
 
+    if (storedVehicleData) {
+      try {
+        const parsedVehicleData = JSON.parse(storedVehicleData);
+        setVehicleDataList(parsedVehicleData);
+      } catch (error) {
+        console.error("Error parsing vehicle data:", error);
+        toast.error("Failed to load vehicle data");
+      }
+    }
+
     if (storedContainerData) {
       try {
         const parsedData = JSON.parse(storedContainerData);
-
-        // First set the vehicle list for dropdown options
-        const uniqueVehicles = [];
-        const vehicleMap = {};
-
-        parsedData.forEach((item) => {
-          if (item.vehicleNumber && !vehicleMap[item.vehicleNumber]) {
-            vehicleMap[item.vehicleNumber] = true;
-            uniqueVehicles.push({
-              vehicleNumber: item.vehicleNumber,
-              transporterName: item.transporterName || "",
-            });
-          }
-        });
-        setVehicleDataList(uniqueVehicles);
-
-        // Then map to container format
-        const containerData = parsedData.map((vehicle, index) => ({
-          id: vehicle.id || null,
-          containerNo: vehicle.containerNo || "",
-          numberOfContainers: vehicle.numberOfContainers?.toString() || "",
-          containerType: vehicle.containerType || "",
-          containerSize: vehicle.containerSize || "",
-          line: vehicle.line || "",
-          seal1: vehicle.seal1 || "",
-          seal2: vehicle.seal2 || "",
-          containerTotalWeight: vehicle.containerTotalWeight?.toString() || "",
-          cargoTotalWeight: vehicle.cargoTotalWeight?.toString() || "",
-          remarks: vehicle.remarks || "",
-          vehicleNumber: vehicle.vehicleNumber || "",
-          vehicleIndex: vehicle.vehicleIndex || index + 1,
+        const containerData = parsedData.map((container) => ({
+          ...container,
+          id: container.id || null,
+          clientId: container.clientId || `temp-${Date.now()}-${Math.random()}`,
+          isDirty: false, // Initialize as clean
         }));
 
         setContainers(
@@ -75,11 +78,8 @@ const ContainerDetailsPage = () => {
     }
   }, []);
 
-  // Group containers by vehicle number whenever containers change
+  // Group containers by vehicle number
   useEffect(() => {
-    console.log("Containers before grouping (count):", containers.length);
-    console.log("Containers before grouping (details):", containers);
-
     const grouped = {};
     containers.forEach((container) => {
       const vehicleNumber = container.vehicleNumber || "unassigned";
@@ -89,23 +89,12 @@ const ContainerDetailsPage = () => {
       grouped[vehicleNumber].push(container);
     });
 
-    console.log(
-      "Grouped containers (vehicle count):",
-      Object.keys(grouped).length
-    );
-    Object.entries(grouped).forEach(([vehicleNumber, vehicleContainers]) => {
-      console.log(
-        `Vehicle ${vehicleNumber} has ${vehicleContainers.length} containers`
-      );
-    });
-
-    console.log("Grouped containers:", grouped);
     setGroupedContainers(grouped);
-
     if (expandedVehicle === null && Object.keys(grouped).length > 0) {
       setExpandedVehicle(Object.keys(grouped)[0]);
     }
-  }, [containers]);
+  }, [containers, expandedVehicle]);
+
   // Fetch existing transporter data
   const fetchExistingTransporterData = async () => {
     if (!transportRequestId) return;
@@ -114,42 +103,93 @@ const ContainerDetailsPage = () => {
       const response = await transporterAPI.getTransporterByRequestId(
         transportRequestId
       );
-
       if (response.success) {
         const transporterData = Array.isArray(response.data)
           ? response.data
           : [response.data];
         setExistingTransporterData(transporterData);
-        console.log("Existing transporter data loaded:", transporterData);
+
+        // Update vehicleDataList if not already set
+        if (vehicleDataList.length === 0) {
+          const uniqueVehicles = transporterData.map((item) => ({
+            vehicleNumber: item.vehicle_number,
+            transporterName: item.transporter_name || "",
+            vehicleSequence: item.vehicle_sequence || 0,
+          }));
+          setVehicleDataList(uniqueVehicles);
+          sessionStorage.setItem("vehicleData", JSON.stringify(uniqueVehicles));
+        }
       }
     } catch (error) {
       console.error("Error fetching existing transporter data:", error);
-      // If no transporter data exists yet, that's okay - we'll handle it in the update
+      toast.error("Failed to load transporter data");
     }
   };
 
-  // Load existing transporter data when transportRequestId is available
+  // Load transporter data on mount
   useEffect(() => {
     if (transportRequestId) {
       fetchExistingTransporterData();
     }
   }, [transportRequestId]);
 
-  // New useEffect to automatically load containers for each vehicle when vehicleDataList changes
+  // Load containers for all vehicles
+  const loadVehicleContainers = async (vehicleNumber) => {
+    if (!transportRequestId || !vehicleNumber) return;
+
+    try {
+      const response = await transporterAPI.getContainersByVehicleNumber(
+        transportRequestId,
+        vehicleNumber
+      );
+
+      if (response.success && response.data && response.data.length > 0) {
+        const vehicleContainers = response.data.map((container) => ({
+          id: container.id,
+          clientId: `temp-${container.id}`,
+          containerNo: container.container_no || "",
+          numberOfContainers: container.number_of_containers?.toString() || "",
+          containerType: container.container_type || "",
+          containerSize: container.container_size || "",
+          line: container.line || "",
+          seal1: container.seal1 || container.seal_no || "",
+          seal2: container.seal2 || "",
+          containerTotalWeight:
+            container.container_total_weight?.toString() || "",
+          cargoTotalWeight: container.cargo_total_weight?.toString() || "",
+          remarks: container.remarks || "",
+          vehicleNumber: container.vehicle_number || "",
+          isDirty: false, // Initialize as clean
+        }));
+
+        setContainers((prev) => {
+          const filteredPrev = prev.filter(
+            (c) => c.vehicleNumber !== vehicleNumber
+          );
+          const newContainerList = [...filteredPrev, ...vehicleContainers];
+          sessionStorage.setItem("containerData", JSON.stringify(newContainerList));
+          return newContainerList;
+        });
+      }
+    } catch (error) {
+      console.error(
+        `Error loading containers for vehicle ${vehicleNumber}:`,
+        error
+      );
+      toast.error(`Failed to load containers for vehicle ${vehicleNumber}`);
+    }
+  };
+
   useEffect(() => {
     const loadAllVehicleContainers = async () => {
       if (!transportRequestId || vehicleDataList.length === 0) return;
 
       setIsLoading(true);
       try {
-        // Create an array of promises for loading containers for each vehicle
         const loadPromises = vehicleDataList.map((vehicle) =>
           loadVehicleContainers(vehicle.vehicleNumber)
         );
-
-        // Wait for all promises to resolve
         await Promise.all(loadPromises);
-
         toast.success("All vehicle containers loaded successfully");
       } catch (error) {
         console.error("Error loading vehicle containers:", error);
@@ -162,67 +202,33 @@ const ContainerDetailsPage = () => {
     loadAllVehicleContainers();
   }, [vehicleDataList, transportRequestId]);
 
+  // Navigation and session storage update
   const onBack = () => {
-    // Update sessionStorage with current container data before going back
-    const updatedVehicleData = containers.map((container) => ({
-      id: container.id,
-      containerNo: container.containerNo,
-      numberOfContainers: container.numberOfContainers,
-      containerType: container.containerType,
-      containerSize: container.containerSize,
-      line: container.line,
-      seal1: container.seal1,
-      seal2: container.seal2,
-      containerTotalWeight: container.containerTotalWeight,
-      cargoTotalWeight: container.cargoTotalWeight,
-      remarks: container.remarks,
-      vehicleNumber: container.vehicleNumber,
-      vehicleIndex: container.vehicleIndex,
-    }));
-
-    sessionStorage.setItem("containerData", JSON.stringify(updatedVehicleData));
-    navigate(-1); // Go back to previous page
+    sessionStorage.setItem("containerData", JSON.stringify(containers));
+    navigate(-1);
   };
 
-  // Create empty container object
-  const createEmptyContainer = () => ({
-    id: null,
-    containerNo: "",
-    numberOfContainers: "",
-    containerType: "",
-    containerSize: "",
-    line: "",
-    seal1: "",
-    seal2: "",
-    containerTotalWeight: "",
-    cargoTotalWeight: "",
-    remarks: "",
-    vehicleNumber: "",
-    vehicleIndex: containers.length + 1,
-  });
-
-  // Add new container
+  // Add container
   const addContainer = (vehicleNumber = "") => {
     const newContainer = createEmptyContainer();
-    newContainer.vehicleIndex = containers.length + 1;
     newContainer.vehicleNumber = vehicleNumber;
-    setContainers([...containers, newContainer]);
+    const updatedContainers = [...containers, newContainer];
+    setContainers(updatedContainers);
   };
 
-  // Remove container
-  const removeContainer = async (index) => {
+  // Remove container using its unique ID (clientId or id)
+  const removeContainer = async (identifier) => {
     if (containers.length <= 1) {
       toast.warning("At least one container entry is required");
       return;
     }
 
-    const containerToRemove = containers[index];
-    if (containerToRemove.id) {
+    const containerToRemove = containers.find(c => (c.id || c.clientId) === identifier);
+
+    if (containerToRemove && containerToRemove.id) {
       try {
         setIsLoading(true);
-        const response = await transporterAPI.deleteContainer(
-          containerToRemove.id
-        );
+        const response = await transporterAPI.deleteContainer(containerToRemove.id);
         if (!response.success) {
           throw new Error(response.message || "Failed to delete container");
         }
@@ -231,55 +237,39 @@ const ContainerDetailsPage = () => {
         toast.error(error.message || "Failed to delete container");
         setIsLoading(false);
         return;
-      } finally {
-        setIsLoading(false);
       }
     }
 
-    const updatedContainers = containers.filter((_, i) => i !== index);
-    const reindexedContainers = updatedContainers.map((container, i) => ({
-      ...container,
-      vehicleIndex: i + 1,
-    }));
-    setContainers(reindexedContainers);
-    sessionStorage.setItem(
-      "containerData",
-      JSON.stringify(reindexedContainers)
-    );
+    const updatedContainers = containers.filter(c => (c.id || c.clientId) !== identifier);
+    setContainers(updatedContainers);
     toast.success("Container deleted successfully");
+    setIsLoading(false);
   };
 
-  // Update container data
-  const updateContainerData = (index, field, value) => {
-    // For containerNo field, enforce the 4 letters + 7 digits format
+  // Update container data using its unique ID (clientId or id)
+  const updateContainerData = (identifier, field, value) => {
     if (field === "containerNo") {
-      // Convert to uppercase
       value = value.toUpperCase();
-
-      // If the value is longer than 11 characters, truncate it
       if (value.length > 11) {
         value = value.substring(0, 11);
       }
-
-      // For the first 4 characters, only allow letters
       if (value.length <= 4) {
         value = value.replace(/[^A-Z]/g, "");
-      }
-      // For characters after position 4, only allow digits
-      else {
+      } else {
         const letters = value.substring(0, 4).replace(/[^A-Z]/g, "");
         const digits = value.substring(4).replace(/[^0-9]/g, "");
         value = letters + digits;
       }
     }
 
-    const updatedContainers = containers.map((container, i) =>
-      i === index ? { ...container, [field]: value } : container
+    setContainers(containers.map((container) => {
+        const currentIdentifier = container.id || container.clientId;
+        if (currentIdentifier === identifier) {
+          return { ...container, [field]: value, isDirty: true };
+        }
+        return container;
+      })
     );
-    setContainers(updatedContainers);
-
-    // Update sessionStorage with the latest data
-    sessionStorage.setItem("containerData", JSON.stringify(updatedContainers));
   };
 
   // Toggle vehicle expansion
@@ -289,27 +279,18 @@ const ContainerDetailsPage = () => {
     );
   };
 
-  // Validate container data
-  // Helper: ISO 6346 check digit calculation
+  // Validate container data with ISO 6346 check digit
   const calculateCheckDigit = (containerNo) => {
-    // Take first 10 characters (4 letters + 6 digits)
     const chars = containerNo.slice(0, 10).split("");
     const letters = "0123456789A?BCDEFGHIJK?LMNOPQRSTU?VWXYZ";
-    // (where A=10, B=12, C=13 ... Z=38, skipping multiples of 11)
-
     let sum = 0;
     chars.forEach((char, i) => {
-      let value;
-      if (/[A-Z]/.test(char)) {
-        // Convert letters using ISO 6346 values
-        value = letters.indexOf(char);
-      } else {
-        value = parseInt(char, 10);
-      }
+      let value = /[A-Z]/.test(char)
+        ? letters.indexOf(char)
+        : parseInt(char, 10);
       sum += value * Math.pow(2, i);
     });
-
-    return (sum % 11) % 10; // modulo 11, if result is 10 -> 0
+    return (sum % 11) % 10;
   };
 
   const validateContainers = () => {
@@ -326,7 +307,6 @@ const ContainerDetailsPage = () => {
             }: Container number must be 4 letters followed by 7 digits (e.g., ABCD1234567)`
           );
         } else {
-          // Validate check digit
           const expectedCheckDigit = calculateCheckDigit(container.containerNo);
           const actualCheckDigit = parseInt(
             container.containerNo.slice(-1),
@@ -341,7 +321,6 @@ const ContainerDetailsPage = () => {
           }
         }
       }
-
       if (!container.vehicleNumber) {
         errors.push(`Container ${index + 1}: Vehicle number is required`);
       }
@@ -349,38 +328,21 @@ const ContainerDetailsPage = () => {
     return errors;
   };
 
-  // Get existing transporter data for a specific container/vehicle
-  const getExistingTransporterData = (vehicleNumber) => {
-    if (existingTransporterData.length === 0) {
-      return null;
+  // Check container history
+  const checkContainerHistory = async (containerNo, requestId) => {
+    try {
+      const response = await transporterAPI.checkContainerHistory(
+        containerNo,
+        requestId
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error checking container history:", error);
+      return { history: [], lastUsed: null, totalUses: 0 };
     }
-
-    // Find by vehicle number
-    let matchingData = existingTransporterData.find(
-      (data) => data.vehicle_number === vehicleNumber
-    );
-
-    // If not found and we have any transporter data, use the first one as fallback
-    if (!matchingData && existingTransporterData.length > 0) {
-      matchingData = existingTransporterData[0];
-    }
-
-    return matchingData;
   };
 
-  // New helper function to normalize response data into an array of containers
-  const normalizeContainerData = (data) => {
-    if (Array.isArray(data)) {
-      return data; // Already an array (from batch add)
-    } else if (data && data.containerDetails) {
-      return [data.containerDetails]; // Single container, wrap in array
-    } else if (data) {
-      return [data]; // Fallback: assume it's a single container object
-    }
-    return []; // Empty if undefined/null
-  };
-
-  // Updated handleSubmit
+  // Submit handler
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -397,365 +359,179 @@ const ContainerDetailsPage = () => {
             ))}
           </ul>
         </div>,
-        {
-          position: "top-center",
-          autoClose: 5000,
-        }
+        { position: "top-center", autoClose: 5000 }
       );
       return;
     }
 
     setIsSubmitting(true);
-
-    // Single loading toast
-    const loadingId = toast.loading("Updating container details...", {
+    const loadingId = toast.loading("Assigning containers to vehicles...", {
       position: "top-center",
     });
 
     try {
-      // Group containers by vehicle number for processing
-      const containersByVehicle = {};
-      containers.forEach((container) => {
-        if (!containersByVehicle[container.vehicleNumber]) {
-          containersByVehicle[container.vehicleNumber] = [];
-        }
-        containersByVehicle[container.vehicleNumber].push(container);
-      });
-
-      const updatePromises = [];
-
-      // Process each vehicle's containers
-      for (const [vehicleNumber, vehicleContainers] of Object.entries(
-        containersByVehicle
-      )) {
-        const existingData = getExistingTransporterData(vehicleNumber);
-
-        if (!existingData) {
-          toast.dismiss(loadingId);
-          toast.error(
-            `No transporter data found for vehicle ${vehicleNumber}`,
-            {
-              position: "top-center",
-            }
+      // Check container history
+      const containerHistoryPromises = containers
+        .filter((c) => c.containerNo.trim())
+        .map(async (container) => {
+          const history = await checkContainerHistory(
+            container.containerNo,
+            transportRequestId
           );
-          throw new Error(
-            `No transporter data found for vehicle ${vehicleNumber}`
-          );
-        }
+          return { containerNo: container.containerNo, history };
+        });
+      const containerHistories = await Promise.all(containerHistoryPromises);
+      const historyWarnings = containerHistories.filter(
+        (h) => h.history.totalUses > 0
+      );
 
-        // Separate existing containers (with ID) from new ones (without ID)
-        const existingContainers = vehicleContainers.filter(
-          (container) => container.id
+      if (historyWarnings.length > 0) {
+        toast.warning(
+          <div className="flex flex-col">
+            <span className="font-bold text-lg mb-1">
+              Container History Warnings
+            </span>
+            <ul className="list-disc pl-4">
+              {historyWarnings.map((warning, index) => (
+                <li key={index} className="text-sm">
+                  Container {warning.containerNo} was used in Request #
+                  {warning.history.lastUsed?.request_id || "unknown"} (
+                  {warning.history.totalUses} previous use(s))
+                </li>
+              ))}
+            </ul>
+          </div>,
+          { position: "top-center", autoClose: 8000 }
         );
-        const newContainers = vehicleContainers.filter(
-          (container) => !container.id
-        );
-
-        // Format containers for API
-        const formatContainer = (container) => {
-          if (!container.containerNo || !container.vehicleNumber) {
-            throw new Error(
-              `Invalid container data: missing containerNo or vehicleNumber`
-            );
-          }
-          return {
-            container_no: container.containerNo,
-            line: container.line || "",
-            seal_no: container.seal1 || "",
-            number_of_containers: parseInt(container.numberOfContainers) || 1,
-            seal1: container.seal1 || "",
-            seal2: container.seal2 || "",
-            container_total_weight:
-              parseFloat(container.containerTotalWeight) || 0,
-            cargo_total_weight: parseFloat(container.cargoTotalWeight) || 0,
-            container_type: container.containerType || "",
-            container_size: container.containerSize || "",
-            vehicle_number: container.vehicleNumber,
-            remarks: container.remarks || "",
-          };
-        };
-
-        // Update existing containers individually
-        for (const container of existingContainers) {
-          updatePromises.push(
-            transporterAPI
-              .updateContainerDetails(container.id, formatContainer(container))
-              .then((response) => {
-                console.log("Update response:", response); // Debug: Log API response
-                return {
-                  success: response.success,
-                  message: `Updated container ${container.containerNo}`,
-                  data: response.data, // Keep as-is, normalize later
-                };
-              })
-              .catch((error) => {
-                console.error("Error updating container:", error);
-                return {
-                  success: false,
-                  message: `Failed to update container ${
-                    container.containerNo
-                  }: ${error.message || "Unknown error"}`,
-                  error,
-                };
-              })
-          );
-        }
-
-        // Add new containers using addContainersToVehicle only if there are new containers
-        if (newContainers.length > 0) {
-          const formattedNewContainers = newContainers.map(formatContainer);
-          updatePromises.push(
-            transporterAPI
-              .addContainersToVehicle(
-                transportRequestId,
-                vehicleNumber,
-                formattedNewContainers
-              )
-              .then((response) => {
-                console.log("Add response:", response); // Debug: Log API response
-                return {
-                  success: response.success,
-                  message: `Added ${formattedNewContainers.length} new containers to vehicle ${vehicleNumber}`,
-                  data: response.data, // Keep as-is, normalize later
-                };
-              })
-              .catch((error) => {
-                console.error("Error adding containers:", error);
-                return {
-                  success: false,
-                  message: `Failed to add containers to vehicle ${vehicleNumber}: ${
-                    error.message || "Unknown error"
-                  }`,
-                  error,
-                };
-              })
-          );
-        }
       }
 
-      const results = await Promise.all(updatePromises);
+      // Prepare payload for batch container assignment
+      const containersToSubmit = containers.filter(c => c.isDirty || !c.id);
+      const vehicleContainers = vehicleDataList
+        .map((vehicle) => ({
+          vehicle_number: vehicle.vehicleNumber,
+          vehicle_sequence: vehicle.vehicleSequence || 0,
+          containers: containersToSubmit
+            .filter(c => c.vehicleNumber === vehicle.vehicleNumber)
+            .map((container) => ({
+              id: container.id,
+              clientId: container.clientId, // Pass clientId for matching response
+              container_no: container.containerNo.trim(),
+              line: container.line?.trim() || null,
+              seal_no: container.seal1?.trim() || null,
+              number_of_containers: parseInt(container.numberOfContainers) || 1,
+              seal1: container.seal1?.trim() || null,
+              seal2: container.seal2?.trim() || null,
+              container_total_weight:
+                parseFloat(container.containerTotalWeight) || null,
+              cargo_total_weight: parseFloat(container.cargoTotalWeight) || null,
+              container_type: container.containerType?.trim() || null,
+              container_size: container.containerSize?.trim() || null,
+              remarks: container.remarks?.trim() || null,
+            })),
+        }))
+        .filter((vc) => vc.containers.length > 0);
 
-      // Dismiss loading toast before showing results
-      toast.dismiss(loadingId);
+      if (vehicleContainers.length === 0) {
+        toast.dismiss(loadingId);
+        toast.info("No changes to submit.");
+        setIsSubmitting(false);
+        return;
+      }
 
-      // Show single success/error toast based on results
-      const successCount = results.filter((r) => r.success).length;
-      const failureCount = results.filter((r) => !r.success).length;
+      const response = await transporterAPI.updateMultipleVehicleContainers(
+        transportRequestId,
+        vehicleContainers
+      );
 
-      if (successCount > 0) {
-        // Update local containers state with new IDs if added
-        setContainers((prevContainers) =>
-          prevContainers.map((container) => {
-            // Find matching updated/added container in results
-            for (const result of results) {
-              const normalizedData = normalizeContainerData(result.data);
-              const matching = normalizedData.find(
-                (resContainer) =>
-                  resContainer.container_no === container.containerNo &&
-                  resContainer.vehicle_number === container.vehicleNumber
-              );
-              if (matching && matching.id) {
-                return { ...container, id: matching.id };
-              }
+      if (response.success) {
+        // Create a map of the containers that were successfully saved to the server
+        const savedContainersMap = new Map();
+        response.data.forEach((vc) => {
+          vc.containers.forEach((container) => {
+            // The backend should return the clientId for new containers
+            const key = container.id || container.clientId;
+            savedContainersMap.set(key, {
+              id: container.id,
+              clientId: container.clientId || `temp-${container.id}`,
+              containerNo: container.container_no || "",
+              numberOfContainers:
+                container.number_of_containers?.toString() || "",
+              containerType: container.container_type || "",
+              containerSize: container.container_size || "",
+              line: container.line || "",
+              seal1: container.seal1 || "",
+              seal2: container.seal2 || "",
+              containerTotalWeight:
+                container.container_total_weight?.toString() || "",
+              cargoTotalWeight:
+                container.cargo_total_weight?.toString() || "",
+              remarks: container.remarks || "",
+              vehicleNumber: vc.vehicle_number || "",
+              isDirty: false, // Mark as clean
+            });
+          });
+        });
+
+        // Merge the updated data back into the main containers state
+        setContainers((prevContainers) => {
+          const newContainers = prevContainers.map((pc) => {
+            const identifier = pc.id || pc.clientId;
+            if (savedContainersMap.has(identifier)) {
+              return { ...pc, ...savedContainersMap.get(identifier) };
             }
-            return container;
-          })
-        );
+            return pc;
+          });
+
+          sessionStorage.setItem("containerData", JSON.stringify(newContainers));
+          return newContainers;
+        });
+
+
+        toast.dismiss(loadingId);
+        if (response.data.some((vc) => vc.hasWarnings)) {
+          response.data.forEach((vc) => {
+            if (vc.hasWarnings) {
+              vc.containers.forEach((container) => {
+                if (container.message) {
+                  toast.warning(container.message, { position: "top-center" });
+                }
+              });
+            }
+          });
+        }
 
         toast.success(
-          <div className="flex flex-col space-y-2">
-            <div className="font-bold text-lg border-b pb-2">
-              Container Update Successful
-            </div>
-
-            {results
-              .filter((result) => result.success)
-              .map((result, resultIndex) => {
-                const normalizedContainers = normalizeContainerData(
-                  result.data
-                ); // Normalize to array
-                return normalizedContainers.map(
-                  (containerDetail, containerIndex) => (
-                    <div
-                      key={`${resultIndex}-${containerIndex}`}
-                      className="space-y-2"
-                    >
-                      <div className="font-medium">
-                        Container: {containerDetail.container_no || "N/A"}{" "}
-                        {/* Safe access */}
-                      </div>
-
-                      {/* Container Details */}
-                      <div className="text-sm space-y-1">
-                        <div>
-                          Vehicle: {containerDetail.vehicle_number || "N/A"}
-                        </div>
-                        <div>Line: {containerDetail.line || "N/A"}</div>
-                        <div>
-                          Size: {containerDetail.container_size || "N/A"}'
-                        </div>
-                        <div>
-                          Type: {containerDetail.container_type || "N/A"}
-                        </div>
-                      </div>
-
-                      {/* Warning Message if container was previously used */}
-                      {result.data.containerAlreadyUsed && ( // Note: This might need adjustment if in batch
-                        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-2 mt-2">
-                          <div className="text-yellow-700 text-sm">
-                            <span className="font-bold">⚠️ Warning: </span>
-                            Previously used in Request #
-                            {result.data.lastUsedIn.request_id}
-                            <br />
-                            <span className="text-xs">
-                              Total previous uses:{" "}
-                              {result.data.totalPreviousUses}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )
-                );
-              })}
-          </div>,
-          {
-            position: "top-center",
-            autoClose: 8000, // Increased duration to allow reading
-            style: {
-              backgroundColor: "#ffffff",
-              color: "#000000",
-              minWidth: "380px",
-              maxWidth: "500px",
-            },
-            className: "custom-toast",
-          }
-        );
-      }
-
-      if (failureCount > 0) {
-        toast.error(
           <div className="flex flex-col">
-            <span className="font-bold text-lg mb-1">Update Failed</span>
+            <span className="font-bold text-lg mb-1">Success</span>
             <p className="text-sm">
-              {failureCount} containers failed to update
+              Successfully updated{" "}
+              {response.data.reduce((sum, vc) => sum + vc.containers.length, 0)}{" "}
+              container(s)
             </p>
           </div>,
-          {
-            position: "top-center",
-            autoClose: 3000,
-          }
+          { position: "top-center", autoClose: 5000 }
         );
+
+        setShowModal(true);
+        setModalData({
+          containers: response.data.flatMap((vc) =>
+            vc.containers.map((c) => ({ ...c, vehicle_number: vc.vehicle_number }))
+          ),
+        });
+      } else {
+        throw new Error(response.message || "Failed to update containers");
       }
-
-      // Refresh data
-      await fetchExistingTransporterData();
     } catch (error) {
-      // Dismiss loading toast before showing error
       toast.dismiss(loadingId);
-
-      toast.error(
-        <div className="flex flex-col">
-          <span className="font-bold text-lg mb-1">Error</span>
-          <p className="text-sm">
-            {error.message || "Failed to update container details"}
-          </p>
-        </div>,
-        {
-          position: "top-center",
-          autoClose: 3000,
-        }
-      );
+      console.error("Error updating containers:", error);
+      toast.error(error.message || "Error updating containers", {
+        position: "top-center",
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  // Load containers for a specific vehicle
-  const loadVehicleContainers = async (vehicleNumber) => {
-    if (!transportRequestId || !vehicleNumber) {
-      toast.error("Transport request ID or vehicle number is missing");
-      return;
-    }
-
-    // Show loading indicator for this specific operation
-    const vehicleLoadingToastId = toast.info(
-      `Loading containers for vehicle ${vehicleNumber}...`,
-      { autoClose: false }
-    );
-
-    try {
-      const response = await transporterAPI.getContainersByVehicleNumber(
-        transportRequestId,
-        vehicleNumber
-      );
-
-      if (response.success && response.data && response.data.length > 0) {
-        // Map the API response to our container format
-        const vehicleContainers = response.data.map((container, index) => ({
-          id: container.id,
-          containerNo: container.container_no || "",
-          numberOfContainers: container.number_of_containers?.toString() || "",
-          containerType: container.container_type || "",
-          containerSize: container.container_size || "",
-          line: container.line || "",
-          seal1: container.seal1 || container.seal_no || "",
-          seal2: container.seal2 || "",
-          containerTotalWeight:
-            container.container_total_weight?.toString() || "",
-          cargoTotalWeight: container.cargo_total_weight?.toString() || "",
-          remarks: container.remarks || "",
-          vehicleNumber: container.vehicle_number || "",
-          vehicleIndex: Date.now() + index, // Use timestamp + index for unique index
-        }));
-
-        // Update containers state by replacing containers for this vehicle
-        setContainers((prevContainers) => {
-          // Remove existing containers for this vehicle
-          const otherContainers = prevContainers.filter(
-            (c) => c.vehicleNumber !== vehicleNumber
-          );
-          // Add the newly loaded containers
-          return [...otherContainers, ...vehicleContainers];
-        });
-
-        // Update sessionStorage
-        setTimeout(() => {
-          const updatedContainers = [
-            ...document.querySelectorAll("[data-vehicle]"),
-          ].map((el) => JSON.parse(el.dataset.container || "{}"));
-          sessionStorage.setItem(
-            "containerData",
-            JSON.stringify(updatedContainers)
-          );
-        }, 100);
-
-        toast.dismiss(vehicleLoadingToastId);
-
-        return vehicleContainers;
-      } else {
-        toast.dismiss(vehicleLoadingToastId);
-        toast.info(`No containers found for vehicle ${vehicleNumber}`);
-        return [];
-      }
-    } catch (error) {
-      console.error(
-        `Error loading containers for vehicle ${vehicleNumber}:`,
-        error
-      );
-      toast.dismiss(vehicleLoadingToastId);
-      toast.error(`Failed to load containers for vehicle ${vehicleNumber}`);
-      return [];
-    }
-  };
-  // Load existing container data
-
-  // Load data on component mount if transportRequestId exists
-  useEffect(() => {
-    if (transportRequestId) {
-      fetchExistingTransporterData();
-    }
-  }, [transportRequestId]);
 
   if (isLoading) {
     return (
@@ -913,7 +689,6 @@ const ContainerDetailsPage = () => {
                           </span>
                         </div>
                         <div className="flex items-center">
-                          {/* Add Container Button */}
                           <button
                             type="button"
                             onClick={(e) => {
@@ -937,7 +712,6 @@ const ContainerDetailsPage = () => {
                               />
                             </svg>
                           </button>
-                          {/* Expand/Collapse Icon */}
                           <svg
                             className={`h-5 w-5 text-gray-500 transform transition-transform ${
                               expandedVehicle === vehicleNumber
@@ -964,14 +738,10 @@ const ContainerDetailsPage = () => {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {vehicleContainers.map(
                               (container, containerIndex) => {
-                                // Use a stable key based on container.id or vehicleIndex
-                                const key =
-                                  container.id ||
-                                  `container-${container.vehicleIndex}-${vehicleNumber}-${containerIndex}`;
-
+                                const identifier = container.id || container.clientId;
                                 return (
                                   <div
-                                    key={key}
+                                    key={identifier}
                                     className="border border-gray-200 rounded-lg p-4 bg-gray-50"
                                     data-vehicle={vehicleNumber}
                                     data-container={JSON.stringify(container)}
@@ -983,15 +753,7 @@ const ContainerDetailsPage = () => {
                                       {containers.length > 1 && (
                                         <button
                                           type="button"
-                                          onClick={() =>
-                                            removeContainer(
-                                              containers.findIndex(
-                                                (c) =>
-                                                  c.vehicleIndex ===
-                                                  container.vehicleIndex
-                                              )
-                                            )
-                                          }
+                                          onClick={() => removeContainer(identifier)}
                                           className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                                           title="Remove Container"
                                         >
@@ -1013,9 +775,6 @@ const ContainerDetailsPage = () => {
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                      {/* Vehicle Number */}
-
-                                      {/* Container Number */}
                                       <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-0">
                                           Container Number *
@@ -1027,22 +786,14 @@ const ContainerDetailsPage = () => {
                                           value={container.containerNo}
                                           onChange={(e) =>
                                             updateContainerData(
-                                              containers.findIndex(
-                                                (c) =>
-                                                  c.vehicleIndex ===
-                                                  container.vehicleIndex
-                                              ),
+                                              identifier,
                                               "containerNo",
-                                              e.target.value.toUpperCase()
+                                              e.target.value
                                             )
                                           }
                                           placeholder="Container Number"
                                         />
                                       </div>
-
-                                      {/* Number of Containers */}
-
-                                      {/* Container Type */}
                                       <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                           Container Type
@@ -1052,11 +803,7 @@ const ContainerDetailsPage = () => {
                                           value={container.containerType}
                                           onChange={(e) =>
                                             updateContainerData(
-                                              containers.findIndex(
-                                                (c) =>
-                                                  c.vehicleIndex ===
-                                                  container.vehicleIndex
-                                              ),
+                                              identifier,
                                               "containerType",
                                               e.target.value
                                             )
@@ -1070,7 +817,6 @@ const ContainerDetailsPage = () => {
                                           <option value="REFER">REFER</option>
                                         </select>
                                       </div>
-                                      {/* Container Size */}
                                       <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                           Container Size
@@ -1081,11 +827,7 @@ const ContainerDetailsPage = () => {
                                           value={container.containerSize}
                                           onChange={(e) =>
                                             updateContainerData(
-                                              containers.findIndex(
-                                                (c) =>
-                                                  c.vehicleIndex ===
-                                                  container.vehicleIndex
-                                              ),
+                                              identifier,
                                               "containerSize",
                                               e.target.value
                                             )
@@ -1093,8 +835,6 @@ const ContainerDetailsPage = () => {
                                           placeholder="Container Size"
                                         />
                                       </div>
-
-                                      {/* Shipping Line */}
                                       <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                           Shipping Line
@@ -1105,11 +845,7 @@ const ContainerDetailsPage = () => {
                                           value={container.line}
                                           onChange={(e) =>
                                             updateContainerData(
-                                              containers.findIndex(
-                                                (c) =>
-                                                  c.vehicleIndex ===
-                                                  container.vehicleIndex
-                                              ),
+                                              identifier,
                                               "line",
                                               e.target.value
                                             )
@@ -1117,8 +853,6 @@ const ContainerDetailsPage = () => {
                                           placeholder="Shipping Line"
                                         />
                                       </div>
-
-                                      {/* Seal 1 */}
                                       <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                           Seal 1
@@ -1129,20 +863,14 @@ const ContainerDetailsPage = () => {
                                           value={container.seal1}
                                           onChange={(e) =>
                                             updateContainerData(
-                                              containers.findIndex(
-                                                (c) =>
-                                                  c.vehicleIndex ===
-                                                  container.vehicleIndex
-                                              ),
+                                              identifier,
                                               "seal1",
-                                              e.target.value.toUpperCase()
+                                              e.target.value
                                             )
                                           }
                                           placeholder="Seal 1"
                                         />
                                       </div>
-
-                                      {/* Seal 2 */}
                                       <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                           Seal 2
@@ -1153,20 +881,14 @@ const ContainerDetailsPage = () => {
                                           value={container.seal2}
                                           onChange={(e) =>
                                             updateContainerData(
-                                              containers.findIndex(
-                                                (c) =>
-                                                  c.vehicleIndex ===
-                                                  container.vehicleIndex
-                                              ),
+                                              identifier,
                                               "seal2",
-                                              e.target.value.toUpperCase()
+                                              e.target.value
                                             )
                                           }
                                           placeholder="Seal 2"
                                         />
                                       </div>
-
-                                      {/* Container Weight */}
                                       <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                           Tare Weight (kg)
@@ -1179,11 +901,7 @@ const ContainerDetailsPage = () => {
                                           value={container.containerTotalWeight}
                                           onChange={(e) =>
                                             updateContainerData(
-                                              containers.findIndex(
-                                                (c) =>
-                                                  c.vehicleIndex ===
-                                                  container.vehicleIndex
-                                              ),
+                                              identifier,
                                               "containerTotalWeight",
                                               e.target.value
                                             )
@@ -1191,9 +909,6 @@ const ContainerDetailsPage = () => {
                                           placeholder="Container Weight"
                                         />
                                       </div>
-
-                                      {/* Cargo Weight */}
-
                                       <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                           Cargo Weight (kg)
@@ -1206,11 +921,7 @@ const ContainerDetailsPage = () => {
                                           value={container.cargoTotalWeight}
                                           onChange={(e) =>
                                             updateContainerData(
-                                              containers.findIndex(
-                                                (c) =>
-                                                  c.vehicleIndex ===
-                                                  container.vehicleIndex
-                                              ),
+                                              identifier,
                                               "cargoTotalWeight",
                                               e.target.value
                                             )
@@ -1235,7 +946,8 @@ const ContainerDetailsPage = () => {
                                               container.containerTotalWeight
                                             ) || 0)
                                           }
-                                          placeholder="Cargo Weight"
+                                          disabled
+                                          placeholder="Gross Weight"
                                         />
                                       </div>
                                     </div>
@@ -1327,7 +1039,6 @@ const ContainerDetailsPage = () => {
             </form>
           </div>
         </div>
-        {/* Response Modal */}
         <ResponseModal
           isOpen={showModal}
           onClose={() => setShowModal(false)}

@@ -123,6 +123,16 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/admin/editrequests"
+            element={
+              <ProtectedRoute allowedRoles={["Admin"]}>
+                <DashboardLayout>
+                  <VendorController />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/admin/users"

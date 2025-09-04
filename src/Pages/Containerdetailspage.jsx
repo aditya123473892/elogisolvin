@@ -416,16 +416,23 @@ const ContainerDetailsPage = () => {
       }
 
       // Prepare payload for batch container assignment
-      const containersToSubmit = containers.filter((c) => c.isDirty || !c.id);
       const vehicleContainers = vehicleDataList
-        .map((vehicle) => ({
-          vehicle_number: vehicle.vehicleNumber,
-          vehicle_sequence: vehicle.vehicleSequence || 0,
-          containers: containersToSubmit
-            .filter((c) => c.vehicleNumber === vehicle.vehicleNumber)
-            .map((container) => ({
+        .map((vehicle) => {
+          const containersForVehicle = containers.filter(
+            (c) =>
+              c.vehicleNumber === vehicle.vehicleNumber && (c.isDirty || !c.id)
+          );
+
+          if (containersForVehicle.length === 0) {
+            return null;
+          }
+
+          return {
+            vehicle_number: vehicle.vehicleNumber,
+            vehicle_sequence: vehicle.vehicleSequence || 0,
+            containers: containersForVehicle.map((container) => ({
               id: container.id,
-              clientId: container.clientId, // Pass clientId for matching response
+              clientId: container.clientId,
               container_no: container.containerNo.trim(),
               line: container.line?.trim() || null,
               seal_no: container.seal1?.trim() || null,
@@ -440,8 +447,9 @@ const ContainerDetailsPage = () => {
               container_size: container.containerSize?.trim() || null,
               remarks: container.remarks?.trim() || null,
             })),
-        }))
-        .filter((vc) => vc.containers.length > 0);
+          };
+        })
+        .filter(Boolean);
 
       if (vehicleContainers.length === 0) {
         toast.dismiss(loadingId);

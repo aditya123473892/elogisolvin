@@ -1,3 +1,4 @@
+// src\Pages\Admindashboard.jsx
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import * as XLSX from "xlsx";
 import {
@@ -16,7 +17,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import api from "../utils/Api";
+import api from "../utils/Api"; // Assuming this is the same API utility used in ShipmentReports
 import { transporterAPI } from "../utils/Api";
 import { generateInvoice } from "../utils/pdfGenerator";
 import RequestModal from "../Components/Requestmodal";
@@ -96,6 +97,31 @@ const AdminDashboard = () => {
   // Cache for transporter details to avoid redundant API calls
   const transporterCache = useMemo(() => new Map(), []);
 
+  // Helper function to calculate total amount for a request (aligned with ShipmentReports)
+  const calculateRequestTotalAmount = useCallback((containerDetails) => {
+    if (!Array.isArray(containerDetails) || containerDetails.length === 0) {
+      return 0;
+    }
+    return containerDetails.reduce(
+      (total, detail) => total + parseFloat(detail.total_charge || 0),
+      0
+    );
+  }, []);
+
+  // Fetch transaction data for a request
+  const fetchTransactionData = useCallback(async (requestId) => {
+    try {
+      const response = await api.get(`/transactions/request/${requestId}`);
+      if (response.data.success && response.data.data.length > 0) {
+        return response.data.data[0];
+      }
+      return null;
+    } catch (error) {
+      console.log(`No transaction data for shipment ${requestId}`);
+      return null;
+    }
+  }, []);
+
   // Fetch and process reports
   const fetchReports = useCallback(async () => {
     try {
@@ -109,6 +135,7 @@ const AdminDashboard = () => {
           let vehicleCharges = 0;
           let vehicleCount = 0;
           let vehicleContainerMapping = {};
+          let containerNumbers = "";
 
           try {
             if (transporterCache.has(shipment.id)) {
@@ -121,7 +148,6 @@ const AdminDashboard = () => {
                   ? transporterResponse.data
                   : [transporterResponse.data];
                 // Group containers by vehicle_number
-                transporterDetails = details;
                 vehicleContainerMapping = details.reduce((acc, detail) => {
                   const vehicleNum = detail.vehicle_number || "Unknown";
                   if (!acc[vehicleNum]) {
@@ -153,25 +179,39 @@ const AdminDashboard = () => {
                   // Update driver info if not set or different (assuming consistent per vehicle)
                   if (
                     detail.driver_name &&
-                    !acc[vehicleNum].driver_name.includes(detail.driver_name)
+                    acc[vehicleNum].driver_name === "N/A"
                   ) {
                     acc[vehicleNum].driver_name = detail.driver_name || "N/A";
                   }
                   if (
                     detail.driver_phone &&
-                    !acc[vehicleNum].driver_phone.includes(detail.driver_phone)
+                    acc[vehicleNum].driver_phone === "N/A"
                   ) {
                     acc[vehicleNum].driver_phone = detail.driver_phone || "N/A";
                   }
                   return acc;
                 }, {});
+                containerNumbers = details
+                  .map((t) => t.container_no || "N/A")
+                  .filter(Boolean)
+                  .join(", ");
+                // Filter unique vehicles
+                const uniqueVehicles = [];
+                const vehicleMap = new Map();
+                details.forEach((detail) => {
+                  if (
+                    detail.vehicle_number &&
+                    !vehicleMap.has(detail.vehicle_number)
+                  ) {
+                    vehicleMap.set(detail.vehicle_number, detail);
+                    uniqueVehicles.push(detail);
+                  }
+                });
+                transporterDetails = uniqueVehicles;
                 transporterCache.set(shipment.id, transporterDetails);
               }
             }
-            vehicleCharges = transporterDetails.reduce(
-              (sum, detail) => sum + parseFloat(detail.total_charge || 0),
-              0
-            );
+            vehicleCharges = calculateRequestTotalAmount(transporterDetails);
             vehicleCount = [
               ...new Set(transporterDetails.map((d) => d.vehicle_number)),
             ].length;
@@ -204,10 +244,7 @@ const AdminDashboard = () => {
               shipment.created_at
             ).getFullYear()}-${String(shipment.id).padStart(4, "0")}`,
             shipa_no: shipment.SHIPA_NO || "N/A",
-            container_numbers: transporterDetails
-              .map((t) => t.container_no || "N/A")
-              .filter(Boolean)
-              .join(", "),
+            container_numbers: containerNumbers,
             service_charges: serviceCharges,
             vehicle_charges: vehicleCharges,
             profit_loss: profitLoss,
@@ -239,26 +276,7 @@ const AdminDashboard = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [transporterCache]);
-
-  // Helper function to fetch transaction data
-  const fetchTransactionData = async (requestId) => {
-    try {
-      const transactionResponse = await api.get(
-        `/transactions/request/${requestId}`
-      );
-      if (
-        transactionResponse.data.success &&
-        transactionResponse.data.data.length > 0
-      ) {
-        return transactionResponse.data.data[0];
-      }
-      return null;
-    } catch (error) {
-      console.log(`No transaction data for shipment ${requestId}`);
-      return null;
-    }
-  };
+  }, [transporterCache, calculateRequestTotalAmount, fetchTransactionData]);
 
   // Fetch transporter details for modal
   const fetchTransporterDetails = useCallback(

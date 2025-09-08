@@ -53,7 +53,7 @@ export const generateInvoice = (request, transporterDetails) => {
 
     // Add company logo
     try {
-      doc.addImage(logo, "PNG", 18, 15, 30, 20); // Add logo at (15, 15, 30, 25)
+      doc.addImage(logo, "PNG", 18, 15, 30, 20);
     } catch (error) {
       console.error("Error adding logo to PDF:", error);
       // Fallback to placeholder if logo fails
@@ -67,15 +67,16 @@ export const generateInvoice = (request, transporterDetails) => {
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.text("TAX INVOICE", pageWidth / 2, 70, { align: "center" });
-    doc.line(90, 72, pageWidth - 90, 72); // Underline for TAX INVOICE
+    doc.line(90, 72, pageWidth - 90, 72);
 
-    // Invoice details section
+    // Invoice details section - Bill to Consigner
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     doc.text("To:", 15, 85);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text(request.customer_name?.toUpperCase() || "CUSTOMER NAME", 15, 92);
+    // Use consigner from the request data
+    doc.text((request.consigner || "CONSIGNER NAME").toUpperCase(), 15, 92);
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
 
@@ -87,7 +88,7 @@ export const generateInvoice = (request, transporterDetails) => {
     doc.text("State Code: 07", 15, 117);
     doc.text("GSTIN: " + (request.gstin || "07AABCE1665A1Z1"), 15, 122);
     doc.text(
-      "A/C: " + (request.customer_name?.toUpperCase() || "CUSTOMER NAME"),
+      "A/C: " + (request.consigner || "CONSIGNER NAME").toUpperCase(),
       15,
       127
     );
@@ -124,7 +125,7 @@ export const generateInvoice = (request, transporterDetails) => {
       127
     );
 
-    // Location details - from API data
+    // Location details
     doc.text(
       `Empty Pickup: ${
         request.pickup_location ? request.pickup_location.split(",")[0] : "N/A"
@@ -155,28 +156,12 @@ export const generateInvoice = (request, transporterDetails) => {
     doc.text("SUMMARY OF CHARGES", pageWidth / 2, 155, { align: "center" });
     doc.line(80, 157, pageWidth - 80, 157);
 
-    // Calculate totals - FIXED: Use only requested_price as base amount
+    // Calculate totals - Simple pricing without GST breakdown
     const baseAmount = parseFloat(request.requested_price) || 0;
-    const cgstAmount = (baseAmount * 9) / 100;
-    const sgstAmount = (baseAmount * 9) / 100;
-    const igstAmount = (baseAmount * 18) / 100;
-    const totalGst = cgstAmount + sgstAmount + igstAmount;
-    const grandTotal = baseAmount + totalGst;
 
-    // Charges table with IGST column
+    // Simplified charges table without GST columns
     const chargesData = [
-      [
-        "Sr",
-        "Service",
-        "HSN Code",
-        "Qty",
-        "Rate",
-        "Amount",
-        "CGST\n9%",
-        "SGST\n9%",
-        "IGST\n18%",
-        "Total\nAmount",
-      ],
+      ["Sr", "Service", "HSN Code", "Qty", "Rate", "Total Amount"],
       [
         "1",
         "Transportation\nCharges",
@@ -184,10 +169,6 @@ export const generateInvoice = (request, transporterDetails) => {
         request.no_of_vehicles || 1,
         (baseAmount / (request.no_of_vehicles || 1)).toFixed(0),
         baseAmount.toFixed(0),
-        cgstAmount.toFixed(0),
-        sgstAmount.toFixed(0),
-        igstAmount.toFixed(0),
-        grandTotal.toFixed(0),
       ],
     ];
 
@@ -210,56 +191,12 @@ export const generateInvoice = (request, transporterDetails) => {
         overflow: "linebreak",
       },
       columnStyles: {
-        0: { cellWidth: 12 },
-        1: { cellWidth: 22 },
-        2: { cellWidth: 18 },
-        3: { cellWidth: 12 },
-        4: { cellWidth: 18 },
-        5: { cellWidth: 18 },
-        6: { cellWidth: 18 },
-        7: { cellWidth: 18 },
-        8: { cellWidth: 18 },
-        9: { cellWidth: 22 },
-      },
-      margin: { left: 10, right: 10 },
-    });
-
-    // Total charges row
-    const totalY = doc.lastAutoTable.finalY;
-    autoTable(doc, {
-      startY: totalY,
-      body: [
-        [
-          "",
-          "Total Charges",
-          "",
-          "",
-          "",
-          baseAmount.toFixed(0),
-          cgstAmount.toFixed(0),
-          sgstAmount.toFixed(0),
-          igstAmount.toFixed(0),
-          grandTotal.toFixed(0),
-        ],
-      ],
-      theme: "grid",
-      styles: {
-        fontSize: 7,
-        cellPadding: 3,
-        halign: "center",
-        fontStyle: "bold",
-      },
-      columnStyles: {
-        0: { cellWidth: 12 },
-        1: { cellWidth: 22 },
-        2: { cellWidth: 18 },
-        3: { cellWidth: 12 },
-        4: { cellWidth: 18 },
-        5: { cellWidth: 18 },
-        6: { cellWidth: 18 },
-        7: { cellWidth: 18 },
-        8: { cellWidth: 18 },
-        9: { cellWidth: 22 },
+        0: { cellWidth: 20 },
+        1: { cellWidth: 40 },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 20 },
+        4: { cellWidth: 30 },
+        5: { cellWidth: 35 },
       },
       margin: { left: 10, right: 10 },
     });
@@ -273,7 +210,7 @@ export const generateInvoice = (request, transporterDetails) => {
     });
     doc.line(70, vehicleY + 2, pageWidth - 70, vehicleY + 2);
 
-    // Vehicle and Container table - removed amount column
+    // Vehicle and Container table
     const vehicleData = transporterDetails.map((trans, index) => [
       index + 1,
       trans.vehicle_number || "N/A",
@@ -327,7 +264,7 @@ export const generateInvoice = (request, transporterDetails) => {
     const checkNewPage = (currentY, requiredSpace = 20) => {
       if (currentY + requiredSpace > pageHeight - 20) {
         doc.addPage();
-        return 20; // Reset to top margin
+        return 20;
       }
       return currentY;
     };
@@ -338,8 +275,7 @@ export const generateInvoice = (request, transporterDetails) => {
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    const amountInWords =
-      "Rupees " + numberToWords(grandTotal.toFixed(0)) + " Only";
+    const amountInWords = numberToWords(baseAmount.toFixed(0)) + " Only";
     const wrappedAmountText = doc.splitTextToSize(
       amountInWords,
       pageWidth - 30
@@ -355,100 +291,57 @@ export const generateInvoice = (request, transporterDetails) => {
       currentY += 5;
     }
 
-    // Invoice note
-    currentY += 5;
-    currentY = checkNewPage(currentY, 15);
-    doc.text("Invoice Note:", 15, currentY);
-    currentY += 5;
-    doc.text(
-      `SEGU${Math.floor(Math.random() * 1000000)}99 MH/2448/2024-25`,
-      15,
-      currentY
-    );
     currentY += 10;
 
+    // Notes section
+    currentY = checkNewPage(currentY, 15);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("Notes", 15, currentY);
+    currentY += 8;
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text("Thanks for your business.", 15, currentY);
+    currentY += 15;
+
     // Terms and conditions
-    currentY = checkNewPage(currentY, 50); // Reserve space for terms section
+    currentY = checkNewPage(currentY, 100);
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.text("Terms & Conditions", 15, currentY);
-    doc.line(15, currentY + 2, 75, currentY + 2); // Underline for terms
     currentY += 8;
 
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
 
     const terms = [
-      "1. Consignor/Consignee will be responsible for paying GST applicable from 1-July-2017.",
-      "2. Cheques/DD should be drawn in favour of ELOGISOL PRIVATE LIMITED payable at New Delhi.",
-      "3. Any discrepancies in the bill should be brought to the notice of the company within 2 weeks of bill date.",
-      "4. GST on 'Road Transportation' to be paid by Service Recipient under reverse charge i.e. @ 5%.",
-      "5. Interest @ 18% p.a. is applicable if invoice is not paid in 30 Days",
+      "Credit on Input Tax charged on Goods & Services used in supplying the services has not been taken. GST @ 5% will be deposited by Recipient of Road Transportation Services.",
+      "1) If Bill is not paid within agreed term, interest will be charged @24% p.a.",
+      "2) All disputes are subject to the Delhi jurisdiction only;",
+      "3) Payment must be made by A/c PAYEE Cheque/Draft/Online Payment in favour of : Transplus Logistics Private Limited",
+      "Total Freight Rs.",
+      `Nature of Service: Goods Transport Agency;        GST@ 5%        Rs`,
+      `SAC Code        996511;`,
+      "Place of Supply",
+      "4) Pls contact Ritik at 70651 92723 for any query related to this invoice.",
+      "5) IFS CODE :- ICIC0001134",
+      `6) ACCOUNT NUMBER :- 165105002435`,
     ];
 
     terms.forEach((term, index) => {
       const wrappedTerm = doc.splitTextToSize(term, pageWidth - 30);
-      const requiredSpace = wrappedTerm.length * 4 + 2; // Space needed for this term
+      const requiredSpace = wrappedTerm.length * 4 + 2;
 
       currentY = checkNewPage(currentY, requiredSpace);
 
       wrappedTerm.forEach((line, lineIndex) => {
         doc.text(line, 15, currentY);
-        currentY += 4; // Consistent line spacing
+        currentY += 4;
       });
-      currentY += 2; // Small gap between terms
+      currentY += 2;
     });
-
-    // IRN section
-    currentY += 5;
-    currentY = checkNewPage(currentY, 40);
-
-    doc.setFontSize(8);
-    doc.text("IRN No:", 15, currentY);
-    currentY += 5;
-    doc.text("N119856ds242ef80d1854nea4395270d9a8375ec2", 15, currentY);
-    currentY += 10;
-
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.text("RTGS Details", 15, currentY);
-    doc.line(15, currentY + 2, 60, currentY + 2); // Underline for RTGS
-    currentY += 7;
-
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    doc.text("TEAM ELOGISOL PVT. LIMITED", 15, currentY);
-    currentY += 10;
-
-    // Payment details table
-    currentY = checkNewPage(currentY, 60);
-
-    const paymentData = [
-      ["Payment Details", "For INR Payment"],
-      ["IFSC Code", "YESB0000048"],
-      ["Swift Code", "YESBINBB"],
-      ["Bank Name", "Yes Bank Ltd"],
-      ["Account No", "004890100015XXX"],
-    ];
-
-    autoTable(doc, {
-      startY: currentY,
-      body: paymentData,
-      theme: "grid",
-      styles: { fontSize: 8, cellPadding: 3 },
-      columnStyles: { 0: { cellWidth: 50 }, 1: { cellWidth: 70 } },
-      margin: { left: 15 },
-    });
-
-    // Company name and signatory
-    const sigY = doc.lastAutoTable.finalY + 10;
-    const finalSigY = checkNewPage(sigY, 40);
-
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.text("TEAM ELOGISOL PVT. LIMITED", pageWidth - 60, finalSigY);
-    doc.text("Authorized Signatory", pageWidth - 60, finalSigY + 35);
 
     return doc;
   } catch (error) {
@@ -457,31 +350,7 @@ export const generateInvoice = (request, transporterDetails) => {
   }
 };
 
-// Helper functions
-function parseServiceType(serviceType) {
-  if (!serviceType) return [];
-  try {
-    return typeof serviceType === "string"
-      ? JSON.parse(serviceType)
-      : serviceType;
-  } catch (e) {
-    console.error("Error parsing service type:", e);
-    return [serviceType];
-  }
-}
-
-function parseServicePrices(servicePrices) {
-  if (!servicePrices) return {};
-  try {
-    return typeof servicePrices === "string"
-      ? JSON.parse(servicePrices)
-      : servicePrices;
-  } catch (e) {
-    console.error("Error parsing service prices:", e);
-    return {};
-  }
-}
-
+// Helper function to convert numbers to words
 function numberToWords(num) {
   const units = [
     "",
@@ -505,6 +374,7 @@ function numberToWords(num) {
     "Eighteen",
     "Nineteen",
   ];
+
   const tens = [
     "",
     "",
@@ -521,7 +391,6 @@ function numberToWords(num) {
   const numStr = num.toString();
   const parts = numStr.split(".");
   const wholePart = parseInt(parts[0]);
-  const decimalPart = parts.length > 1 ? parseInt(parts[1]) : 0;
 
   function convertLessThanOneThousand(n) {
     if (n === 0) return "";
@@ -564,9 +433,5 @@ function numberToWords(num) {
     }
   }
 
-  if (decimalPart > 0) {
-    result += " Point " + convertLessThanOneThousand(decimalPart);
-  }
-
-  return result.trim();
+  return "Indian Rupee " + result.trim();
 }

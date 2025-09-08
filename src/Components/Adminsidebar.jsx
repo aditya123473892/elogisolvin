@@ -53,6 +53,13 @@ export function AdminSidebar({
       path: "vendor-controller",
       description: "Vendor Management",
     },
+
+    {
+      name: "Edit Requests",
+      icon: Activity,
+      path: "editrequest",
+      description: "Edit Requests",
+    },
     // {
     //   name: "Fleet Equipment",
     //   icon: Activity, // Add this line to fix the error

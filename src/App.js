@@ -28,6 +28,7 @@ import ASNManagement from "./Pages/ASNupload";
 import TransportReports from "./Pages/Reports";
 import VendorController from "./Pages/Vendorcontroller";
 import AllReportsPage from "./Pages/AllAdminreports";
+import AdminManageRequest from "./Pages/AdminManageRequest";
 
 const DashboardLayout = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
@@ -140,6 +141,16 @@ function App() {
               <ProtectedRoute allowedRoles={["Admin"]}>
                 <DashboardLayout>
                   <AdminUsers />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/editrequest"
+            element={
+              <ProtectedRoute allowedRoles={["Admin"]}>
+                <DashboardLayout>
+                  <AdminManageRequest />
                 </DashboardLayout>
               </ProtectedRoute>
             }

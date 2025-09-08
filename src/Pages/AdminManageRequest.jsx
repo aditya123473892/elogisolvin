@@ -83,7 +83,7 @@ const ProfitLossIndicator = ({ profitLoss }) => {
   return <div className="w-4 h-4 bg-gray-300 rounded-full"></div>;
 };
 
-const AdminDashboard = ({
+const AdminManageRequest = ({
   collapsed,
   toggleSidebar,
   mobileMenuOpen,
@@ -493,7 +493,6 @@ const AdminDashboard = ({
       vendorName: "",
       vendorContact: "",
     });
-    toast.info("Create a new trip");
   };
 
   // Handle edit or create submit
@@ -1355,4 +1354,4 @@ const AdminDashboard = ({
   );
 };
 
-export default AdminDashboard;
+export default AdminManageRequest;

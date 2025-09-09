@@ -53,7 +53,7 @@ const VehicleDetailsSection = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label htmlFor="shipa_no" className="block text-sm font-medium mb-2">
-            SHIPA NO
+            SHIPA NO/DOC NO.
           </label>
           <CustomerSearchInput
             value={safeRequestData.SHIPA_NO || ""}

@@ -48,24 +48,24 @@ export function CustomerSidebar({
       path: "vendors",
       description: "Manage Vendors",
     },
-    // {
-    //   name: "Driver Management",
-    //   icon: Truck,
-    //   path: "drivers",
-    //   description: "Drivers Details",
-    // },
-    // {
-    //   name: "Fleet Equipment",
-    //   icon: FileText,
-    //   path: "equipments",
-    //   description: "Analytics & History",
-    // },
-    // {
-    //   name: "ASN",
-    //   icon: MessageSquare,
-    //   path: "ASN",
-    //   description: "Manage ASN",
-    // },
+    {
+      name: "Driver Management",
+      icon: Truck,
+      path: "drivers",
+      description: "Drivers Details",
+    },
+    {
+      name: "Fleet Equipment",
+      icon: FileText,
+      path: "equipments",
+      description: "Analytics & History",
+    },
+    {
+      name: "ASN",
+      icon: MessageSquare,
+      path: "ASN",
+      description: "Manage ASN",
+    },
     {
       name: "Reports",
       icon: Settings,

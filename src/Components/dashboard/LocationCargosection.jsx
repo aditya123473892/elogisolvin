@@ -147,23 +147,38 @@ const LocationsCargoSection = ({
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">Cargo Type</label>
-            <select
-              className="w-full border rounded-md p-2"
-              value={safeRequestData.cargo_type}
-              onChange={(e) =>
-                setRequestData({
-                  ...safeRequestData,
-                  cargo_type: e.target.value,
-                })
-              }
-              required
-            >
-              <option value="">Select Type</option>
-              <option value="General">General</option>
-              <option value="Hazardous">Hazardous</option>
-              <option value="Perishable">Perishable</option>
-              <option value="Fragile">Fragile</option>
-            </select>
+            {shouldLockCommodityToVIN(safeRequestData.vehicle_type) ? (
+              <div>
+                <select
+                  className="w-full border rounded-md p-2 bg-gray-100"
+                  value="General"
+                  disabled
+                >
+                  <option value="General">General</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Cargo type is automatically set to General for this trip type
+                </p>
+              </div>
+            ) : (
+              <select
+                className="w-full border rounded-md p-2"
+                value={safeRequestData.cargo_type}
+                onChange={(e) =>
+                  setRequestData({
+                    ...safeRequestData,
+                    cargo_type: e.target.value,
+                  })
+                }
+                required
+              >
+                <option value="">Select Type</option>
+                <option value="General">General</option>
+                <option value="Hazardous">Hazardous</option>
+                <option value="Perishable">Perishable</option>
+                <option value="Fragile">Fragile</option>
+              </select>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">

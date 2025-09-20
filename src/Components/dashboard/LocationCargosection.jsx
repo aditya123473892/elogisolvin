@@ -2,14 +2,20 @@ import React from "react";
 import LocationSearchInput from "./LocationSearchInput";
 import CustomerSearchInput from "../dashboard/CustomerSearchinput";
 
-const LocationsCargoSection = ({ 
-  safeRequestData, 
-  setRequestData, 
-  useOpenStreetMap, 
-  setUseOpenStreetMap 
+const LocationsCargoSection = ({
+  safeRequestData,
+  setRequestData,
+  useOpenStreetMap,
+  setUseOpenStreetMap,
 }) => {
   const shouldForceLoadedStatus = (vehicleType) => {
-    const alwaysLoadedTypes = ["Tr-4", "Tr-5", "Tr-8", "Tr-9", "Single Car Carrier"];
+    const alwaysLoadedTypes = [
+      "Tr-4",
+      "Tr-5",
+      "Tr-8",
+      "Tr-9",
+      "Single Car Carrier",
+    ];
     return alwaysLoadedTypes.includes(vehicleType);
   };
 
@@ -19,8 +25,10 @@ const LocationsCargoSection = ({
     return vinTypes.includes(vehicleType);
   };
 
-  const currentVehicleStatus = shouldForceLoadedStatus(safeRequestData.vehicle_type) 
-    ? "Loaded" 
+  const currentVehicleStatus = shouldForceLoadedStatus(
+    safeRequestData.vehicle_type
+  )
+    ? "Loaded"
     : safeRequestData.vehicle_status;
 
   const handleCheckboxChange = (e) => {
@@ -32,9 +40,7 @@ const LocationsCargoSection = ({
       {/* Consignee and Consigner Details */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className="block text-sm font-medium mb-2">
-            Consignee
-          </label>
+          <label className="block text-sm font-medium mb-2">Consignee</label>
           <CustomerSearchInput
             value={safeRequestData.consignee}
             onChange={(value) =>
@@ -44,9 +50,7 @@ const LocationsCargoSection = ({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-2">
-            Consigner
-          </label>
+          <label className="block text-sm font-medium mb-2">Consigner</label>
           <CustomerSearchInput
             value={safeRequestData.consigner}
             onChange={(value) =>
@@ -88,24 +92,7 @@ const LocationsCargoSection = ({
             useOpenStreetMap={useOpenStreetMap}
           />
         </div>
-        {currentVehicleStatus === "Loaded" && (
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Stuffing Location
-            </label>
-            <LocationSearchInput
-              value={safeRequestData.stuffing_location}
-              onChange={(value) =>
-                setRequestData((prev) => ({
-                  ...prev,
-                  stuffing_location: value,
-                }))
-              }
-              placeholder="Enter stuffing location"
-              useOpenStreetMap={useOpenStreetMap}
-            />
-          </div>
-        )}
+
         <div>
           <label className="block text-sm font-medium mb-2">
             Delivery Location
@@ -159,9 +146,7 @@ const LocationsCargoSection = ({
             )}
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">
-              Cargo Type
-            </label>
+            <label className="block text-sm font-medium mb-2">Cargo Type</label>
             <select
               className="w-full border rounded-md p-2"
               value={safeRequestData.cargo_type}

@@ -12,7 +12,7 @@ const VehicleChargesTable = ({
       return [
         {
           vehicleIndex: 1,
-          vehicleNumber: "",
+          vehicleNumber: "", 
           serviceCharges: {},
           additionalCharges: 0,
           totalCharge: 0,

@@ -78,94 +78,14 @@ export const clearAuthData = () => {
 };
 
 export const authAPI = {
-  // UPDATED: Two-step OTP authentication system
-
-  // Step 1: Send OTP after password verification
-  requestOtp: async (credentials) => {
+  login: async (credentials) => {
     try {
-      const response = await api.post("/auth/request-otp", credentials);
+      const response = await api.post("/auth/login", credentials);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
     }
   },
-
-  // Step 2: Verify OTP and complete login
-  verifyOtpAndLogin: async (otpData) => {
-    try {
-      console.log("Sending OTP verification request:", {
-        url: `${API_BASE_URL}/auth/verify-otp`,
-        data: otpData,
-      });
-
-      const response = await api.post("/auth/verify-otp", otpData);
-      console.log("OTP verification response:", response.data);
-
-      // Validate response format
-      if (!response.data) {
-        console.error("Empty response data");
-        throw new Error("Invalid server response");
-      }
-
-      // Check for token and user data
-      if (!response.data.token) {
-        console.error("No token in response:", response.data);
-        throw new Error("Authentication token not received");
-      }
-
-      if (!response.data.user) {
-        console.error("No user data in response:", response.data);
-        throw new Error("User information not received");
-      }
-
-      // Set the token in the API headers immediately
-      setAuthToken(response.data.token);
-
-      // Store user data and token in localStorage
-      localStorage.setItem("user", JSON.stringify(response.data.user));
-      localStorage.setItem("token", response.data.token);
-
-      // Add a small delay to ensure localStorage is updated
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      // Verify the token was properly set
-      const storedToken = localStorage.getItem("token");
-      console.log("Stored token verification:", {
-        tokenReceived: response.data.token,
-        tokenStored: storedToken,
-        match: storedToken === response.data.token,
-      });
-
-      return response.data;
-    } catch (error) {
-      console.error("OTP verification error:", error);
-      console.error("Error details:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-      });
-
-      // Enhanced error reporting
-      const errorMessage =
-        error.response?.data?.message ||
-        error.response?.data?.error ||
-        error.message ||
-        "Unknown error during OTP verification";
-
-      console.error("Formatted error message:", errorMessage);
-      throw errorMessage;
-    }
-  },
-
-  // Keep the old login method commented for backward compatibility if needed
-  // login: async (credentials) => {
-  //   try {
-  //     const response = await api.post("/auth/login", credentials);
-  //     return response.data;
-  //   } catch (error) {
-  //     throw error.response?.data || error.message;
-  //   }
-  // },
 
   signup: async (userData) => {
     try {
